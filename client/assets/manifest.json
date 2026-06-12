@@ -1,0 +1,443 @@
+{
+ "tileW": 64,
+ "tileH": 32,
+ "images": {
+  "terrain": "terrain.png",
+  "building": "building.png",
+  "mongbat": "creatures/mongbat.png",
+  "skeleton": "creatures/skeleton.png",
+  "orc": "creatures/orc.png",
+  "ettin": "creatures/ettin.png",
+  "dragon": "creatures/dragon.png",
+  "player": "creatures/player.png",
+  "vendor": "creatures/vendor.png"
+ },
+ "frames": {
+  "grass.0": {
+   "img": "terrain",
+   "x": 0,
+   "y": 32,
+   "w": 64,
+   "h": 32,
+   "ax": 0,
+   "ay": 0
+  },
+  "grass.1": {
+   "img": "terrain",
+   "x": 64,
+   "y": 32,
+   "w": 64,
+   "h": 32,
+   "ax": 0,
+   "ay": 0
+  },
+  "grass.2": {
+   "img": "terrain",
+   "x": 128,
+   "y": 32,
+   "w": 64,
+   "h": 32,
+   "ax": 0,
+   "ay": 0
+  },
+  "grass.3": {
+   "img": "terrain",
+   "x": 192,
+   "y": 32,
+   "w": 64,
+   "h": 32,
+   "ax": 0,
+   "ay": 0
+  },
+  "grass.4": {
+   "img": "terrain",
+   "x": 256,
+   "y": 32,
+   "w": 64,
+   "h": 32,
+   "ax": 0,
+   "ay": 0
+  },
+  "grass.5": {
+   "img": "terrain",
+   "x": 320,
+   "y": 32,
+   "w": 64,
+   "h": 32,
+   "ax": 0,
+   "ay": 0
+  },
+  "grass.6": {
+   "img": "terrain",
+   "x": 384,
+   "y": 32,
+   "w": 64,
+   "h": 32,
+   "ax": 0,
+   "ay": 0
+  },
+  "water.0": {
+   "img": "terrain",
+   "x": 256,
+   "y": 544,
+   "w": 64,
+   "h": 32,
+   "ax": 0,
+   "ay": 0
+  },
+  "water.1": {
+   "img": "terrain",
+   "x": 320,
+   "y": 544,
+   "w": 64,
+   "h": 32,
+   "ax": 0,
+   "ay": 0
+  },
+  "floor.0": {
+   "img": "building",
+   "x": 128,
+   "y": 32,
+   "w": 64,
+   "h": 32,
+   "ax": 0,
+   "ay": 0
+  },
+  "floor.1": {
+   "img": "building",
+   "x": 192,
+   "y": 32,
+   "w": 64,
+   "h": 32,
+   "ax": 0,
+   "ay": 0
+  },
+  "floor.2": {
+   "img": "building",
+   "x": 256,
+   "y": 32,
+   "w": 64,
+   "h": 32,
+   "ax": 0,
+   "ay": 0
+  },
+  "planks": {
+   "img": "building",
+   "x": 0,
+   "y": 352,
+   "w": 64,
+   "h": 32,
+   "ax": 0,
+   "ay": 0
+  },
+  "rocks.0": {
+   "img": "terrain",
+   "x": 5,
+   "y": 330,
+   "w": 53,
+   "h": 49,
+   "ax": 26,
+   "ay": 33
+  },
+  "rocks.1": {
+   "img": "terrain",
+   "x": 69,
+   "y": 327,
+   "w": 53,
+   "h": 52,
+   "ax": 26,
+   "ay": 36
+  },
+  "rocks.2": {
+   "img": "terrain",
+   "x": 130,
+   "y": 327,
+   "w": 55,
+   "h": 55,
+   "ax": 27,
+   "ay": 39
+  },
+  "tallgrass.0": {
+   "img": "terrain",
+   "x": 7,
+   "y": 722,
+   "w": 52,
+   "h": 38,
+   "ax": 26,
+   "ay": 22
+  },
+  "tallgrass.1": {
+   "img": "terrain",
+   "x": 64,
+   "y": 719,
+   "w": 64,
+   "h": 49,
+   "ax": 32,
+   "ay": 33
+  },
+  "bush.0": {
+   "img": "terrain",
+   "x": 28,
+   "y": 796,
+   "w": 33,
+   "h": 27,
+   "ax": 16,
+   "ay": 11
+  },
+  "bush.1": {
+   "img": "terrain",
+   "x": 70,
+   "y": 784,
+   "w": 56,
+   "h": 43,
+   "ax": 28,
+   "ay": 27
+  },
+  "tree.fir0": {
+   "img": "terrain",
+   "x": 135,
+   "y": 787,
+   "w": 46,
+   "h": 95,
+   "ax": 23,
+   "ay": 79
+  },
+  "tree.fir1": {
+   "img": "terrain",
+   "x": 201,
+   "y": 811,
+   "w": 43,
+   "h": 71,
+   "ax": 21,
+   "ay": 55
+  },
+  "tree.pine0": {
+   "img": "terrain",
+   "x": 2,
+   "y": 896,
+   "w": 61,
+   "h": 116,
+   "ax": 30,
+   "ay": 100
+  },
+  "tree.pine1": {
+   "img": "terrain",
+   "x": 70,
+   "y": 896,
+   "w": 57,
+   "h": 116,
+   "ax": 28,
+   "ay": 100
+  },
+  "tree.pine2": {
+   "img": "terrain",
+   "x": 135,
+   "y": 904,
+   "w": 48,
+   "h": 106,
+   "ax": 24,
+   "ay": 90
+  },
+  "tree.pine3": {
+   "img": "terrain",
+   "x": 205,
+   "y": 907,
+   "w": 37,
+   "h": 103,
+   "ax": 18,
+   "ay": 87
+  },
+  "tree.dead": {
+   "img": "terrain",
+   "x": 280,
+   "y": 907,
+   "w": 142,
+   "h": 113,
+   "ax": 71,
+   "ay": 97
+  },
+  "tree.oak": {
+   "img": "terrain",
+   "x": 463,
+   "y": 872,
+   "w": 172,
+   "h": 145,
+   "ax": 86,
+   "ay": 129
+  },
+  "wall.0": {
+   "img": "building",
+   "x": 0,
+   "y": 0,
+   "w": 64,
+   "h": 64,
+   "ax": 32,
+   "ay": 48
+  },
+  "wall.1": {
+   "img": "building",
+   "x": 64,
+   "y": 0,
+   "w": 64,
+   "h": 64,
+   "ax": 32,
+   "ay": 48
+  }
+ },
+ "tiles": {
+  "0": {
+   "ground": [
+    "water.0",
+    "water.1"
+   ],
+   "effect": "water"
+  },
+  "1": {
+   "ground": [
+    "grass.0",
+    "grass.1",
+    "grass.2",
+    "grass.3",
+    "grass.4",
+    "grass.5",
+    "grass.6"
+   ],
+   "decor": {
+    "chance": 0.07,
+    "objects": [
+     "tallgrass.0",
+     "tallgrass.1",
+     "bush.0",
+     "bush.1"
+    ]
+   }
+  },
+  "2": {
+   "ground": [
+    "grass.1",
+    "grass.3",
+    "grass.5"
+   ],
+   "object": [
+    "tree.oak",
+    "tree.oak",
+    "tree.pine0",
+    "tree.pine1",
+    "tree.pine2",
+    "tree.fir0",
+    "tree.fir1",
+    "tree.dead"
+   ]
+  },
+  "3": {
+   "groundProc": "dirt",
+   "object": [
+    "rocks.0",
+    "rocks.1",
+    "rocks.2"
+   ]
+  },
+  "4": {
+   "groundProc": "dirt"
+  },
+  "5": {
+   "ground": [
+    "floor.0",
+    "floor.1",
+    "floor.2"
+   ]
+  },
+  "6": {
+   "ground": [
+    "floor.0"
+   ],
+   "object": [
+    "wall.0",
+    "wall.0",
+    "wall.0",
+    "wall.1"
+   ]
+  },
+  "7": {
+   "groundProc": "sand"
+  },
+  "8": {
+   "ground": [
+    "floor.1"
+   ],
+   "effect": "shrine"
+  }
+ },
+ "creatures": {
+  "mongbat": {
+   "img": "mongbat",
+   "cellW": 123,
+   "cellH": 88,
+   "ax": 56,
+   "ay": 69,
+   "frames": 4,
+   "dirs": 8,
+   "frameMs": 200
+  },
+  "skeleton": {
+   "img": "skeleton",
+   "cellW": 324,
+   "cellH": 223,
+   "ax": 153,
+   "ay": 166,
+   "frames": 4,
+   "dirs": 8,
+   "frameMs": 200
+  },
+  "orc": {
+   "img": "orc",
+   "cellW": 110,
+   "cellH": 99,
+   "ax": 50,
+   "ay": 86,
+   "frames": 4,
+   "dirs": 8,
+   "frameMs": 200
+  },
+  "ettin": {
+   "img": "ettin",
+   "cellW": 147,
+   "cellH": 147,
+   "ax": 73,
+   "ay": 114,
+   "frames": 4,
+   "dirs": 8,
+   "frameMs": 240
+  },
+  "dragon": {
+   "img": "dragon",
+   "cellW": 146,
+   "cellH": 90,
+   "ax": 73,
+   "ay": 70,
+   "frames": 4,
+   "dirs": 1,
+   "frameMs": 280
+  },
+  "player": {
+   "img": "player",
+   "cellW": 109,
+   "cellH": 145,
+   "ax": 39,
+   "ay": 139,
+   "frames": 4,
+   "dirs": 8,
+   "frameMs": 260
+  },
+  "vendor": {
+   "img": "vendor",
+   "cellW": 109,
+   "cellH": 150,
+   "ax": 39,
+   "ay": 144,
+   "frames": 4,
+   "dirs": 8,
+   "frameMs": 320
+  }
+ }
+}

@@ -2,8 +2,14 @@
 
 // Shardlands client: connects to the server over WebSocket, renders the world
 // on a canvas, and translates input into intents. The server owns all rules.
+//
+// The world is drawn in classic 2:1 isometric projection (Ultima Online
+// style): tile (x, y) maps to screen ((x - y) * 32, (x + y) * 16). Art comes
+// from the sprite manifest loaded by assets.js; if it is missing the world
+// renders as flat-shaded diamonds instead.
 
-const TILE_SIZE = 36;
+const HW = 32; // half tile width on screen
+const HH = 16; // half tile height on screen
 const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SAND: 7, SHRINE: 8 };
 const WALKABLE = new Set([T.GRASS, T.ROAD, T.FLOOR, T.SAND, T.SHRINE]);
 
@@ -23,8 +29,9 @@ const state = {
   ws: null,
   myId: 0,
   map: null,            // { w, h, tiles: Uint8Array }
-  players: new Map(),   // id -> { ...snapshot, rx, ry } (rx/ry = render pos)
+  players: new Map(),   // id -> { ...snapshot, rx, ry, heading }
   mobs: new Map(),
+  vendors: [],          // static shopkeepers from the welcome message
   me: null,             // my entry in players
   you: null,            // private stats from the server
   speech: new Map(),    // entity id -> { text, until, magic }
@@ -36,6 +43,8 @@ const state = {
   spells: {},
   minimapImage: null,
 };
+
+Assets.load();
 
 // ---- networking -------------------------------------------------------------
 
@@ -70,6 +79,7 @@ function handleMessage(msg) {
     case 'welcome': {
       state.myId = msg.id;
       state.spells = msg.spells;
+      state.vendors = (msg.vendors || []).map((v) => ({ ...v, rx: v.x, ry: v.y, heading: 1 }));
       const raw = atob(msg.map.tiles);
       const tiles = new Uint8Array(raw.length);
       for (let i = 0; i < raw.length; i++) tiles[i] = raw.charCodeAt(i);
@@ -106,10 +116,24 @@ function handleMessage(msg) {
       log(esc(msg.text), /risen|increased/.test(msg.text) ? 'gain' : 'sys');
       break;
 
+    case 'tile': {
+      // A resource depleted or regrew somewhere in the world.
+      const m = state.map;
+      if (m && msg.x >= 0 && msg.y >= 0 && msg.x < m.w && msg.y < m.h) {
+        m.tiles[msg.y * m.w + msg.x] = msg.tile;
+        buildMinimap();
+      }
+      break;
+    }
+
     case 'fx':
       handleFx(msg);
       break;
   }
+}
+
+function octant(dx, dy) {
+  return ((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8;
 }
 
 function syncEntities(map, list) {
@@ -119,9 +143,10 @@ function syncEntities(map, list) {
     const prev = map.get(e.id);
     if (prev) {
       // Keep render position for interpolation; adopt new authoritative pos.
+      if (e.x !== prev.x || e.y !== prev.y) prev.heading = octant(e.x - prev.x, e.y - prev.y);
       Object.assign(prev, e);
     } else {
-      map.set(e.id, { ...e, rx: e.x, ry: e.y });
+      map.set(e.id, { ...e, rx: e.x, ry: e.y, heading: 1 });
     }
   }
   for (const id of map.keys()) if (!seen.has(id)) map.delete(id);
@@ -176,9 +201,12 @@ document.addEventListener('keydown', (ev) => {
 
   switch (ev.key) {
     case 'Enter': chatInput.focus(); ev.preventDefault(); break;
+    case 'Escape': closeShop(); break;
     case '1': castSpell('magicarrow'); break;
     case '2': castSpell('fireball'); break;
     case '3': castSpell('greaterheal'); break;
+    case '4': send({ t: 'drink', kind: 'heal' }); break;
+    case '5': send({ t: 'drink', kind: 'mana' }); break;
     case 'b': case 'B': send({ t: 'bandage' }); break;
     case 'g': case 'G': send({ t: 'gather' }); break;
     default: keys.add(ev.key.toLowerCase());
@@ -195,22 +223,29 @@ function castSpell(id) {
 canvas.addEventListener('mousedown', (ev) => {
   if (!state.me || !state.map) return;
   const cam = camera();
-  const wx = (ev.clientX + cam.x) / TILE_SIZE;
-  const wy = (ev.clientY + cam.y) / TILE_SIZE;
 
-  // Clicking a mob attacks it; clicking ground walks there.
+  // Clicking a shopkeeper opens their wares; a mob attacks; ground walks.
+  const clickable = [];
+  for (const v of state.vendors) clickable.push({ kind: 'vendor', e: v });
+  for (const m of state.mobs.values()) clickable.push({ kind: 'mob', e: m });
   let best = null;
-  let bestD = 0.9;
-  for (const m of state.mobs.values()) {
-    const d = Math.hypot(m.rx + 0.5 - wx, m.ry + 0.5 - wy);
-    if (d < bestD) { best = m; bestD = d; }
+  let bestD = 38;
+  for (const c of clickable) {
+    const s = worldToScreen(c.e.rx + 0.5, c.e.ry + 0.5, cam);
+    const d = Math.hypot(s.x - ev.clientX, s.y - (ev.clientY + 24));
+    if (d < bestD) { best = c; bestD = d; }
+  }
+  if (best && best.kind === 'vendor') {
+    openShop(best.e);
+    return;
   }
   if (best) {
-    state.target = best.id;
-    send({ t: 'attack', id: best.id });
-    state.walkTarget = { x: best.x, y: best.y };
+    state.target = best.e.id;
+    send({ t: 'attack', id: best.e.id });
+    state.walkTarget = { x: best.e.x, y: best.e.y };
   } else {
-    state.walkTarget = { x: Math.floor(wx), y: Math.floor(wy) };
+    const w = screenToWorld(ev.clientX, ev.clientY, cam);
+    state.walkTarget = { x: Math.floor(w.x), y: Math.floor(w.y) };
   }
 });
 
@@ -265,7 +300,37 @@ document.getElementById('actions').addEventListener('click', (ev) => {
   const act = ev.target.dataset.act;
   if (!act) return;
   if (act.startsWith('cast:')) castSpell(act.slice(5));
+  else if (act.startsWith('drink:')) send({ t: 'drink', kind: act.slice(6) });
   else send({ t: act });
+});
+
+// ---- shop ----------------------------------------------------------------------
+
+const shopPanel = document.getElementById('shop');
+
+function openShop(vendor) {
+  const lines = vendor.goods.map((g) =>
+    `<div class="shop-row">
+       <span>${esc(g.name)}<small>${esc(g.desc || '')}</small></span>
+       <button data-item="${esc(g.item)}">${g.price} gp</button>
+     </div>`).join('');
+  shopPanel.innerHTML =
+    `<div class="shop-title">${esc(vendor.name)}</div>${lines}
+     <button class="shop-close">Close</button>`;
+  shopPanel.classList.remove('hidden');
+  if (state.me && Math.hypot(vendor.x - state.me.x, vendor.y - state.me.y) > 3) {
+    state.walkTarget = { x: vendor.x, y: vendor.y - 1 };
+  }
+}
+
+function closeShop() {
+  shopPanel.classList.add('hidden');
+}
+
+shopPanel.addEventListener('click', (ev) => {
+  if (ev.target.classList.contains('shop-close')) return closeShop();
+  const item = ev.target.dataset.item;
+  if (item) send({ t: 'buy', item });
 });
 
 // ---- login --------------------------------------------------------------------
@@ -303,6 +368,9 @@ function updateHud() {
   document.getElementById('mana-text').textContent = `${y.mana} / ${y.maxmana}`;
   document.getElementById('stats-line').textContent = `STR ${y.str}  DEX ${y.dex}  INT ${y.int}`;
   document.getElementById('pack-line').textContent = `⛀ ${y.gold} gold · ${y.logs} logs · ${y.ore} ore`;
+  const pots = y.pots || {};
+  document.getElementById('pot-heal-count').textContent = pots.heal || 0;
+  document.getElementById('pot-mana-count').textContent = pots.mana || 0;
 
   const list = document.getElementById('skills-list');
   list.innerHTML = Object.entries(y.skills)
@@ -326,7 +394,7 @@ function log(html, cls) {
 }
 
 function esc(s) {
-  return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
 // ---- rendering ---------------------------------------------------------------------
@@ -351,6 +419,7 @@ function hash(x, y) {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
+// Flat-shaded fallback palette, used when sprite assets are unavailable.
 const TILE_COLORS = {
   [T.WATER]: ['#1d4d6e', '#1a4664'],
   [T.GRASS]: ['#4a7a38', '#447236'],
@@ -364,12 +433,35 @@ const TILE_COLORS = {
 };
 
 function camera() {
-  const px = state.me ? state.me.rx : 64;
-  const py = state.me ? state.me.ry : 64;
+  const px = state.me ? state.me.rx + 0.5 : 64;
+  const py = state.me ? state.me.ry + 0.5 : 64;
   return {
-    x: (px + 0.5) * TILE_SIZE - canvas.width / 2,
-    y: (py + 0.5) * TILE_SIZE - canvas.height / 2,
+    ox: canvas.width / 2 - (px - py) * HW,
+    oy: canvas.height / 2 - (px + py) * HH,
   };
+}
+
+// World (tile units, fractional ok) -> screen pixels.
+function worldToScreen(x, y, cam) {
+  return { x: (x - y) * HW + cam.ox, y: (x + y) * HH + cam.oy };
+}
+
+function screenToWorld(px, py, cam) {
+  const a = (px - cam.ox) / HW;
+  const b = (py - cam.oy) / HH;
+  return { x: (a + b) / 2, y: (b - a) / 2 };
+}
+
+// Fallback ground: a flat diamond.
+function fillDiamond(sx, sy, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(sx + HW, sy);
+  ctx.lineTo(sx + 2 * HW, sy + HH);
+  ctx.lineTo(sx + HW, sy + 2 * HH);
+  ctx.lineTo(sx, sy + HH);
+  ctx.closePath();
+  ctx.fill();
 }
 
 function render() {
@@ -388,88 +480,70 @@ function render() {
   }
 
   const cam = camera();
-  const x0 = Math.floor(cam.x / TILE_SIZE) - 1;
-  const y0 = Math.floor(cam.y / TILE_SIZE) - 1;
-  const x1 = x0 + Math.ceil(canvas.width / TILE_SIZE) + 2;
-  const y1 = y0 + Math.ceil(canvas.height / TILE_SIZE) + 2;
   const time = Date.now();
+  const useSprites = Assets.state.ok;
 
-  // Terrain.
+  // Visible tile range: scan a square of tiles big enough to cover the
+  // diamond-shaped viewport, with margin for tall objects.
+  const cx = Math.floor(state.me.rx);
+  const cy = Math.floor(state.me.ry);
+  const range = Math.ceil(canvas.width / (4 * HW) + canvas.height / (4 * HH)) + 8;
+  const x0 = Math.max(0, cx - range);
+  const x1 = Math.min(state.map.w - 1, cx + range);
+  const y0 = Math.max(0, cy - range);
+  const y1 = Math.min(state.map.h - 1, cy + range);
+
+  const drawables = [];
+
+  // Ground pass, plus collection of depth-sorted scenery.
   for (let ty = y0; ty <= y1; ty++) {
     for (let tx = x0; tx <= x1; tx++) {
+      const top = worldToScreen(tx, ty, cam); // top corner of the diamond
+      const sx = top.x - HW;
+      const sy = top.y;
+      if (sx < -200 || sx > canvas.width + 140 || sy < -260 || sy > canvas.height + 160) continue;
       const tile = tileAt(tx, ty);
-      const sx = tx * TILE_SIZE - cam.x;
-      const sy = ty * TILE_SIZE - cam.y;
-      const pair = TILE_COLORS[tile] || TILE_COLORS[T.WATER];
-      ctx.fillStyle = pair[hash(tx, ty) > 0.5 ? 0 : 1];
-      ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
+      const h = hash(tx, ty);
 
-      if (tile === T.WATER && hash(tx, ty * 7) > 0.85) {
-        // Glints that drift with time.
-        const phase = (time / 900 + hash(tx, ty) * 6) % 1;
-        ctx.fillStyle = `rgba(140, 190, 220, ${0.35 * Math.sin(phase * Math.PI)})`;
-        ctx.fillRect(sx + TILE_SIZE * 0.2, sy + TILE_SIZE * 0.45, TILE_SIZE * 0.5, 2);
-      } else if (tile === T.GRASS && hash(tx * 3, ty) > 0.78) {
-        ctx.fillStyle = 'rgba(30, 60, 22, 0.5)';
-        ctx.fillRect(sx + TILE_SIZE * hash(ty, tx), sy + TILE_SIZE * 0.4, 2, 5);
-      } else if (tile === T.WALL) {
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        ctx.fillRect(sx, sy + TILE_SIZE - 5, TILE_SIZE, 5);
-        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-        ctx.strokeRect(sx + 0.5, sy + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
-      } else if (tile === T.ROCK) {
-        ctx.fillStyle = 'rgba(255,255,255,0.08)';
-        ctx.beginPath();
-        ctx.moveTo(sx + TILE_SIZE * 0.2, sy + TILE_SIZE * 0.8);
-        ctx.lineTo(sx + TILE_SIZE * 0.5, sy + TILE_SIZE * (0.2 + hash(tx, ty) * 0.2));
-        ctx.lineTo(sx + TILE_SIZE * 0.8, sy + TILE_SIZE * 0.8);
-        ctx.fill();
-      } else if (tile === T.SHRINE) {
-        const glow = 0.5 + 0.3 * Math.sin(time / 400);
-        ctx.fillStyle = `rgba(220, 190, 90, ${glow * 0.25})`;
-        ctx.fillRect(sx - 4, sy - 4, TILE_SIZE + 8, TILE_SIZE + 8);
-        ctx.strokeStyle = `rgba(240, 210, 110, ${glow})`;
-        ctx.lineWidth = 3;
-        // A little ankh.
-        const cx = sx + TILE_SIZE / 2;
-        ctx.beginPath();
-        ctx.arc(cx, sy + 10, 5, 0, Math.PI * 2);
-        ctx.moveTo(cx, sy + 15);
-        ctx.lineTo(cx, sy + TILE_SIZE - 5);
-        ctx.moveTo(cx - 7, sy + 20);
-        ctx.lineTo(cx + 7, sy + 20);
-        ctx.stroke();
-        ctx.lineWidth = 1;
+      if (useSprites) {
+        const recipe = Assets.tile(tile) || Assets.tile(T.WATER);
+        Assets.drawGround(ctx, recipe, h, sx, sy);
+
+        if (recipe.object) {
+          const name = recipe.object[Math.floor(hash(tx * 5 + 1, ty) * recipe.object.length)];
+          drawables.push({ depth: tx + ty, kind: 'sprite', name, x: top.x, y: top.y + HH });
+        } else if (recipe.decor && hash(tx, ty * 3 + 1) < recipe.decor.chance) {
+          const name = recipe.decor.objects[Math.floor(h * recipe.decor.objects.length)];
+          drawables.push({ depth: tx + ty, kind: 'sprite', name, x: top.x, y: top.y + HH });
+        }
+        if (recipe.effect === 'water') drawWaterGlint(tx, ty, sx, sy, time);
+        if (recipe.effect === 'shrine') drawables.push({ depth: tx + ty, kind: 'shrine', x: top.x, y: top.y + HH });
+      } else {
+        const pair = TILE_COLORS[tile] || TILE_COLORS[T.WATER];
+        fillDiamond(sx, sy, pair[h > 0.5 ? 0 : 1]);
+        if (tile === T.TREE || tile === T.ROCK || tile === T.WALL) {
+          drawables.push({ depth: tx + ty, kind: 'block', tile, x: top.x, y: top.y + HH, h });
+        }
+        if (tile === T.SHRINE) drawables.push({ depth: tx + ty, kind: 'shrine', x: top.x, y: top.y + HH });
       }
     }
   }
 
-  // Trees on top of terrain (drawn after ground so canopies overlap).
-  for (let ty = y0; ty <= y1 + 1; ty++) {
-    for (let tx = x0; tx <= x1; tx++) {
-      if (tileAt(tx, ty) !== T.TREE) continue;
-      const sx = tx * TILE_SIZE - cam.x + TILE_SIZE / 2;
-      const sy = ty * TILE_SIZE - cam.y + TILE_SIZE / 2;
-      ctx.fillStyle = '#4a3520';
-      ctx.fillRect(sx - 2, sy, 4, TILE_SIZE * 0.4);
-      const r = TILE_SIZE * (0.42 + hash(tx, ty) * 0.12);
-      ctx.fillStyle = hash(tx + 9, ty) > 0.5 ? '#2d5a26' : '#33651f';
-      ctx.beginPath();
-      ctx.arc(sx, sy - TILE_SIZE * 0.15, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.07)';
-      ctx.beginPath();
-      ctx.arc(sx - r * 0.3, sy - TILE_SIZE * 0.15 - r * 0.3, r * 0.4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
+  // Entities join the same depth-sorted pass.
+  for (const v of state.vendors) drawables.push({ depth: v.rx + v.ry, kind: 'vendor', e: v });
+  for (const m of state.mobs.values()) drawables.push({ depth: m.rx + m.ry + 0.01, kind: 'mob', e: m });
+  for (const p of state.players.values()) drawables.push({ depth: p.rx + p.ry + 0.01, kind: 'player', e: p });
 
-  // Entities, painter's order by y.
-  const drawables = [...state.mobs.values(), ...state.players.values()]
-    .sort((a, b) => a.ry - b.ry);
-  for (const e of drawables) {
-    if (e.kind) drawMob(e, cam);
-    else drawPlayer(e, cam, time);
+  drawables.sort((a, b) => a.depth - b.depth);
+  for (const d of drawables) {
+    switch (d.kind) {
+      case 'sprite': Assets.drawFrame(ctx, d.name, d.x, d.y); break;
+      case 'block': drawFallbackBlock(d); break;
+      case 'shrine': drawShrine(d.x, d.y, time); break;
+      case 'vendor': drawVendor(d.e, cam, time); break;
+      case 'mob': drawMob(d.e, cam, time); break;
+      case 'player': drawPlayer(d.e, cam, time); break;
+    }
   }
 
   drawProjectiles(cam, time);
@@ -488,79 +562,178 @@ function render() {
   }
 }
 
-function drawMob(m, cam) {
+function drawWaterGlint(tx, ty, sx, sy, time) {
+  if (hash(tx, ty * 7) <= 0.8) return;
+  const phase = (time / 900 + hash(tx, ty) * 6) % 1;
+  ctx.fillStyle = `rgba(170, 210, 235, ${0.35 * Math.sin(phase * Math.PI)})`;
+  ctx.fillRect(sx + HW - 10 + hash(ty, tx) * 14, sy + HH - 2, 14, 2);
+}
+
+function drawShrine(cx, cy, time) {
+  const glow = 0.5 + 0.3 * Math.sin(time / 400);
+  ctx.fillStyle = `rgba(220, 190, 90, ${glow * 0.22})`;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, HW, HH, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = `rgba(240, 210, 110, ${glow})`;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(cx, cy - 30, 5, 0, Math.PI * 2);
+  ctx.moveTo(cx, cy - 25);
+  ctx.lineTo(cx, cy - 2);
+  ctx.moveTo(cx - 7, cy - 20);
+  ctx.lineTo(cx + 7, cy - 20);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+}
+
+// Fallback scenery for trees/rocks/walls when sprites are unavailable.
+function drawFallbackBlock(d) {
+  const { tile, x: cx, y: cy, h } = d;
+  if (tile === T.TREE) {
+    ctx.fillStyle = '#4a3520';
+    ctx.fillRect(cx - 2, cy - 12, 4, 12);
+    ctx.fillStyle = h > 0.5 ? '#2d5a26' : '#33651f';
+    ctx.beginPath();
+    ctx.arc(cx, cy - 24, 14 + h * 5, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (tile === T.ROCK) {
+    ctx.fillStyle = '#6e6a60';
+    ctx.beginPath();
+    ctx.moveTo(cx - 18, cy + 6);
+    ctx.lineTo(cx, cy - 16 - h * 8);
+    ctx.lineTo(cx + 18, cy + 6);
+    ctx.closePath();
+    ctx.fill();
+  } else if (tile === T.WALL) {
+    ctx.fillStyle = '#5c584e';
+    ctx.beginPath();
+    ctx.moveTo(cx - HW, cy - HH);
+    ctx.lineTo(cx, cy - 2 * HH);
+    ctx.lineTo(cx, cy - 2 * HH - 32);
+    ctx.lineTo(cx - HW, cy - HH - 32);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#4a463e';
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 2 * HH);
+    ctx.lineTo(cx + HW, cy - HH);
+    ctx.lineTo(cx + HW, cy - HH - 32);
+    ctx.lineTo(cx, cy - 2 * HH - 32);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#6e6a60';
+    fillDiamond(cx - HW, cy - 2 * HH - 32, '#6e6a60');
+  }
+}
+
+function entityShadow(sx, sy, r) {
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(sx, sy, r, r * 0.45, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawMob(m, cam, time) {
   const style = MOB_STYLE[m.kind];
-  const sx = (m.rx + 0.5) * TILE_SIZE - cam.x;
-  const sy = (m.ry + 0.5) * TILE_SIZE - cam.y;
-  const r = TILE_SIZE * 0.32 * style.size;
+  const s = worldToScreen(m.rx + 0.5, m.ry + 0.5, cam);
 
   if (m.id === state.target) {
     ctx.strokeStyle = 'rgba(255, 80, 60, 0.9)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(sx, sy, r + 6, 0, Math.PI * 2);
+    ctx.ellipse(s.x, s.y, 26, 13, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.lineWidth = 1;
   }
 
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.beginPath();
-  ctx.ellipse(sx, sy + r * 0.8, r, r * 0.35, 0, 0, Math.PI * 2);
-  ctx.fill();
+  const c = Assets.state.ok && Assets.creature(m.kind);
+  let labelY;
+  if (c) {
+    Assets.drawCreature(ctx, m.kind, m.heading, time + m.id * 137, s.x, s.y);
+    labelY = s.y - c.ay - 8;
+  } else {
+    const r = 22 * style.size;
+    entityShadow(s.x, s.y + 2, r * 0.8);
+    ctx.fillStyle = style.color;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y - r * 0.6, r * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+    labelY = s.y - r * 1.6 - 10;
+  }
 
-  ctx.fillStyle = style.color;
-  ctx.beginPath();
-  ctx.arc(sx, sy - r * 0.2, r, 0, Math.PI * 2);
-  ctx.fill();
-  // Eyes so it reads as a creature.
-  ctx.fillStyle = '#101010';
-  ctx.beginPath();
-  ctx.arc(sx - r * 0.35, sy - r * 0.4, r * 0.13, 0, Math.PI * 2);
-  ctx.arc(sx + r * 0.35, sy - r * 0.4, r * 0.13, 0, Math.PI * 2);
-  ctx.fill();
-
-  drawHpBar(sx, sy - r - 10, m.hp, m.maxhp);
+  drawHpBar(s.x, labelY + 4, m.hp, m.maxhp);
   ctx.fillStyle = 'rgba(220, 214, 200, 0.85)';
   ctx.font = '11px Georgia';
   ctx.textAlign = 'center';
-  ctx.fillText(style.name, sx, sy - r - 14);
+  ctx.fillText(style.name, s.x, labelY);
   ctx.textAlign = 'left';
 }
 
 function drawPlayer(p, cam, time) {
-  const sx = (p.rx + 0.5) * TILE_SIZE - cam.x;
-  const sy = (p.ry + 0.5) * TILE_SIZE - cam.y;
-  const r = TILE_SIZE * 0.3;
+  const s = worldToScreen(p.rx + 0.5, p.ry + 0.5, cam);
 
   ctx.save();
   if (p.dead) ctx.globalAlpha = 0.45;
 
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.beginPath();
-  ctx.ellipse(sx, sy + r * 0.9, r * 0.9, r * 0.3, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Tunic.
-  ctx.fillStyle = p.dead ? '#aab4c8' : p.id === state.myId ? '#2858a8' : '#7a3030';
-  ctx.beginPath();
-  ctx.moveTo(sx - r * 0.8, sy + r);
-  ctx.lineTo(sx, sy - r * 0.4);
-  ctx.lineTo(sx + r * 0.8, sy + r);
-  ctx.closePath();
-  ctx.fill();
-  // Head.
-  ctx.fillStyle = p.dead ? '#cfd6e4' : '#d8a878';
-  ctx.beginPath();
-  ctx.arc(sx, sy - r * 0.7, r * 0.45, 0, Math.PI * 2);
-  ctx.fill();
-
+  const c = Assets.state.ok && Assets.creature('player');
+  let labelY;
+  if (c) {
+    entityShadow(s.x, s.y, 14);
+    Assets.drawCreature(ctx, 'player', p.heading, time + p.id * 137, s.x, s.y);
+    labelY = s.y - c.ay - 8;
+  } else {
+    entityShadow(s.x, s.y + 2, 10);
+    ctx.fillStyle = p.dead ? '#aab4c8' : p.id === state.myId ? '#2858a8' : '#7a3030';
+    ctx.beginPath();
+    ctx.moveTo(s.x - 9, s.y);
+    ctx.lineTo(s.x, s.y - 22);
+    ctx.lineTo(s.x + 9, s.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = p.dead ? '#cfd6e4' : '#d8a878';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y - 26, 5, 0, Math.PI * 2);
+    ctx.fill();
+    labelY = s.y - 38;
+  }
   ctx.restore();
 
-  if (!p.dead && p.hp < p.maxhp) drawHpBar(sx, sy - r - 12, p.hp, p.maxhp);
+  if (!p.dead && p.hp < p.maxhp) drawHpBar(s.x, labelY + 4, p.hp, p.maxhp);
   ctx.fillStyle = p.id === state.myId ? '#ffd870' : '#dce4f0';
   ctx.font = '12px Georgia';
   ctx.textAlign = 'center';
-  ctx.fillText(p.name, sx, sy - r - 16);
+  ctx.fillText(p.name, s.x, labelY);
+  ctx.textAlign = 'left';
+}
+
+function drawVendor(v, cam, time) {
+  const s = worldToScreen(v.rx + 0.5, v.ry + 0.5, cam);
+  const c = Assets.state.ok && Assets.creature('vendor');
+  let labelY;
+  if (c) {
+    entityShadow(s.x, s.y, 14);
+    Assets.drawCreature(ctx, 'vendor', v.heading, time, s.x, s.y);
+    labelY = s.y - c.ay - 8;
+  } else {
+    entityShadow(s.x, s.y + 2, 10);
+    ctx.fillStyle = '#b08a28';
+    ctx.beginPath();
+    ctx.moveTo(s.x - 9, s.y);
+    ctx.lineTo(s.x, s.y - 22);
+    ctx.lineTo(s.x + 9, s.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#d8a878';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y - 26, 5, 0, Math.PI * 2);
+    ctx.fill();
+    labelY = s.y - 38;
+  }
+  ctx.fillStyle = '#88e0a0';
+  ctx.font = '12px Georgia';
+  ctx.textAlign = 'center';
+  ctx.fillText(v.name, s.x, labelY);
   ctx.textAlign = 'left';
 }
 
@@ -576,15 +749,15 @@ function drawProjectiles(cam, time) {
   state.projectiles = state.projectiles.filter((p) => time - p.born < 260);
   for (const p of state.projectiles) {
     const k = (time - p.born) / 260;
-    const x = (p.x + (p.tx - p.x) * k + 0.5) * TILE_SIZE - cam.x;
-    const y = (p.y + (p.ty - p.y) * k + 0.5) * TILE_SIZE - cam.y;
+    const s = worldToScreen(p.x + (p.tx - p.x) * k + 0.5, p.y + (p.ty - p.y) * k + 0.5, cam);
+    const y = s.y - 20;
     ctx.fillStyle = p.color;
     ctx.beginPath();
-    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.arc(s.x, y, 5, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.beginPath();
-    ctx.arc(x, y, 2, 0, Math.PI * 2);
+    ctx.arc(s.x, y, 2, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -595,13 +768,13 @@ function drawFloaters(cam, time) {
   ctx.textAlign = 'center';
   for (const f of state.floaters) {
     const k = (time - f.born) / 1100;
-    const x = (f.x + 0.5) * TILE_SIZE - cam.x;
-    const y = (f.y + 0.2) * TILE_SIZE - cam.y - k * 28;
+    const s = worldToScreen(f.x + 0.5, f.y + 0.5, cam);
+    const y = s.y - 36 - k * 28;
     ctx.globalAlpha = 1 - k;
     ctx.fillStyle = '#000';
-    ctx.fillText(f.text, x + 1, y + 1);
+    ctx.fillText(f.text, s.x + 1, y + 1);
     ctx.fillStyle = f.color;
-    ctx.fillText(f.text, x, y);
+    ctx.fillText(f.text, s.x, y);
   }
   ctx.globalAlpha = 1;
   ctx.textAlign = 'left';
@@ -615,15 +788,15 @@ function drawSpeech(cam, time) {
       state.speech.delete(id);
       continue;
     }
-    const e = state.players.get(id);
+    const e = state.players.get(id) || state.vendors.find((v) => v.id === id);
     if (!e) continue;
-    const x = (e.rx + 0.5) * TILE_SIZE - cam.x;
-    const y = (e.ry - 0.6) * TILE_SIZE - cam.y;
+    const pos = worldToScreen(e.rx + 0.5, e.ry + 0.5, cam);
+    const y = pos.y - 64;
     const w = ctx.measureText(s.text).width;
     ctx.fillStyle = 'rgba(8, 10, 13, 0.75)';
-    ctx.fillRect(x - w / 2 - 5, y - 13, w + 10, 18);
+    ctx.fillRect(pos.x - w / 2 - 5, y - 13, w + 10, 18);
     ctx.fillStyle = s.magic ? '#9ab8ff' : '#f0ead8';
-    ctx.fillText(s.text, x, y);
+    ctx.fillText(s.text, pos.x, y);
   }
   ctx.textAlign = 'left';
 }
