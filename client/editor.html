@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shardlands — Map Editor (internal)</title>
+  <style>
+    :root {
+      --gold: #d8b35e; --ink: #120d08; --panel: #1c150e;
+      --edge: #6a5430; --text: #efe7d3; --dim: #b3a482;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; background: #0b0d10; color: var(--text);
+      font-family: Georgia, serif; }
+    #wrap { display: flex; height: 100%; }
+    #side {
+      width: 232px; flex: none; overflow-y: auto; padding: 10px;
+      background: linear-gradient(160deg, #261d12, #16100a); border-right: 1px solid var(--edge);
+      font-size: 13px;
+    }
+    #side h1 { font-size: 17px; color: var(--gold); letter-spacing: 1px; margin-bottom: 2px; }
+    #side .sub { color: var(--dim); font-size: 11px; margin-bottom: 10px; }
+    #side h2 { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px;
+      margin: 12px 0 5px; border-bottom: 1px dotted #3a352a; padding-bottom: 3px; }
+    button, select, input {
+      font-family: inherit; font-size: 12.5px; color: var(--text);
+      background: #1a1d22; border: 1px solid #3a352a; border-radius: 3px; padding: 5px 7px;
+    }
+    button { cursor: pointer; }
+    button:hover { border-color: var(--gold); }
+    button.on { background: #4a3a18; border-color: var(--gold); color: #ffe9a8; }
+    .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+    #palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+    #palette button { height: 30px; padding: 0; position: relative; border-width: 2px; }
+    #palette button span { position: absolute; left: 0; right: 0; bottom: -1px; font-size: 8.5px;
+      color: #fff; text-shadow: 0 1px 2px #000; pointer-events: none; }
+    .row { display: flex; gap: 5px; align-items: center; margin: 4px 0; }
+    .row label { flex: 1; color: var(--dim); }
+    .row select, .row input { width: 110px; }
+    #save { width: 100%; margin-top: 12px; padding: 9px; font-size: 14px;
+      background: linear-gradient(#7a5f24, #5d471b); border: 1px solid var(--gold); color: #f4e9c8; }
+    #status { margin-top: 8px; color: var(--dim); font-size: 11.5px; line-height: 1.5; min-height: 3em; }
+    #dirty { color: #e0b050; }
+    #stage { flex: 1; position: relative; }
+    #map { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+    #coords {
+      position: absolute; right: 10px; bottom: 8px; padding: 3px 9px; font-size: 12px;
+      background: rgba(18, 13, 8, 0.85); border: 1px solid var(--edge); border-radius: 4px;
+      color: var(--dim); pointer-events: none;
+    }
+    .hint { color: #767160; font-size: 11px; line-height: 1.6; margin-top: 6px; }
+    kbd { background: #2a2417; border: 1px solid #4a3c24; border-radius: 3px; padding: 0 4px;
+      font-family: inherit; font-size: 10.5px; color: var(--dim); }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="side">
+      <h1>Map Editor</h1>
+      <div class="sub">internal tool — edits land in <b>world/edits.json</b></div>
+
+      <h2>Tool</h2>
+      <div class="tools">
+        <button data-tool="pan" class="on">✋ Pan</button>
+        <button data-tool="paint">🖌 Paint</button>
+        <button data-tool="prop">🪑 Prop</button>
+        <button data-tool="spawner">👹 Spawner</button>
+        <button data-tool="whisper">💬 Whisper</button>
+        <button data-tool="cache">💰 Cache</button>
+        <button data-tool="erase">🧹 Erase</button>
+        <button id="undo">↶ Undo</button>
+      </div>
+
+      <h2>Tiles</h2>
+      <div id="palette"></div>
+      <div class="row"><label>Brush</label>
+        <select id="brush"><option>1</option><option>3</option><option selected>5</option><option>9</option></select>
+      </div>
+
+      <h2>Prop</h2>
+      <div class="row"><label>Kind</label><select id="prop-kind"></select></div>
+
+      <h2>Spawner</h2>
+      <div class="row"><label>Kind</label><select id="mob-kind"></select></div>
+      <div class="row"><label>Count</label><input id="mob-count" type="number" min="1" max="12" value="4" /></div>
+      <div class="row"><label>Radius</label><input id="mob-r" type="number" min="1" max="24" value="8" /></div>
+
+      <h2>Go to</h2>
+      <div class="row"><select id="goto" style="width:100%"></select></div>
+
+      <button id="save">Save to shard</button>
+      <div id="status">Loading world…</div>
+      <div class="hint">
+        <kbd>wheel</kbd> zoom · <kbd>space</kbd>/<kbd>right-drag</kbd> pan ·
+        <kbd>ctrl+z</kbd> undo · markers: <span style="color:#ffb347">▲ prop</span>
+        <span style="color:#ff6a5a">● spawner</span> <span style="color:#c08aff">◆ secret</span>
+        <span style="color:#7ad07a">■ vendor</span> · bright = your edits
+      </div>
+    </div>
+    <div id="stage">
+      <canvas id="map"></canvas>
+      <div id="coords"></div>
+    </div>
+  </div>
+  <script src="editor.js"></script>
+</body>
+</html>

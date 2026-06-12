@@ -9,7 +9,9 @@
 // player only receives entities within their interest radius.
 
 const crypto = require('crypto');
-const { TILE, generate, isWalkable, tileAt, nearestWalkable } = require('./world');
+const fs = require('fs');
+const path = require('path');
+const { TILE, generate, applyEdits, isWalkable, tileAt, nearestWalkable } = require('./world');
 const persist = require('./persist');
 
 const TICK_MS = 100;
@@ -188,6 +190,16 @@ function hashPassword(password, salt) {
 class Game {
   constructor() {
     this.map = generate(1337);
+    // Hand-made edits from the visual map editor sit on top of worldgen.
+    this.editsPath = path.join(__dirname, '..', 'world', 'edits.json');
+    try {
+      const edits = JSON.parse(fs.readFileSync(this.editsPath, 'utf8'));
+      const c = applyEdits(this.map, edits, { validKinds: new Set(Object.keys(MOB_KINDS)) });
+      console.log(`map edits: ${c.tiles} tiles, ${c.props} props, ${c.spawners} spawners, ` +
+        `${c.secrets} secrets, ${c.removed} removals`);
+    } catch (e) {
+      if (e.code !== 'ENOENT') console.error('world/edits.json is broken, skipping it:', e.message);
+    }
     this.players = new Map(); // id -> player (online only)
     this.mobs = new Map();    // id -> mob
     this.nextId = 1;
@@ -1797,4 +1809,4 @@ function skillName(skill) {
   return skill.charAt(0).toUpperCase() + skill.slice(1);
 }
 
-module.exports = { Game };
+module.exports = { Game, MOB_KINDS };
