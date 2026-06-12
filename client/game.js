@@ -28,7 +28,11 @@ const minimap = document.getElementById('minimap');
 const state = {
   ws: null,
   myId: 0,
-  map: null,            // { w, h, tiles: Uint8Array }
+  map: null,            // { w, h, chunk } — tiles arrive in chunks
+  chunks: new Map(),    // "cx,cy" -> Uint8Array(chunk*chunk)
+  wantedChunks: new Set(),
+  buildings: [],        // { x, y, w, h } for roofs
+  mini: null,           // downsampled world overview for the minimap
   players: new Map(),   // id -> { ...snapshot, rx, ry, heading }
   mobs: new Map(),
   vendors: [],          // static shopkeepers from the welcome message
@@ -49,13 +53,12 @@ Assets.load();
 
 // ---- networking -------------------------------------------------------------
 
-function connect(name) {
+function connect(email, password, name) {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const ws = new WebSocket(`${proto}://${location.host}/ws`);
   state.ws = ws;
   ws.onopen = () => {
-    const token = localStorage.getItem('shardlands:' + name.toLowerCase()) || undefined;
-    send({ t: 'join', name, token });
+    send({ t: 'join', email, password, name });
   };
   ws.onmessage = (ev) => handleMessage(JSON.parse(ev.data));
   ws.onclose = () => {
@@ -81,15 +84,23 @@ function handleMessage(msg) {
       state.myId = msg.id;
       state.spells = msg.spells;
       state.vendors = (msg.vendors || []).map((v) => ({ ...v, rx: v.x, ry: v.y, heading: 1 }));
-      const raw = atob(msg.map.tiles);
-      const tiles = new Uint8Array(raw.length);
-      for (let i = 0; i < raw.length; i++) tiles[i] = raw.charCodeAt(i);
-      state.map = { w: msg.map.w, h: msg.map.h, tiles };
-      const name = document.getElementById('name').value.trim();
-      localStorage.setItem('shardlands:' + name.toLowerCase(), msg.token);
+      state.map = { w: msg.map.w, h: msg.map.h, chunk: msg.map.chunk };
+      state.chunks.clear();
+      state.wantedChunks.clear();
+      state.buildings = msg.buildings || [];
+      state.mini = msg.mini;
       buildMinimap();
       document.getElementById('login').classList.add('hidden');
       document.getElementById('hud').classList.remove('hidden');
+      break;
+    }
+
+    case 'chunk': {
+      const raw = atob(msg.d);
+      const tiles = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) tiles[i] = raw.charCodeAt(i);
+      state.chunks.set(msg.cx + ',' + msg.cy, tiles);
+      state.wantedChunks.delete(msg.cx + ',' + msg.cy);
       break;
     }
 
@@ -106,6 +117,7 @@ function handleMessage(msg) {
     case 'you':
       state.you = msg;
       updateHud();
+      if (!document.getElementById('inventory').classList.contains('hidden')) renderInventory();
       break;
 
     case 'chat': {
@@ -121,10 +133,9 @@ function handleMessage(msg) {
     case 'tile': {
       // A resource depleted or regrew somewhere in the world.
       const m = state.map;
-      if (m && msg.x >= 0 && msg.y >= 0 && msg.x < m.w && msg.y < m.h) {
-        m.tiles[msg.y * m.w + msg.x] = msg.tile;
-        buildMinimap();
-      }
+      if (!m) break;
+      const c = state.chunks.get(Math.floor(msg.x / m.chunk) + ',' + Math.floor(msg.y / m.chunk));
+      if (c) c[(msg.y % m.chunk) * m.chunk + (msg.x % m.chunk)] = msg.tile;
       break;
     }
 
@@ -169,6 +180,9 @@ function handleFx(msg) {
     case 'die':
       state.floaters.push({ x: msg.x, y: msg.y, text: '✝', color: '#c8c8c8', born: t });
       break;
+    case 'portal':
+      state.floaters.push({ x: msg.x, y: msg.y, text: '✦ ✦ ✦', color: '#b08aff', born: t });
+      break;
     case 'magicarrow':
     case 'fireball':
       state.projectiles.push({
@@ -199,11 +213,12 @@ document.addEventListener('keydown', (ev) => {
     }
     return;
   }
-  if (document.activeElement === document.getElementById('name')) return;
+  const ae = document.activeElement;
+  if (ae && (ae.id === 'name' || ae.id === 'email' || ae.id === 'password')) return;
 
   switch (ev.key) {
     case 'Enter': chatInput.focus(); ev.preventDefault(); break;
-    case 'Escape': closeShop(); break;
+    case 'Escape': closeShop(); document.getElementById('inventory').classList.add('hidden'); break;
     case '1': castSpell('magicarrow'); break;
     case '2': castSpell('fireball'); break;
     case '3': castSpell('greaterheal'); break;
@@ -211,6 +226,7 @@ document.addEventListener('keydown', (ev) => {
     case '5': send({ t: 'drink', kind: 'mana' }); break;
     case 'b': case 'B': send({ t: 'bandage' }); break;
     case 'g': case 'G': send({ t: 'gather' }); break;
+    case 'i': case 'I': toggleInventory(); break;
     default: keys.add(ev.key.toLowerCase());
   }
 });
@@ -338,20 +354,29 @@ shopPanel.addEventListener('click', (ev) => {
 // ---- login --------------------------------------------------------------------
 
 const nameInput = document.getElementById('name');
+const emailInput = document.getElementById('email');
+const passwordInput = document.getElementById('password');
+emailInput.value = localStorage.getItem('shardlands:email') || '';
 nameInput.value = localStorage.getItem('shardlands:lastname') || '';
 
 function tryLogin() {
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
   const name = nameInput.value.trim();
-  if (!name) return loginError('Choose a name first.');
-  localStorage.setItem('shardlands:lastname', name);
+  if (!email) return loginError('Enter your email address.');
+  if (password.length < 6) return loginError('Password must be at least 6 characters.');
+  localStorage.setItem('shardlands:email', email);
+  if (name) localStorage.setItem('shardlands:lastname', name);
   loginError('');
-  connect(name);
+  connect(email, password, name);
 }
 
 document.getElementById('play').addEventListener('click', tryLogin);
-nameInput.addEventListener('keydown', (ev) => {
-  if (ev.key === 'Enter') tryLogin();
-});
+for (const el of [nameInput, emailInput, passwordInput]) {
+  el.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') tryLogin();
+  });
+}
 
 function loginError(text) {
   document.getElementById('login-error').textContent = text;
@@ -369,7 +394,8 @@ function updateHud() {
   document.getElementById('mana-fill').style.width = (100 * y.mana / y.maxmana) + '%';
   document.getElementById('mana-text').textContent = `${y.mana} / ${y.maxmana}`;
   document.getElementById('stats-line').textContent = `STR ${y.str}  DEX ${y.dex}  INT ${y.int}`;
-  document.getElementById('pack-line').textContent = `⛀ ${y.gold} gold · ${y.logs} logs · ${y.ore} ore`;
+  document.getElementById('pack-line').textContent =
+    `⛀ ${y.gold} gold · ${y.logs} logs · ${y.ore} ore` + (y.gems ? ` · ${y.gems} gems` : '');
   const pots = y.pots || {};
   document.getElementById('pot-heal-count').textContent = pots.heal || 0;
   document.getElementById('pot-mana-count').textContent = pots.mana || 0;
@@ -382,6 +408,41 @@ function updateHud() {
 
 document.getElementById('skills-toggle').addEventListener('click', () => {
   document.getElementById('skills-list').classList.toggle('hidden');
+});
+
+// ---- inventory --------------------------------------------------------------
+
+function toggleInventory() {
+  const panel = document.getElementById('inventory');
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) renderInventory();
+}
+
+function renderInventory() {
+  const y = state.you;
+  if (!y) return;
+  const pots = y.pots || {};
+  const rows = [
+    ['🪙', 'Gold', y.gold, ''],
+    ['🧪', 'Heal potions', pots.heal || 0, 'drink:heal'],
+    ['🜄', 'Mana potions', pots.mana || 0, 'drink:mana'],
+    ['🪵', 'Logs', y.logs, ''],
+    ['🪨', 'Ore', y.ore, ''],
+    ['💎', 'Gems', y.gems || 0, ''],
+  ];
+  document.getElementById('inv-items').innerHTML = rows.map(([icon, label, count, act]) =>
+    `<div class="inv-row">
+       <span class="inv-icon">${icon}</span>
+       <span class="inv-label">${label}</span>
+       <span class="inv-count">${count}</span>
+       ${act ? `<button data-act="${act}">use</button>` : '<span></span>'}
+     </div>`).join('');
+}
+
+document.getElementById('inventory').addEventListener('click', (ev) => {
+  if (ev.target.id === 'inv-close') return document.getElementById('inventory').classList.add('hidden');
+  const act = ev.target.dataset.act;
+  if (act && act.startsWith('drink:')) send({ t: 'drink', kind: act.slice(6) });
 });
 
 const chatLog = document.getElementById('chat-log');
@@ -411,8 +472,32 @@ resize();
 function tileAt(x, y) {
   const m = state.map;
   if (!m || x < 0 || y < 0 || x >= m.w || y >= m.h) return T.WATER;
-  return m.tiles[y * m.w + x];
+  const c = state.chunks.get(Math.floor(x / m.chunk) + ',' + Math.floor(y / m.chunk));
+  if (!c) return T.WATER; // not streamed in yet
+  return c[(y % m.chunk) * m.chunk + (x % m.chunk)];
 }
+
+// Stream in the chunks around the player as they travel.
+setInterval(() => {
+  const m = state.map;
+  if (!m || !state.me) return;
+  const span = Math.ceil((canvas.width / (4 * HW) + canvas.height / (4 * HH) + 24) / m.chunk) + 1;
+  const ccx = Math.floor(state.me.x / m.chunk);
+  const ccy = Math.floor(state.me.y / m.chunk);
+  const want = [];
+  for (let cy = ccy - span; cy <= ccy + span; cy++) {
+    for (let cx = ccx - span; cx <= ccx + span; cx++) {
+      if (cx < 0 || cy < 0 || cx >= m.w / m.chunk || cy >= m.h / m.chunk) continue;
+      const key = cx + ',' + cy;
+      if (state.chunks.has(key) || state.wantedChunks.has(key)) continue;
+      want.push([cx, cy]);
+      state.wantedChunks.add(key);
+      if (want.length >= 32) break;
+    }
+    if (want.length >= 32) break;
+  }
+  if (want.length) send({ t: 'chunks', l: want });
+}, 200);
 
 // Deterministic per-tile jitter so terrain doesn't look flat.
 function hash(x, y) {
@@ -536,6 +621,16 @@ function render() {
     }
   }
 
+  // Roofs cover buildings unless you are standing inside them.
+  for (const b of state.buildings) {
+    if (b.x + b.w < x0 || b.x > x1 || b.y + b.h < y0 || b.y > y1) continue;
+    const inside = state.me &&
+      state.me.x >= b.x && state.me.x < b.x + b.w &&
+      state.me.y >= b.y && state.me.y < b.y + b.h;
+    if (inside) continue;
+    drawables.push({ depth: b.x + b.w + b.y + b.h + 0.5, kind: 'roof', b });
+  }
+
   // Entities join the same depth-sorted pass.
   for (const d of state.drops) drawables.push({ depth: d.x + d.y, kind: 'drop', e: d });
   for (const v of state.vendors) drawables.push({ depth: v.rx + v.ry, kind: 'vendor', e: v });
@@ -549,6 +644,7 @@ function render() {
       case 'block': drawFallbackBlock(d); break;
       case 'shrine': drawShrine(d.x, d.y, time); break;
       case 'drop': drawDrop(d.e, cam, time); break;
+      case 'roof': drawRoof(d.b, cam); break;
       case 'vendor': drawVendor(d.e, cam, time); break;
       case 'mob': drawMob(d.e, cam, time); break;
       case 'player': drawPlayer(d.e, cam, time); break;
@@ -633,6 +729,68 @@ function drawFallbackBlock(d) {
     ctx.fill();
     ctx.fillStyle = '#6e6a60';
     fillDiamond(cx - HW, cy - 2 * HH - 32, '#6e6a60');
+  }
+}
+
+// A gabled roof drawn as an isometric prism above the building's walls.
+// UO-style: it vanishes while you stand inside.
+function drawRoof(b, cam) {
+  const e = 0.3; // eave overhang in tiles
+  const x0 = b.x - e;
+  const y0 = b.y - e;
+  const x1 = b.x + b.w - 1 + 1 + e; // walls occupy [x, x+w-1]
+  const y1 = b.y + b.h - 1 + 1 + e;
+  const lift = 30;       // top of the walls, in screen px
+  const ridgeLift = 54;
+  const P = (wx, wy, dz) => {
+    const s = worldToScreen(wx, wy, cam);
+    return [s.x, s.y - dz];
+  };
+  const A = P(x0, y0, lift);
+  const B = P(x1, y0, lift);
+  const C = P(x1, y1, lift);
+  const D = P(x0, y1, lift);
+
+  const poly = (pts, fill) => {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(40, 16, 10, 0.5)';
+    ctx.stroke();
+  };
+  // Shingle course lines between the eave edge and the ridge.
+  const courses = (eaveA, eaveB, rA, rB) => {
+    ctx.strokeStyle = 'rgba(40, 16, 10, 0.22)';
+    ctx.beginPath();
+    for (let k = 1; k < 4; k++) {
+      const f = k / 4;
+      ctx.moveTo(eaveA[0] + (rA[0] - eaveA[0]) * f, eaveA[1] + (rA[1] - eaveA[1]) * f);
+      ctx.lineTo(eaveB[0] + (rB[0] - eaveB[0]) * f, eaveB[1] + (rB[1] - eaveB[1]) * f);
+    }
+    ctx.stroke();
+  };
+
+  if (b.w >= b.h) {
+    // Ridge runs west-east.
+    const my = (y0 + y1) / 2;
+    const rA = P(x0 + 0.5, my, ridgeLift);
+    const rB = P(x1 - 0.5, my, ridgeLift);
+    poly([A, B, rB, rA], '#6e3a30');  // north slope (faces away)
+    poly([D, C, rB, rA], '#a0523f');  // south slope (faces camera)
+    courses(D, C, rA, rB);
+    poly([B, C, rB], '#874437');      // east gable
+  } else {
+    // Ridge runs north-south.
+    const mx = (x0 + x1) / 2;
+    const rA = P(mx, y0 + 0.5, ridgeLift);
+    const rB = P(mx, y1 - 0.5, ridgeLift);
+    poly([A, D, rB, rA], '#6e3a30');  // west slope (faces away-ish)
+    poly([B, C, rB, rA], '#a0523f');  // east slope (faces camera)
+    courses(B, C, rA, rB);
+    poly([D, C, rB], '#874437');      // south gable
   }
 }
 
@@ -862,12 +1020,14 @@ const MINI_COLORS = {
 };
 
 function buildMinimap() {
-  const m = state.map;
-  minimap.width = m.w;
-  minimap.height = m.h;
-  const img = new ImageData(m.w, m.h);
-  for (let i = 0; i < m.tiles.length; i++) {
-    const c = MINI_COLORS[m.tiles[i]] || [0, 0, 0];
+  const mini = state.mini;
+  if (!mini) return;
+  minimap.width = mini.w;
+  minimap.height = mini.h;
+  const raw = atob(mini.d);
+  const img = new ImageData(mini.w, mini.h);
+  for (let i = 0; i < raw.length; i++) {
+    const c = MINI_COLORS[raw.charCodeAt(i)] || [0, 0, 0];
     img.data[i * 4] = c[0];
     img.data[i * 4 + 1] = c[1];
     img.data[i * 4 + 2] = c[2];
@@ -877,13 +1037,13 @@ function buildMinimap() {
 }
 
 function drawMinimap() {
-  if (!state.minimapImage) return;
+  if (!state.minimapImage || !state.mini) return;
   const mctx = minimap.getContext('2d');
   mctx.putImageData(state.minimapImage, 0, 0);
-  mctx.fillStyle = '#ff4040';
+  const s = state.mini.s;
   for (const p of state.players.values()) {
     mctx.fillStyle = p.id === state.myId ? '#ffffff' : '#ffd040';
-    mctx.fillRect(p.x - 1, p.y - 1, 3, 3);
+    mctx.fillRect(Math.round(p.x / s) - 1, Math.round(p.y / s) - 1, 3, 3);
   }
 }
 

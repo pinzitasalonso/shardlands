@@ -19,20 +19,26 @@ each tab is a player in the same world.
 
 ## The world
 
-A 192×192 island, generated deterministically from a seed:
+A 2048×2048 island, generated deterministically from a seed and streamed to
+the client in chunks as you explore:
 
 - **Briarhaven**, the town at the crossroads, with a stone plaza, four
   buildings, **Mira the Alchemist** selling potions, and the **glowing ankh
   shrine** — walk your ghost onto it to resurrect.
-- **Northhold**, a logging village by the pinewoods, home of **Aldric the
-  Herbalist**, and **Saltmere**, a fishing hamlet on the south road.
-- A **ruined keep** and graveyard to the northwest crawling with skeletons,
-  **watchtowers** along the roads (one of them haunted), **standing stones**
-  on the north downs, and an **oasis** deep in the southeastern desert.
-- **Orc camps** in the northern pines, **ettins** and goblins in the south,
-  and **a dragon** brooding at its desert roost.
-- Monsters sometimes **drop loot** — gold, potions, materials — walk over it
-  to pick it up. Trees and rocks **deplete** after a few harvests and regrow.
+- **Nine villages** scattered across the island, each with a potion vendor
+  and a road back to the capital — all buildings wear proper roofs, which
+  fade away when you step inside.
+- **Ruined keeps** crawling with skeletons, watchtowers, deep pine and oak
+  forests, deadwood groves, a vast southeastern desert.
+- **Secrets**: twin stone circles that teleport travellers between them,
+  treasure caches in the far corners of the world, whispering places, a
+  hermit with suspiciously cheap potions, and dragon hoards beside the
+  three dragon roosts.
+- Monsters sometimes **drop loot** — gold, potions, materials, even gems —
+  walk over it to pick it up. Press **I** for your backpack. Trees and rocks
+  **deplete** after a few harvests and regrow.
+- Sign in with **email and password**; your account and character are created
+  on first login (passwords are scrypt-hashed, stored in `data/accounts.json`).
 
 ## How to play
 

@@ -1,7 +1,12 @@
 'use strict';
 
-// Core game simulation: players, mobs, combat, skills, magic, gathering.
-// The server is authoritative; clients only send intents.
+// Core game simulation: players, mobs, combat, skills, magic, gathering,
+// vendors, loot and the world's secrets. The server is authoritative;
+// clients only send intents.
+//
+// The world is large (2048x2048), so two things are streamed rather than
+// broadcast wholesale: map tiles go out in 64x64 chunks on request, and each
+// player only receives entities within their interest radius.
 
 const crypto = require('crypto');
 const { TILE, generate, isWalkable, tileAt, nearestWalkable } = require('./world');
@@ -11,6 +16,10 @@ const TICK_MS = 100;
 const SAVE_INTERVAL_MS = 30_000;
 const SKILL_CAP = 100;
 const STAT_CAP = 100;
+const CHUNK = 64;
+const MINI_SCALE = 8;
+const VIEW_RADIUS = 60;          // tiles; entities beyond this aren't sent
+const CACHE_RESPAWN_MS = 15 * 60_000;
 
 const SKILLS = ['swordsmanship', 'tactics', 'magery', 'healing', 'lumberjacking', 'mining'];
 
@@ -34,25 +43,10 @@ const LOOT_TABLES = {
   skeleton: [[0.2, 'gold', 8, 20], [0.12, 'heal', 1, 1]],
   orc: [[0.22, 'gold', 12, 30], [0.12, 'heal', 1, 1], [0.1, 'ore', 1, 2]],
   ettin: [[0.35, 'gold', 30, 70], [0.2, 'heal', 1, 1], [0.15, 'logs', 2, 4]],
-  dragon: [[1, 'gold', 150, 400], [0.8, 'heal', 1, 2], [0.6, 'mana', 1, 2]],
+  dragon: [[1, 'gold', 150, 400], [0.8, 'heal', 1, 2], [0.6, 'mana', 1, 2], [0.5, 'gems', 1, 2]],
 };
 
 const DROP_TTL_MS = 60_000;
-
-// Spawn regions: kind, how many to keep alive, centre and radius.
-const SPAWNERS = [
-  { kind: 'goblin', count: 8, x: 120, y: 120, r: 16 },
-  { kind: 'goblin', count: 5, x: 58, y: 140, r: 12 },
-  { kind: 'skeleton', count: 8, x: 38, y: 30, r: 9 },   // the ruined keep
-  { kind: 'skeleton', count: 4, x: 92, y: 124, r: 9 },  // the haunted watchtower
-  { kind: 'orc', count: 6, x: 105, y: 29, r: 12 },      // the northern pines
-  { kind: 'orc', count: 4, x: 30, y: 110, r: 12 },
-  { kind: 'ettin', count: 3, x: 70, y: 150, r: 10 },
-  { kind: 'dragon', count: 1, x: 159, y: 149, r: 9 },   // the desert roost
-];
-
-const SPAWN_POINT = { x: 96, y: 98 };
-
 const RESOURCE_RESPAWN_MS = 90_000;
 
 const POTIONS = {
@@ -60,27 +54,15 @@ const POTIONS = {
   mana: { name: 'Mana Potion', restore: [20, 30] },
 };
 
-// Shopkeepers. Negative ids keep them out of the mob/player id space.
-const VENDORS = [
-  {
-    id: -1, kind: 'vendor', name: 'Mira the Alchemist', x: 90, y: 103,
-    goods: [
-      { item: 'heal', name: 'Greater Heal Potion', price: 45, desc: 'Restores 25-40 health.' },
-      { item: 'mana', name: 'Mana Potion', price: 35, desc: 'Restores 20-30 mana.' },
-    ],
-  },
-  {
-    id: -2, kind: 'vendor', name: 'Aldric the Herbalist', x: 54, y: 42,
-    goods: [
-      { item: 'heal', name: 'Greater Heal Potion', price: 50, desc: 'Restores 25-40 health.' },
-      { item: 'mana', name: 'Mana Potion', price: 30, desc: 'Restores 20-30 mana.' },
-    ],
-  },
-];
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 const rand = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const now = () => Date.now();
+
+function hashPassword(password, salt) {
+  return crypto.scryptSync(password, salt, 64).toString('hex');
+}
 
 class Game {
   constructor() {
@@ -88,52 +70,129 @@ class Game {
     this.players = new Map(); // id -> player (online only)
     this.mobs = new Map();    // id -> mob
     this.nextId = 1;
-    this.records = persist.load(); // lowercase name -> saved character
+    this.records = persist.load();          // char key -> saved character
+    this.accounts = persist.loadAccounts(); // email -> { salt, hash, charKey }
     this.dirty = false;
     this.resources = new Map(); // "x,y" -> gathers left before depletion
     this.depleted = new Map();  // "x,y" -> { tile, respawnAt }
-    this.drops = new Map();     // id -> { id, x, y, item, amount, despawnAt }
+    this.drops = new Map();     // id -> { id, x, y, item, amount, despawnAt, cacheIdx? }
+    this.cacheRespawns = new Map(); // secret index -> respawn time
 
-    for (const sp of SPAWNERS) {
+    // Vendors come from worldgen; negative ids keep them clear of mob ids.
+    this.vendors = this.map.vendors.map((v, i) => ({ ...v, id: -(i + 1), kind: 'vendor' }));
+
+    this.spawners = this.map.spawners;
+    for (const sp of this.spawners) {
       sp.alive = new Set();
       for (let i = 0; i < sp.count; i++) this.spawnMob(sp);
     }
+
+    // Hidden treasure caches start stocked.
+    this.map.secrets.forEach((s, i) => {
+      if (s.type === 'cache') this.stockCache(s, i);
+    });
+
+    this.miniData = this.buildMini();
 
     setInterval(() => this.tick(), TICK_MS);
     setInterval(() => this.saveAll(), SAVE_INTERVAL_MS);
   }
 
-  // ---- connection lifecycle -------------------------------------------------
-
-  join(ws, name, token) {
-    name = String(name || '').trim();
-    if (!/^[A-Za-z][A-Za-z0-9 '-]{1,14}$/.test(name)) {
-      return this.send(ws, { t: 'reject', reason: 'Name must be 2-15 letters/numbers.' });
-    }
-    const key = name.toLowerCase();
-    for (const p of this.players.values()) {
-      if (p.name.toLowerCase() === key) {
-        return this.send(ws, { t: 'reject', reason: 'That character is already in the world.' });
+  // A small overview of the world for the client's minimap: one byte (tile
+  // id) per MINI_SCALE x MINI_SCALE block.
+  buildMini() {
+    const w = this.map.w / MINI_SCALE;
+    const h = this.map.h / MINI_SCALE;
+    const out = Buffer.alloc(w * h);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        // Centre sample, but let towns and roads win so they stay visible.
+        let t = this.map.tiles[(y * MINI_SCALE + 4) * this.map.w + x * MINI_SCALE + 4];
+        for (let dy = 0; dy < MINI_SCALE; dy += 2) {
+          for (let dx = 0; dx < MINI_SCALE; dx += 2) {
+            const tt = this.map.tiles[(y * MINI_SCALE + dy) * this.map.w + x * MINI_SCALE + dx];
+            if (tt === TILE.FLOOR || tt === TILE.ROAD || tt === TILE.SHRINE) t = tt;
+          }
+        }
+        out[y * w + x] = t;
       }
     }
+    return { w, h, s: MINI_SCALE, d: out.toString('base64') };
+  }
 
-    let rec = this.records[key];
-    if (rec && rec.token !== token) {
-      return this.send(ws, { t: 'reject', reason: 'That name belongs to another player.' });
+  stockCache(secret, idx) {
+    for (const [item, min, max] of secret.loot) {
+      const amount = rand(min, max);
+      if (amount <= 0) continue;
+      this.drops.set(this.nextId, {
+        id: this.nextId++,
+        x: secret.x, y: secret.y,
+        item, amount,
+        despawnAt: Infinity,
+        cacheIdx: idx,
+      });
     }
-    if (!rec) {
+  }
+
+  // ---- connection lifecycle -------------------------------------------------
+
+  join(ws, msg) {
+    const email = String(msg.email || '').trim().toLowerCase();
+    const password = String(msg.password || '');
+    const name = String(msg.name || '').trim();
+
+    if (!EMAIL_RE.test(email)) {
+      return this.send(ws, { t: 'reject', reason: 'Enter a valid email address.' });
+    }
+    if (password.length < 6) {
+      return this.send(ws, { t: 'reject', reason: 'Password must be at least 6 characters.' });
+    }
+
+    let account = this.accounts[email];
+    let rec;
+
+    if (account) {
+      const hash = hashPassword(password, account.salt);
+      if (!crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(account.hash))) {
+        return this.send(ws, { t: 'reject', reason: 'Wrong password for that account.' });
+      }
+      rec = this.records[account.charKey];
+      if (!rec) {
+        return this.send(ws, { t: 'reject', reason: 'Account has no character. Contact the shard keeper.' });
+      }
+    } else {
+      // New account: also creates its character.
+      if (!/^[A-Za-z][A-Za-z0-9 '-]{1,14}$/.test(name)) {
+        return this.send(ws, { t: 'reject', reason: 'New account: choose a character name (2-15 letters/numbers).' });
+      }
+      const key = name.toLowerCase();
+      if (this.records[key]) {
+        return this.send(ws, { t: 'reject', reason: 'That character name is already taken.' });
+      }
+      const salt = crypto.randomBytes(16).toString('hex');
+      account = this.accounts[email] = {
+        email, salt,
+        hash: hashPassword(password, salt),
+        charKey: key,
+      };
       rec = this.records[key] = {
-        token: crypto.randomBytes(16).toString('hex'),
         name,
-        x: SPAWN_POINT.x,
-        y: SPAWN_POINT.y,
+        x: this.map.spawn.x,
+        y: this.map.spawn.y,
         str: 35, dex: 35, int: 30,
         hp: 67, mana: 30,
         skills: Object.fromEntries(SKILLS.map((s) => [s, 20])),
-        gold: 100, logs: 0, ore: 0,
+        gold: 100, logs: 0, ore: 0, gems: 0,
         pots: { heal: 1, mana: 0 },
       };
+      persist.saveAccounts(this.accounts);
       this.dirty = true;
+    }
+
+    for (const p of this.players.values()) {
+      if (p.key === account.charKey) {
+        return this.send(ws, { t: 'reject', reason: 'That character is already in the world.' });
+      }
     }
 
     const spot = isWalkable(this.map, rec.x, rec.y)
@@ -144,17 +203,18 @@ class Game {
       id: this.nextId++,
       ws,
       name: rec.name,
-      key,
+      key: account.charKey,
       x: spot.x,
       y: spot.y,
       str: rec.str, dex: rec.dex, int: rec.int,
       hp: Math.min(rec.hp, maxHp(rec)), mana: Math.min(rec.mana, rec.int),
       skills: { ...rec.skills },
-      gold: rec.gold, logs: rec.logs, ore: rec.ore,
-      pots: { heal: 0, mana: 0, ...rec.pots }, // older records lack pots
+      gold: rec.gold, logs: rec.logs, ore: rec.ore, gems: rec.gems || 0,
+      pots: { heal: 0, mana: 0, ...rec.pots },
       dead: false,
       target: 0,
-      moveAt: 0, swingAt: 0, castAt: 0, bandageAt: 0, regenAt: 0, drinkAt: 0,
+      moveAt: 0, swingAt: 0, castAt: 0, bandageAt: 0, regenAt: 0, drinkAt: 0, portalAt: 0,
+      whispered: new Set(),
     };
     ws.player = p;
     this.players.set(p.id, p);
@@ -162,10 +222,11 @@ class Game {
     this.send(ws, {
       t: 'welcome',
       id: p.id,
-      token: rec.token,
-      map: { w: this.map.w, h: this.map.h, tiles: Buffer.from(this.map.tiles).toString('base64') },
+      map: { w: this.map.w, h: this.map.h, chunk: CHUNK },
+      mini: this.miniData,
+      buildings: this.map.buildings,
       spells: SPELLS,
-      vendors: VENDORS,
+      vendors: this.vendors,
     });
     this.sendYou(p);
     this.sys(p, `Welcome to Shardlands, ${p.name}. The shrine in Briarhaven will raise you if you fall.`);
@@ -188,7 +249,7 @@ class Game {
       str: p.str, dex: p.dex, int: p.int,
       hp: Math.max(1, p.hp), mana: p.mana,
       skills: { ...p.skills },
-      gold: p.gold, logs: p.logs, ore: p.ore,
+      gold: p.gold, logs: p.logs, ore: p.ore, gems: p.gems,
       pots: { ...p.pots },
     });
     this.dirty = true;
@@ -207,7 +268,7 @@ class Game {
   handle(ws, msg) {
     const p = ws.player;
     if (!p) {
-      if (msg.t === 'join') this.join(ws, msg.name, msg.token);
+      if (msg.t === 'join') this.join(ws, msg);
       return;
     }
     switch (msg.t) {
@@ -219,12 +280,30 @@ class Game {
       case 'gather': return this.handleGather(p);
       case 'buy': return this.handleBuy(p, String(msg.item || ''));
       case 'drink': return this.handleDrink(p, String(msg.kind || ''));
+      case 'chunks': return this.handleChunks(p, msg.l);
+    }
+  }
+
+  handleChunks(p, list) {
+    if (!Array.isArray(list)) return;
+    const maxC = this.map.w / CHUNK;
+    for (const pair of list.slice(0, 48)) {
+      if (!Array.isArray(pair)) continue;
+      const cx = pair[0] | 0;
+      const cy = pair[1] | 0;
+      if (cx < 0 || cy < 0 || cx >= maxC || cy >= maxC) continue;
+      const buf = Buffer.alloc(CHUNK * CHUNK);
+      for (let y = 0; y < CHUNK; y++) {
+        const row = (cy * CHUNK + y) * this.map.w + cx * CHUNK;
+        for (let x = 0; x < CHUNK; x++) buf[y * CHUNK + x] = this.map.tiles[row + x];
+      }
+      this.send(p.ws, { t: 'chunk', cx, cy, d: buf.toString('base64') });
     }
   }
 
   handleBuy(p, item) {
     if (p.dead) return this.sys(p, 'The dead cannot trade.');
-    const vendor = VENDORS.find((v) => dist(p, v) <= 3);
+    const vendor = this.vendors.find((v) => dist(p, v) <= 3);
     if (!vendor) return this.sys(p, 'You are too far from a shopkeeper.');
     const good = vendor.goods.find((g) => g.item === item);
     if (!good) return;
@@ -244,14 +323,14 @@ class Game {
     const t = now();
     if (t < p.drinkAt) return this.sys(p, 'You must wait a moment between potions.');
     if (!p.pots[kind]) {
-      return this.sys(p, `You have no ${potion.name.toLowerCase()}s. Mira in Briarhaven sells them.`);
+      return this.sys(p, `You have no ${potion.name.toLowerCase()}s. The town alchemists sell them.`);
     }
     p.pots[kind] -= 1;
     p.drinkAt = t + 4000;
     const amount = rand(potion.restore[0], potion.restore[1]);
     if (kind === 'heal') {
       p.hp = Math.min(maxHp(p), p.hp + amount);
-      this.broadcast({ t: 'fx', kind: 'heal', x: p.x, y: p.y, amount });
+      this.fxNear(p, { t: 'fx', kind: 'heal', x: p.x, y: p.y, amount });
       this.sys(p, `You drink the potion and recover ${amount} health.`);
     } else {
       p.mana = Math.min(p.int, p.mana + amount);
@@ -273,6 +352,29 @@ class Game {
     p.moveAt = t + (dx !== 0 && dy !== 0 ? 210 : 150);
 
     if (p.dead && tileAt(this.map, p.x, p.y) === TILE.SHRINE) this.resurrect(p);
+    if (!p.dead) this.checkSecrets(p, t);
+  }
+
+  checkSecrets(p, t) {
+    for (let i = 0; i < this.map.secrets.length; i++) {
+      const s = this.map.secrets[i];
+      if (s.type === 'portal' && s.x === p.x && s.y === p.y) {
+        if (t < p.portalAt) return;
+        p.portalAt = t + 4000; // don't bounce straight back
+        this.fxNear(p, { t: 'fx', kind: 'portal', x: p.x, y: p.y });
+        p.x = s.tx;
+        p.y = s.ty;
+        p.moveAt = t + 600;
+        this.fxNear(p, { t: 'fx', kind: 'portal', x: p.x, y: p.y });
+        this.sys(p, 'The standing stones flare with old magic, and the world lurches.');
+        return;
+      }
+      if (s.type === 'whisper' && !p.whispered.has(i) &&
+          Math.abs(s.x - p.x) <= 2 && Math.abs(s.y - p.y) <= 2) {
+        p.whispered.add(i);
+        this.sys(p, s.text);
+      }
+    }
   }
 
   handleSay(p, text) {
@@ -315,14 +417,14 @@ class Game {
     if (spell.heal) {
       const amount = rand(spell.heal[0], spell.heal[1]);
       p.hp = Math.min(maxHp(p), p.hp + amount);
-      this.broadcast({ t: 'fx', kind: 'heal', x: p.x, y: p.y, amount });
+      this.fxNear(p, { t: 'fx', kind: 'heal', x: p.x, y: p.y, amount });
     } else {
       const mob = this.mobs.get(targetId || p.target);
       if (!mob || dist(p, mob) > 10) {
         this.sys(p, 'No target in range.');
       } else {
         const dmg = rand(spell.dmg[0], spell.dmg[1]) + Math.floor(p.skills.magery / 12);
-        this.broadcast({ t: 'fx', kind: spellId, x: p.x, y: p.y, tx: mob.x, ty: mob.y, amount: dmg });
+        this.fxNear(p, { t: 'fx', kind: spellId, x: p.x, y: p.y, tx: mob.x, ty: mob.y, amount: dmg });
         this.damageMob(p, mob, dmg);
         this.gainStat(p, 'int');
       }
@@ -339,7 +441,7 @@ class Game {
     if (p.hp >= maxHp(p)) return this.sys(p, 'You are at full health.');
     const amount = rand(3, 8) + Math.floor(p.skills.healing / 5);
     p.hp = Math.min(maxHp(p), p.hp + amount);
-    this.broadcast({ t: 'fx', kind: 'heal', x: p.x, y: p.y, amount });
+    this.fxNear(p, { t: 'fx', kind: 'heal', x: p.x, y: p.y, amount });
     this.sys(p, `You bandage your wounds for ${amount}.`);
     this.gainSkill(p, 'healing');
     this.gainStat(p, 'dex');
@@ -432,7 +534,7 @@ class Game {
   damageMob(attacker, mob, dmg) {
     mob.hp -= dmg;
     mob.target = attacker.id; // fighting back
-    this.broadcast({ t: 'fx', kind: 'hit', x: mob.x, y: mob.y, amount: dmg });
+    this.fxNear(mob, { t: 'fx', kind: 'hit', x: mob.x, y: mob.y, amount: dmg });
     if (mob.hp <= 0) this.killMob(attacker, mob);
   }
 
@@ -444,7 +546,7 @@ class Game {
     mob.spawner.alive.delete(mob.id);
     mob.spawner.respawnAt = now() + 20_000;
     this.sys(killer, `You have slain ${def.name}! You loot ${gold} gold.`);
-    this.broadcast({ t: 'fx', kind: 'die', x: mob.x, y: mob.y });
+    this.fxNear(mob, { t: 'fx', kind: 'die', x: mob.x, y: mob.y });
     this.rollLoot(mob);
     this.sendYou(killer);
   }
@@ -467,6 +569,9 @@ class Game {
     for (const [id, d] of this.drops) {
       if (d.x !== p.x || d.y !== p.y) continue;
       this.drops.delete(id);
+      if (d.cacheIdx !== undefined) {
+        this.cacheRespawns.set(d.cacheIdx, now() + CACHE_RESPAWN_MS);
+      }
       switch (d.item) {
         case 'gold':
           p.gold += d.amount;
@@ -485,6 +590,10 @@ class Game {
           p.ore += d.amount;
           this.sys(p, `You pick up ${d.amount} ore.`);
           break;
+        case 'gems':
+          p.gems += d.amount;
+          this.sys(p, `You pick up ${d.amount > 1 ? d.amount + ' sparkling gems' : 'a sparkling gem'}!`);
+          break;
       }
       this.sendYou(p);
     }
@@ -494,16 +603,16 @@ class Game {
     p.dead = true;
     p.hp = 0;
     p.target = 0;
-    this.sys(p, `You have been slain by ${byName}. Walk your ghost to the shrine in Briarhaven.`);
+    this.sys(p, `You have been slain by ${byName}. Walk your ghost to a shrine.`);
     this.broadcastSys(`${p.name} has been slain by ${byName}.`, p.id);
-    this.broadcast({ t: 'fx', kind: 'die', x: p.x, y: p.y });
+    this.fxNear(p, { t: 'fx', kind: 'die', x: p.x, y: p.y });
     this.sendYou(p);
   }
 
   resurrect(p) {
     p.dead = false;
     p.hp = Math.ceil(maxHp(p) * 0.3);
-    this.broadcast({ t: 'fx', kind: 'heal', x: p.x, y: p.y, amount: p.hp });
+    this.fxNear(p, { t: 'fx', kind: 'heal', x: p.x, y: p.y, amount: p.hp });
     this.sys(p, 'The ankh glows and breathes life back into you.');
     this.sendYou(p);
   }
@@ -522,7 +631,7 @@ class Game {
     const hitChance = clamp(50 + (p.skills.swordsmanship - MOB_KINDS[mob.kind].skill) / 2, 10, 95);
     this.gainSkill(p, 'swordsmanship');
     if (Math.random() * 100 > hitChance) {
-      this.broadcast({ t: 'fx', kind: 'miss', x: mob.x, y: mob.y });
+      this.fxNear(mob, { t: 'fx', kind: 'miss', x: mob.x, y: mob.y });
       return;
     }
     this.gainSkill(p, 'tactics');
@@ -606,11 +715,11 @@ class Game {
           if (Math.random() * 100 <= hitChance) {
             const dmg = rand(def.dmg[0], def.dmg[1]);
             target.hp -= dmg;
-            this.broadcast({ t: 'fx', kind: 'hit', x: target.x, y: target.y, amount: dmg });
+            this.fxNear(target, { t: 'fx', kind: 'hit', x: target.x, y: target.y, amount: dmg });
             if (target.hp <= 0) this.killPlayer(target, def.name);
             else this.sendYou(target);
           } else {
-            this.broadcast({ t: 'fx', kind: 'miss', x: target.x, y: target.y });
+            this.fxNear(target, { t: 'fx', kind: 'miss', x: target.x, y: target.y });
           }
         }
       } else if (t >= mob.moveAt) {
@@ -642,8 +751,9 @@ class Game {
       if (!isWalkable(this.map, nx, ny)) continue;
       // Don't let mobs stack on each other.
       let blocked = false;
-      for (const m of this.mobs.values()) {
-        if (m !== mob && m.x === nx && m.y === ny) { blocked = true; break; }
+      for (const id of mob.spawner.alive) {
+        const m = this.mobs.get(id);
+        if (m && m !== mob && m.x === nx && m.y === ny) { blocked = true; break; }
       }
       if (blocked) continue;
       mob.x = nx;
@@ -672,7 +782,7 @@ class Game {
       }
     }
 
-    for (const sp of SPAWNERS) {
+    for (const sp of this.spawners) {
       if (sp.alive.size < sp.count && t >= (sp.respawnAt || 0)) {
         sp.respawnAt = t + 20_000;
         this.spawnMob(sp);
@@ -684,18 +794,31 @@ class Game {
     for (const [id, d] of this.drops) {
       if (t >= d.despawnAt) this.drops.delete(id);
     }
+    for (const [idx, at] of this.cacheRespawns) {
+      if (t >= at) {
+        this.cacheRespawns.delete(idx);
+        this.stockCache(this.map.secrets[idx], idx);
+      }
+    }
 
-    this.broadcast({
-      t: 'state',
-      players: [...this.players.values()].map((p) => ({
-        id: p.id, name: p.name, x: p.x, y: p.y,
-        hp: p.hp, maxhp: maxHp(p), dead: p.dead,
-      })),
-      mobs: [...this.mobs.values()].map((m) => ({
-        id: m.id, kind: m.kind, x: m.x, y: m.y, hp: m.hp, maxhp: m.maxhp,
-      })),
-      drops: [...this.drops.values()].map((d) => ({ id: d.id, x: d.x, y: d.y, item: d.item })),
-    });
+    // Interest-managed state: each player sees only what's near them.
+    const players = [...this.players.values()];
+    const mobs = [...this.mobs.values()];
+    const drops = [...this.drops.values()];
+    for (const p of players) {
+      const near = (e) => Math.abs(e.x - p.x) <= VIEW_RADIUS && Math.abs(e.y - p.y) <= VIEW_RADIUS;
+      this.send(p.ws, {
+        t: 'state',
+        players: players.filter(near).map((q) => ({
+          id: q.id, name: q.name, x: q.x, y: q.y,
+          hp: q.hp, maxhp: maxHp(q), dead: q.dead,
+        })),
+        mobs: mobs.filter(near).map((m) => ({
+          id: m.id, kind: m.kind, x: m.x, y: m.y, hp: m.hp, maxhp: m.maxhp,
+        })),
+        drops: drops.filter(near).map((d) => ({ id: d.id, x: d.x, y: d.y, item: d.item })),
+      });
+    }
   }
 
   // ---- plumbing -------------------------------------------------------------------
@@ -706,7 +829,7 @@ class Game {
       hp: p.hp, maxhp: maxHp(p), mana: p.mana, maxmana: p.int,
       str: p.str, dex: p.dex, int: p.int,
       skills: p.skills,
-      gold: p.gold, logs: p.logs, ore: p.ore,
+      gold: p.gold, logs: p.logs, ore: p.ore, gems: p.gems,
       pots: p.pots,
       dead: p.dead,
     });
@@ -730,6 +853,17 @@ class Game {
     const data = JSON.stringify(msg);
     for (const p of this.players.values()) {
       if (p.ws.readyState === 1) p.ws.send(data);
+    }
+  }
+
+  // Effects only matter to players close enough to see them.
+  fxNear(at, msg) {
+    const data = JSON.stringify(msg);
+    for (const p of this.players.values()) {
+      if (Math.abs(p.x - at.x) <= VIEW_RADIUS && Math.abs(p.y - at.y) <= VIEW_RADIUS &&
+          p.ws.readyState === 1) {
+        p.ws.send(data);
+      }
     }
   }
 }
