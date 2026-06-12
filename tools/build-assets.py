@@ -338,6 +338,7 @@ def main():
     trim_object(building, (64, 0, 128, 64), 'wall.1', frames, 'building')
     trim_object(building, (64, 320, 178, 384), 'prop.table', frames, 'building')
     trim_object(building, (208, 352, 240, 384), 'prop.stool', frames, 'building')
+    trim_object(building, (576, 316, 640, 384), 'prop.well', frames, 'building')
 
     # Snow-dusted trees: copies of the conifers with whitened foliage.
     snow_sources = ['tree.pine0', 'tree.pine1', 'tree.pine2', 'tree.pine3',
@@ -397,6 +398,7 @@ def main():
         '7': {'groundProc': 'sand'},
         '8': {'ground': ['floor.1'], 'effect': 'shrine'},
         '9': {'groundProc': 'snow'},
+        '11': {'ground': ['planks']},
         '10': {'groundProc': 'snow',
                'object': ['tree.snowpine0', 'tree.snowpine1', 'tree.snowpine2',
                           'tree.snowpine3', 'tree.snowfir0', 'tree.snowfir1', 'tree.snowdead']},

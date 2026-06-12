@@ -10,8 +10,8 @@
 
 const HW = 32; // half tile width on screen
 const HH = 16; // half tile height on screen
-const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SAND: 7, SHRINE: 8, SNOW: 9, SNOWTREE: 10 };
-const WALKABLE = new Set([T.GRASS, T.ROAD, T.FLOOR, T.SAND, T.SHRINE, T.SNOW]);
+const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SAND: 7, SHRINE: 8, SNOW: 9, SNOWTREE: 10, PLANKS: 11 };
+const WALKABLE = new Set([T.GRASS, T.ROAD, T.FLOOR, T.SAND, T.SHRINE, T.SNOW, T.PLANKS]);
 
 const MOB_STYLE = {
   goblin: { color: '#5aa040', size: 0.5, name: 'a goblin' },
@@ -89,22 +89,7 @@ function handleMessage(msg) {
       state.chunks.clear();
       state.wantedChunks.clear();
       state.buildings = msg.buildings || [];
-      // Dress interiors with furniture, avoiding tiles where a vendor stands.
-      state.props = [];
-      const occupied = new Set(state.vendors.map((v) => v.x + ',' + v.y));
-      for (const b of state.buildings) {
-        if (b.w < 5 || b.h < 4) continue;
-        const cx = b.x + Math.floor(b.w / 2);
-        const cy = b.y + Math.floor(b.h / 2);
-        const spots = [[cx, cy], [cx - 1, cy], [cx, cy - 1], [cx + 1, cy]];
-        const free = spots.filter(([x, y]) =>
-          !occupied.has(x + ',' + y) &&
-          x > b.x && x < b.x + b.w - 1 && y > b.y && y < b.y + b.h - 1);
-        if (free.length) {
-          state.props.push({ x: free[0][0], y: free[0][1], name: b.w >= 6 ? 'prop.table' : 'prop.stool' });
-          if (free.length > 1) state.props.push({ x: free[1][0], y: free[1][1], name: 'prop.stool' });
-        }
-      }
+      state.props = msg.props || [];
       state.mini = msg.mini;
       buildMinimap();
       document.getElementById('login').classList.add('hidden');
@@ -556,6 +541,7 @@ const TILE_COLORS = {
   [T.SHRINE]: ['#8a8078', '#8a8078'],
   [T.SNOW]: ['#e6ebf0', '#dde4ec'],
   [T.SNOWTREE]: ['#e6ebf0', '#dde4ec'],
+  [T.PLANKS]: ['#946e48', '#8a6642'],
 };
 
 function camera() {
@@ -655,7 +641,8 @@ function render() {
           const name = recipe.object[Math.floor(hash(tx * 5 + 1, ty) * recipe.object.length)];
           drawables.push({ depth: tx + ty, kind: 'sprite', name, x: top.x, y: top.y + HH,
             stack: recipe.stack || 1,
-            win: recipe.stack > 1 && hash(tx * 3 + 5, ty * 7 + 1) > 0.55 });
+            win: recipe.stack > 1 && hash(tx * 3 + 5, ty * 7 + 1) > 0.55
+              ? (hash(tx * 11 + 2, ty * 5 + 3) > 0.5 ? 1 : 2) : 0 });
         } else if (recipe.decor && hash(tx, ty * 3 + 1) < recipe.decor.chance) {
           const name = recipe.decor.objects[Math.floor(h * recipe.decor.objects.length)];
           drawables.push({ depth: tx + ty, kind: 'sprite', name, x: top.x, y: top.y + HH });
@@ -680,7 +667,7 @@ function render() {
       state.me.x >= b.x && state.me.x < b.x + b.w &&
       state.me.y >= b.y && state.me.y < b.y + b.h;
     if (inside) continue;
-    drawables.push({ depth: b.x + b.w + b.y + b.h + 0.5, kind: 'roof', b });
+    drawables.push({ depth: b.x + b.w - 1 + b.y + b.h - 1 + 0.5, kind: 'roof', b });
   }
 
   // Interior furniture.
@@ -704,7 +691,7 @@ function render() {
           // Stacked wall cubes: plain blocks below, the variant on top.
           for (let i = 0; i < d.stack - 1; i++) Assets.drawFrame(ctx, 'wall.0', d.x, d.y - 32 * i);
           Assets.drawFrame(ctx, d.name, d.x, d.y - 32 * (d.stack - 1));
-          if (d.win) drawWindow(d.x, d.y);
+          if (d.win) drawWindow(d.x, d.y, d.win);
         } else {
           Assets.drawFrame(ctx, d.name, d.x, d.y);
         }
@@ -800,21 +787,53 @@ function drawFallbackBlock(d) {
   }
 }
 
-// A shuttered window on the southeast face of an upper wall cube.
-function drawWindow(cx, cy) {
-  const x = cx + 9;
-  const y = cy - 56;
-  ctx.fillStyle = '#241a12';
-  ctx.fillRect(x, y, 8, 11);
-  ctx.fillStyle = 'rgba(250, 220, 130, 0.25)';
-  ctx.fillRect(x + 1, y + 1, 6, 4);
-  ctx.strokeStyle = '#54483a';
-  ctx.strokeRect(x - 0.5, y - 0.5, 9, 12);
+// A window on an upper wall cube, drawn as a parallelogram that follows
+// the isometric face: face 1 = southeast (right), face 2 = southwest (left).
+function drawWindow(cx, cy, face) {
+  const w = 10;
+  const h = 11;
+  const sgn = face === 1 ? 1 : -1;
+  const x0 = cx + sgn * 6;               // inner edge of the face
+  const x1 = x0 + sgn * w;
+  const y0 = cy - 42;                    // top of the frame, on the upper cube's face
+  const y1 = y0 + w / 2;                 // face slope: |dy| = dx / 2
+  const quad = (yo, hh, fill) => {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0 + yo);
+    ctx.lineTo(x1, y1 + yo);
+    ctx.lineTo(x1, y1 + yo + hh);
+    ctx.lineTo(x0, y0 + yo + hh);
+    ctx.closePath();
+    ctx.fill();
+  };
+  quad(-1, h + 2, '#4e4438');            // stone frame
+  quad(0, h, '#1d1610');                 // opening
+  quad(1, 4, 'rgba(252, 222, 130, 0.3)'); // lamplight inside
+  // mullions
+  ctx.strokeStyle = '#4e4438';
+  ctx.beginPath();
+  const mx = (x0 + x1) / 2;
+  const my = (y0 + y1) / 2;
+  ctx.moveTo(mx, my);
+  ctx.lineTo(mx, my + h);
+  ctx.moveTo(x0, y0 + h / 2);
+  ctx.lineTo(x1, y1 + h / 2);
+  ctx.stroke();
 }
+
+// Roofs come in a few weathered colours so towns don't look stamped out.
+const ROOF_PALETTES = [
+  { far: '#6e3a30', near: '#a0523f', gable: '#874437', cap: '#552a22' }, // terracotta
+  { far: '#39434f', near: '#5a6a7d', gable: '#4a5868', cap: '#2c343d' }, // slate
+  { far: '#42512d', near: '#647c43', gable: '#536a38', cap: '#33401f' }, // moss
+  { far: '#523c2f', near: '#7a5a45', gable: '#66493a', cap: '#3e2d23' }, // umber
+];
 
 // A gabled roof drawn as an isometric prism above the building's walls.
 // UO-style: it vanishes while you stand inside.
 function drawRoof(b, cam, time) {
+  const pal = ROOF_PALETTES[(b.x * 7 + b.y * 13) % ROOF_PALETTES.length];
   const e = 0.3; // eave overhang in tiles
   const x0 = b.x - e;
   const y0 = b.y - e;
@@ -859,12 +878,12 @@ function drawRoof(b, cam, time) {
     const my = (y0 + y1) / 2;
     const rA = P(x0 + 0.5, my, ridgeLift);
     const rB = P(x1 - 0.5, my, ridgeLift);
-    poly([A, B, rB, rA], '#6e3a30');  // north slope (faces away)
-    poly([D, C, rB, rA], '#a0523f');  // south slope (faces camera)
+    poly([A, B, rB, rA], pal.far);    // north slope (faces away)
+    poly([D, C, rB, rA], pal.near);   // south slope (faces camera)
     courses(D, C, rA, rB);
-    poly([B, C, rB], '#874437');      // east gable
+    poly([B, C, rB], pal.gable);      // east gable
     // ridge cap
-    ctx.strokeStyle = '#552a22';
+    ctx.strokeStyle = pal.cap;
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(rA[0], rA[1]); ctx.lineTo(rB[0], rB[1]); ctx.stroke();
     ctx.lineWidth = 1;
@@ -874,11 +893,11 @@ function drawRoof(b, cam, time) {
     const mx = (x0 + x1) / 2;
     const rA = P(mx, y0 + 0.5, ridgeLift);
     const rB = P(mx, y1 - 0.5, ridgeLift);
-    poly([A, D, rB, rA], '#6e3a30');  // west slope (faces away-ish)
-    poly([B, C, rB, rA], '#a0523f');  // east slope (faces camera)
+    poly([A, D, rB, rA], pal.far);    // west slope (faces away-ish)
+    poly([B, C, rB, rA], pal.near);   // east slope (faces camera)
     courses(B, C, rA, rB);
-    poly([D, C, rB], '#874437');      // south gable
-    ctx.strokeStyle = '#552a22';
+    poly([D, C, rB], pal.gable);      // south gable
+    ctx.strokeStyle = pal.cap;
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(rA[0], rA[1]); ctx.lineTo(rB[0], rB[1]); ctx.stroke();
     ctx.lineWidth = 1;
@@ -1131,7 +1150,7 @@ const MINI_COLORS = {
   [T.WATER]: [26, 70, 100], [T.GRASS]: [74, 122, 56], [T.TREE]: [40, 80, 32],
   [T.ROCK]: [110, 106, 96], [T.ROAD]: [154, 138, 100], [T.FLOOR]: [138, 128, 120],
   [T.WALL]: [70, 66, 60], [T.SAND]: [192, 174, 124], [T.SHRINE]: [240, 210, 110],
-  [T.SNOW]: [228, 234, 240], [T.SNOWTREE]: [196, 210, 218],
+  [T.SNOW]: [228, 234, 240], [T.SNOWTREE]: [196, 210, 218], [T.PLANKS]: [148, 110, 72],
 };
 
 function buildMinimap() {
