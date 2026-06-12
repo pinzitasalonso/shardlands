@@ -19,6 +19,11 @@ const MOB_STYLE = {
   orc: { color: '#5a8a3a', size: 0.8, name: 'an orc' },
   ettin: { color: '#a07040', size: 1.0, name: 'an ettin' },
   dragon: { color: '#c03828', size: 1.3, name: 'a dragon' },
+  wolf: { color: '#6a625a', size: 0.6, name: 'a wolf' },
+  deer: { color: '#a8835a', size: 0.6, name: 'a deer' },
+  sheep: { color: '#e8e4da', size: 0.5, name: 'a sheep' },
+  pig: { color: '#d8a8a0', size: 0.5, name: 'a pig' },
+  chicken: { color: '#e8d8b0', size: 0.3, name: 'a chicken' },
 };
 
 const canvas = document.getElementById('game');
@@ -232,6 +237,7 @@ document.addEventListener('keydown', (ev) => {
     case 'b': case 'B': send({ t: 'bandage' }); break;
     case 'g': case 'G': send({ t: 'gather' }); break;
     case 'i': case 'I': toggleInventory(); break;
+    case 'f': case 'F': toggleFullscreen(); break;
     default: keys.add(ev.key.toLowerCase());
   }
 });
@@ -241,6 +247,11 @@ window.addEventListener('blur', () => keys.clear());
 
 function castSpell(id) {
   send({ t: 'cast', spell: id, id: state.target });
+}
+
+function toggleFullscreen() {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(() => {});
 }
 
 canvas.addEventListener('mousedown', (ev) => {
@@ -317,7 +328,7 @@ setInterval(() => {
     }
     state.walkTarget = null; // boxed in; give up
   }
-}, 90);
+}, 65);
 
 document.getElementById('actions').addEventListener('click', (ev) => {
   const act = ev.target.dataset.act;
@@ -586,8 +597,8 @@ function render() {
   for (const map of [state.players, state.mobs]) {
     for (const e of map.values()) {
       if (Math.abs(e.x - e.rx) > 4 || Math.abs(e.y - e.ry) > 4) { e.rx = e.x; e.ry = e.y; }
-      e.rx += (e.x - e.rx) * 0.25;
-      e.ry += (e.y - e.ry) * 0.25;
+      e.rx += (e.x - e.rx) * 0.35;
+      e.ry += (e.y - e.ry) * 0.35;
     }
   }
 

@@ -53,6 +53,17 @@ SOURCES = {
     'mage_hood.txt': f'{FLARE}/fantasycore/animations/avatar/male/mage_hood.txt',
     'leather_boots.png': f'{FLARE}/fantasycore/images/avatar/male/leather_boots.png',
     'leather_boots.txt': f'{FLARE}/fantasycore/animations/avatar/male/leather_boots.txt',
+    'default_chest.png': f'{FLARE}/fantasycore/images/avatar/male/default_chest.png',
+    'default_chest.txt': f'{FLARE}/fantasycore/animations/avatar/male/default_chest.txt',
+    'default_hands.png': f'{FLARE}/fantasycore/images/avatar/male/default_hands.png',
+    'default_hands.txt': f'{FLARE}/fantasycore/animations/avatar/male/default_hands.txt',
+    # Animals: Stendhal (GPL 2) and LPC farm animals by Daniel Eddeland
+    # (CC-BY-SA 3.0 / GPL 3). 4-direction walk sheets, rows = up/right/down/left.
+    'wolf.png': 'https://raw.githubusercontent.com/arianne/stendhal/master/data/sprites/monsters/animal/wolf.png',
+    'deer.png': 'https://raw.githubusercontent.com/arianne/stendhal/master/data/sprites/monsters/animal/deer.png',
+    'sheep.png': f'{OGA}/sheep_walk.png',
+    'pig.png': f'{OGA}/pig_walk.png',
+    'chicken.png': f'{OGA}/chicken_walk.png',
 }
 
 # Flare's calcDirection: dir = (round(theta / 45deg) + 5) % 8, theta in tile
@@ -247,6 +258,39 @@ def build_minotaur(scale=1.0):
             'dirs': 8, 'anims': anims_meta}
 
 
+# Map our 8 headings onto a 4-direction sheet (rows: up, right, down, left):
+# SE/S -> down, SW/W -> left, NW/N -> up, NE/E -> right.
+DIR4_ROW_FOR_HEADING = [2, 2, 3, 3, 0, 0, 1, 1]
+
+def build_dir4_creature(name, cols, cell_w, cell_h, scale=1.0, stance_ms=400, run_ms=140):
+    """Animals from classic 4-row walk sheets. Stance = the middle column,
+    run = the full walk cycle, melee reuses stance."""
+    sheet = Image.open(os.path.join(SRC, f'{name}.png')).convert('RGBA')
+    stand_col = 1 if cols >= 3 else 0
+    total = 1 + cols
+    atlas = Image.new('RGBA', (cell_w * total, cell_h * 8), (0, 0, 0, 0))
+    for h_ in range(8):
+        row = DIR4_ROW_FOR_HEADING[h_]
+        def frame(col):
+            return sheet.crop((col * cell_w, row * cell_h, (col + 1) * cell_w, (row + 1) * cell_h))
+        atlas.alpha_composite(frame(stand_col), (0, h_ * cell_h))
+        for c in range(cols):
+            atlas.alpha_composite(frame(c), ((1 + c) * cell_w, h_ * cell_h))
+    # Anchor at the visible feet of the standing frame (south row).
+    probe = sheet.crop((stand_col * cell_w, 2 * cell_h, (stand_col + 1) * cell_w, 3 * cell_h))
+    bbox = probe.getbbox() or (0, 0, cell_w, cell_h)
+    ay = bbox[3] - 2
+    if scale != 1.0:
+        atlas = atlas.resize((int(atlas.width * scale), int(atlas.height * scale)), Image.LANCZOS)
+    cw = int(cell_w * scale)
+    ch = int(cell_h * scale)
+    atlas.save(os.path.join(OUT, 'creatures', f'{name}.png'))
+    stance = {'start': 0, 'frames': 1, 'ms': stance_ms, 'loop': 'loop'}
+    run = {'start': 1, 'frames': cols, 'ms': run_ms, 'loop': 'loop'}
+    return {'img': name, 'cellW': cw, 'cellH': ch, 'ax': cw // 2, 'ay': int(ay * scale),
+            'dirs': 8, 'anims': {'stance': stance, 'run': run, 'melee': stance}}
+
+
 def build_dragon(scale=0.5):
     """Vertical strip of wing-flap frames, split on transparent rows."""
     sheet = Image.open(os.path.join(SRC, 'dragon.png')).convert('RGBA')
@@ -424,10 +468,19 @@ def main():
     shirt = packed('cloth_shirt')
     head = packed('head_short')
     hood = packed('mage_hood')
+    chest = packed('default_chest')  # bare skin: torso and arms
+    hands = packed('default_hands')
     creatures['player'] = build_creature(
-        'player', [boots, pants, shirt, head], scale=0.66, stance_ms=260)
+        'player', [chest, hands, boots, pants, shirt, head], scale=0.6, stance_ms=260)
     creatures['vendor'] = build_creature(
-        'vendor', [boots, pants, shirt, hood], scale=0.66, stance_ms=320)
+        'vendor', [chest, hands, boots, pants, shirt, hood], scale=0.6, stance_ms=320)
+
+    # Wildlife and livestock.
+    creatures['wolf'] = build_dir4_creature('wolf', 3, 48, 64, scale=1.1)
+    creatures['deer'] = build_dir4_creature('deer', 3, 64, 64, scale=1.0)
+    creatures['sheep'] = build_dir4_creature('sheep', 4, 128, 128, scale=0.5)
+    creatures['pig'] = build_dir4_creature('pig', 4, 128, 128, scale=0.5)
+    creatures['chicken'] = build_dir4_creature('chicken', 4, 32, 32, scale=1.0)
 
     manifest = {
         'tileW': 64, 'tileH': 32,

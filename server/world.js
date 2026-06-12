@@ -195,23 +195,23 @@ function generate(seed = 1337) {
   // ---- Briarhaven: the capital at the heart of the island ---------------------
   const CX = W / 2;
   const CY = H / 2;
-  flatten(CX, CY, 20);
-  for (let y = CY - 10; y <= CY + 10; y++) {
-    for (let x = CX - 10; x <= CX + 10; x++) set(x, y, TILE.FLOOR);
+  flatten(CX, CY, 22);
+  for (let y = CY - 12; y <= CY + 12; y++) {
+    for (let x = CX - 12; x <= CX + 12; x++) set(x, y, TILE.FLOOR);
   }
-  building(CX - 9, CY - 9, 6, 5, CX - 6, CY - 5);   // smithy
-  building(CX + 4, CY - 9, 6, 5, CX + 6, CY - 5);                     // inn
-  building(CX - 9, CY + 5, 6, 5, CX - 6, CY + 5);                     // healer
-  building(CX + 4, CY + 5, 6, 5, CX + 6, CY + 5);                     // mage tower
-  set(CX, CY - 6, TILE.SHRINE);
-  props.push({ x: CX + 5, y: CY - 2, name: 'prop.well' });
-  props.push({ x: CX - 5, y: CY + 2, name: 'prop.table' });  // market stall
-  props.push({ x: CX - 4, y: CY + 3, name: 'prop.stool' });
-  props.push({ x: CX - 7, y: CY - 7, name: 'prop.table' });  // smithy workbench
-  props.push({ x: CX + 6, y: CY - 7, name: 'prop.table' });  // the inn's common table
-  props.push({ x: CX + 7, y: CY - 6, name: 'prop.stool' });
+  building(CX - 11, CY - 11, 8, 6, CX - 7, CY - 6);  // smithy
+  building(CX + 4, CY - 11, 8, 6, CX + 8, CY - 6);   // inn
+  building(CX - 11, CY + 6, 8, 6, CX - 7, CY + 6);   // healer
+  building(CX + 4, CY + 6, 8, 6, CX + 8, CY + 6);    // mage tower
+  set(CX, CY - 7, TILE.SHRINE);
+  props.push({ x: CX + 6, y: CY - 2, name: 'prop.well' });
+  props.push({ x: CX - 6, y: CY + 2, name: 'prop.table' });  // market stall
+  props.push({ x: CX - 5, y: CY + 3, name: 'prop.stool' });
+  props.push({ x: CX - 9, y: CY - 9, name: 'prop.table' });  // smithy workbench
+  props.push({ x: CX + 7, y: CY - 9, name: 'prop.table' });  // the inn's common table
+  props.push({ x: CX + 8, y: CY - 8, name: 'prop.stool' });
   vendors.push({
-    name: 'Mira the Alchemist', x: CX - 6, y: CY + 7,
+    name: 'Mira the Alchemist', x: CX - 7, y: CY + 9,
     goods: [
       { item: 'heal', name: 'Greater Heal Potion', price: 45, desc: 'Restores 25-40 health.' },
       { item: 'mana', name: 'Mana Potion', price: 35, desc: 'Restores 20-30 mana.' },
@@ -237,30 +237,36 @@ function generate(seed = 1337) {
   }
 
   for (const v of villages) {
-    flatten(v.x, v.y, 13);
-    for (let y = v.y - 5; y <= v.y + 5; y++) {
-      for (let x = v.x - 6; x <= v.x + 6; x++) set(x, y, TILE.FLOOR);
+    flatten(v.x, v.y, 15);
+    for (let y = v.y - 6; y <= v.y + 6; y++) {
+      for (let x = v.x - 8; x <= v.x + 8; x++) set(x, y, TILE.FLOOR);
     }
     // Every village is built a little differently.
-    const w1 = 6 + Math.floor(rng() * 2);
-    const h1 = 4 + Math.floor(rng() * 3);
-    building(v.x - 6, v.y - 4, w1, h1, v.x - 6 + (w1 >> 1), v.y - 4 + h1 - 1); // shop
-    const w2 = 4 + Math.floor(rng() * 3);
-    const h2 = 5 + Math.floor(rng() * 2);
-    building(v.x + 1, v.y - 4, w2, h2, v.x + 1 + (w2 >> 1), v.y - 4 + h2 - 1); // lodge
+    const w1 = 7 + Math.floor(rng() * 3);
+    const h1 = 5 + Math.floor(rng() * 2);
+    building(v.x - 7, v.y - 5, w1, h1, v.x - 7 + (w1 >> 1), v.y - 5 + h1 - 1); // shop
+    const w2 = 5 + Math.floor(rng() * 3);
+    const h2 = 6 + Math.floor(rng() * 2);
+    building(v.x + 3, v.y - 5, w2, h2, v.x + 3 + (w2 >> 1), v.y - 5 + h2 - 1); // lodge
     if (rng() > 0.45) {
-      building(v.x - 5, v.y + 1, 4, 4, v.x - 3, v.y + 1); // a humble hut
+      building(v.x - 7, v.y + 2, 5, 4, v.x - 5, v.y + 2); // a humble hut
     }
-    set(v.x, v.y + 3, TILE.SHRINE);
-    props.push({ x: v.x + 2, y: v.y + 4, name: 'prop.table' }); // market stall
-    props.push({ x: v.x + 3, y: v.y + 4, name: 'prop.stool' });
-    const lcx = v.x + 1 + (w2 >> 1);
-    const lcy = v.y - 4 + (h2 >> 1);
-    if (lcy < v.y - 4 + h2 - 1) props.push({ x: lcx, y: lcy, name: 'prop.table' });
+    set(v.x, v.y + 4, TILE.SHRINE);
+    props.push({ x: v.x + 1, y: v.y + 4, name: 'prop.table' }); // market stall
+    props.push({ x: v.x + 2, y: v.y + 5, name: 'prop.stool' });
+    const lcx = v.x + 3 + (w2 >> 1);
+    const lcy = v.y - 5 + (h2 >> 1);
+    if (lcy < v.y - 5 + h2 - 1) props.push({ x: lcx, y: lcy, name: 'prop.table' });
+    // Livestock graze around every village.
+    for (let k = 0; k < 2; k++) {
+      const kind = ['sheep', 'pig', 'chicken'][Math.floor(rng() * 3)];
+      const past = settle(v.x + (rng() - 0.5) * 70, v.y + (rng() - 0.5) * 70, 30, 6);
+      if (past) spawners.push({ kind, count: 4, x: past.x, y: past.y, r: 7 });
+    }
     const jitter = Math.floor(rng() * 11) - 5;
     vendors.push({
       name: `${['Aldric', 'Bryn', 'Cedany', 'Doran', 'Elspeth', 'Fenwick', 'Gilda', 'Hamon', 'Isolde'][vendors.length % 9]} of ${v.name}`,
-      x: v.x - 2, y: v.y - 2,
+      x: v.x - 3, y: v.y - 3,
       goods: [
         { item: 'heal', name: 'Greater Heal Potion', price: 45 + jitter, desc: 'Restores 25-40 health.' },
         { item: 'mana', name: 'Mana Potion', price: 35 + jitter, desc: 'Restores 20-30 mana.' },
@@ -308,6 +314,23 @@ function generate(seed = 1337) {
       }
     }
   }
+
+  // ---- Wildlife: deer in the woods, wolves prowling the wilds --------------------
+  for (let i = 0; i < 16; i++) {
+    const spot = settle(CX + (rng() - 0.5) * 1700, CY + (rng() - 0.5) * 1700, 100, 8);
+    if (spot) spawners.push({ kind: 'deer', count: 3, x: spot.x, y: spot.y, r: 10 });
+  }
+  for (let i = 0; i < 12; i++) {
+    const spot = settle(CX + (rng() - 0.5) * 1800, CY + (rng() - 0.5) * 1800, 100, 8);
+    if (spot && Math.hypot(spot.x - CX, spot.y - CY) > 150) {
+      spawners.push({ kind: 'wolf', count: 2, x: spot.x, y: spot.y, r: 9 });
+    }
+  }
+  // The capital's own pastures and nearby deer, so the world greets you alive.
+  spawners.push({ kind: 'sheep', count: 4, x: CX - 24, y: CY + 18, r: 6 });
+  spawners.push({ kind: 'chicken', count: 4, x: CX + 22, y: CY + 16, r: 5 });
+  spawners.push({ kind: 'deer', count: 3, x: CX + 28, y: CY - 22, r: 8 });
+  spawners.push({ kind: 'goblin', count: 4, x: CX - 38, y: CY - 34, r: 8 });
 
   // ---- Dragons roost far from civilisation ---------------------------------------
   let dragons = 0;

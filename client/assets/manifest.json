@@ -11,7 +11,12 @@
   "ettin": "creatures/ettin.png",
   "dragon": "creatures/dragon.png",
   "player": "creatures/player.png",
-  "vendor": "creatures/vendor.png"
+  "vendor": "creatures/vendor.png",
+  "wolf": "creatures/wolf.png",
+  "deer": "creatures/deer.png",
+  "sheep": "creatures/sheep.png",
+  "pig": "creatures/pig.png",
+  "chicken": "creatures/chicken.png"
  },
  "frames": {
   "grass.0": {
@@ -646,10 +651,10 @@
   },
   "player": {
    "img": "player",
-   "cellW": 130,
-   "cellH": 127,
-   "ax": 61,
-   "ay": 102,
+   "cellW": 121,
+   "cellH": 115,
+   "ax": 55,
+   "ay": 93,
    "dirs": 8,
    "anims": {
     "stance": {
@@ -674,10 +679,10 @@
   },
   "vendor": {
    "img": "vendor",
-   "cellW": 132,
-   "cellH": 128,
-   "ax": 61,
-   "ay": 104,
+   "cellW": 121,
+   "cellH": 117,
+   "ax": 55,
+   "ay": 94,
    "dirs": 8,
    "anims": {
     "stance": {
@@ -696,6 +701,146 @@
      "start": 12,
      "frames": 4,
      "ms": 110,
+     "loop": "loop"
+    }
+   }
+  },
+  "wolf": {
+   "img": "wolf",
+   "cellW": 52,
+   "cellH": 70,
+   "ax": 26,
+   "ay": 67,
+   "dirs": 8,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400,
+     "loop": "loop"
+    },
+    "run": {
+     "start": 1,
+     "frames": 3,
+     "ms": 140,
+     "loop": "loop"
+    },
+    "melee": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400,
+     "loop": "loop"
+    }
+   }
+  },
+  "deer": {
+   "img": "deer",
+   "cellW": 64,
+   "cellH": 64,
+   "ax": 32,
+   "ay": 61,
+   "dirs": 8,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400,
+     "loop": "loop"
+    },
+    "run": {
+     "start": 1,
+     "frames": 3,
+     "ms": 140,
+     "loop": "loop"
+    },
+    "melee": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400,
+     "loop": "loop"
+    }
+   }
+  },
+  "sheep": {
+   "img": "sheep",
+   "cellW": 64,
+   "cellH": 64,
+   "ax": 32,
+   "ay": 42,
+   "dirs": 8,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400,
+     "loop": "loop"
+    },
+    "run": {
+     "start": 1,
+     "frames": 4,
+     "ms": 140,
+     "loop": "loop"
+    },
+    "melee": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400,
+     "loop": "loop"
+    }
+   }
+  },
+  "pig": {
+   "img": "pig",
+   "cellW": 64,
+   "cellH": 64,
+   "ax": 32,
+   "ay": 44,
+   "dirs": 8,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400,
+     "loop": "loop"
+    },
+    "run": {
+     "start": 1,
+     "frames": 4,
+     "ms": 140,
+     "loop": "loop"
+    },
+    "melee": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400,
+     "loop": "loop"
+    }
+   }
+  },
+  "chicken": {
+   "img": "chicken",
+   "cellW": 32,
+   "cellH": 32,
+   "ax": 16,
+   "ay": 29,
+   "dirs": 8,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400,
+     "loop": "loop"
+    },
+    "run": {
+     "start": 1,
+     "frames": 4,
+     "ms": 140,
+     "loop": "loop"
+    },
+    "melee": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400,
      "loop": "loop"
     }
    }
