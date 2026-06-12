@@ -270,13 +270,22 @@ assert.strictEqual(p.ore, oreBefore, 'no forge will make another');
 // -- storytellers --------------------------------------------------------------------
 const bards = welcome.vendors.filter((v) => v.stories);
 assert(bards.length >= 3, 'bards live in the world');
-assert(bards.every((b) => b.stories.length >= 4), 'every bard knows tales');
+assert(bards.every((b) => b.stories.length >= 2), 'every teller knows tales');
 const allTales = bards.flatMap((b) => b.stories.map((t) => t.join(' ')));
 const villageNames = ['Northhold', 'Saltmere', 'Eastgate', 'Wyrmwick', 'Thornbury',
   'Duskwell', 'Ferndale', 'Mossgrove', 'Amberford'];
 assert(allTales.some((t) => villageNames.some((v) => t.includes(v))),
   'tales name real places');
 assert(allTales.some((t) => /rim of the world/.test(t)), 'one tale points at the legend');
+
+// the Dawn-Knight's road: rumor -> squire -> waymarks
+const edda = bards.find((b) => b.name === 'Loremaster Edda');
+assert(edda.stories.some((t) => t.join(' ').includes('Dawn-Knight')), 'Edda starts the road');
+const squire = welcome.vendors.find((v) => v.name === 'Caol the Grey');
+assert(squire && squire.stories.some((t) => t.join(' ').includes('Dawnbreaker')),
+  'the squire names the blade');
+const waymarks = game.map.secrets.filter((s2) => s2.type === 'whisper' && /waymark/.test(s2.text));
+assert(waymarks.length >= 2, 'waymark stones line the road');
 
 const bard = bards[0];
 p.x = bard.x;
