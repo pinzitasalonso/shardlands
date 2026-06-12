@@ -23,7 +23,7 @@
         <b>WASD / arrows</b> move &nbsp;·&nbsp; <b>click</b> walk or attack &nbsp;·&nbsp;
         <b>Enter</b> chat<br/>
         <b>1</b> Magic Arrow &nbsp;·&nbsp; <b>2</b> Fireball &nbsp;·&nbsp; <b>3</b> Greater Heal &nbsp;·&nbsp;
-        <b>4/5</b> drink potion &nbsp;·&nbsp; <b>I</b> inventory<br/>
+        <b>4/5</b> drink potion &nbsp;·&nbsp; <b>I</b> inventory &nbsp;·&nbsp; <b>F</b> fullscreen<br/>
         <b>B</b> bandage &nbsp;·&nbsp; <b>G</b> chop / mine &nbsp;·&nbsp;
         town alchemists sell potions &nbsp;·&nbsp; the wilds hide secrets…
       </div>
@@ -52,6 +52,7 @@
       <button data-act="drink:heal" title="4 — Drink a heal potion">🧪 Heal <span id="pot-heal-count" class="pot-count">0</span></button>
       <button data-act="drink:mana" title="5 — Drink a mana potion">🜄 Mana <span id="pot-mana-count" class="pot-count">0</span></button>
       <button id="inv-toggle" title="I — Inventory" onclick="toggleInventory()">🎒 Inventory</button>
+      <button id="fs-toggle" title="F — Toggle fullscreen" onclick="toggleFullscreen()">⛶ Fullscreen</button>
     </div>
 
     <div id="inventory" class="hidden">

@@ -35,6 +35,12 @@ const MOB_KINDS = {
   orc: { name: 'an orc', hp: 48, dmg: [4, 9], skill: 55, gold: 30, speedMs: 450, aggro: 7 },
   ettin: { name: 'an ettin', hp: 95, dmg: [8, 16], skill: 65, gold: 70, speedMs: 600, aggro: 8 },
   dragon: { name: 'a dragon', hp: 320, dmg: [16, 30], skill: 95, gold: 600, speedMs: 400, aggro: 10 },
+  // Wildlife and livestock. aggro 0 means they never start a fight.
+  wolf: { name: 'a wolf', hp: 26, dmg: [3, 6], skill: 35, gold: 8, speedMs: 380, aggro: 5 },
+  deer: { name: 'a deer', hp: 14, dmg: [1, 2], skill: 8, gold: 3, speedMs: 350, aggro: 0 },
+  sheep: { name: 'a sheep', hp: 10, dmg: [0, 1], skill: 5, gold: 2, speedMs: 700, aggro: 0 },
+  pig: { name: 'a pig', hp: 12, dmg: [1, 2], skill: 5, gold: 3, speedMs: 650, aggro: 0 },
+  chicken: { name: 'a chicken', hp: 4, dmg: [0, 1], skill: 3, gold: 1, speedMs: 500, aggro: 0 },
 };
 
 // What corpses leave behind, beyond the guaranteed gold: [chance, item, min, max].
@@ -44,6 +50,8 @@ const LOOT_TABLES = {
   orc: [[0.22, 'gold', 12, 30], [0.12, 'heal', 1, 1], [0.1, 'ore', 1, 2]],
   ettin: [[0.35, 'gold', 30, 70], [0.2, 'heal', 1, 1], [0.15, 'logs', 2, 4]],
   dragon: [[1, 'gold', 150, 400], [0.8, 'heal', 1, 2], [0.6, 'mana', 1, 2], [0.5, 'gems', 1, 2]],
+  wolf: [[0.3, 'gold', 3, 10]],
+  deer: [[0.35, 'gold', 2, 6]],
 };
 
 const DROP_TTL_MS = 60_000;
@@ -350,7 +358,7 @@ class Game {
     if (p.dead && (nx < 0 || ny < 0 || nx >= this.map.w || ny >= this.map.h)) return;
     p.x = nx;
     p.y = ny;
-    p.moveAt = t + (dx !== 0 && dy !== 0 ? 210 : 150);
+    p.moveAt = t + (dx !== 0 && dy !== 0 ? 165 : 118);
 
     if (p.dead && tileAt(this.map, p.x, p.y) === TILE.SHRINE) this.resurrect(p);
     if (!p.dead) this.checkSecrets(p, t);
@@ -698,7 +706,7 @@ class Game {
       mob.target = 0;
       target = null;
     }
-    if (!target) {
+    if (!target && def.aggro > 0) {
       for (const p of this.players.values()) {
         if (!p.dead && dist(mob, p) <= def.aggro) {
           mob.target = p.id;

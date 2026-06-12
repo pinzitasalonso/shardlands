@@ -23,5 +23,12 @@ Generated atlases are produced by `tools/build-assets.py` from these sources:
   (recolored red).
   - https://opengameart.org/content/whispers-of-avalon-dragon-npc
 
+## Animals (`creatures/wolf.png`, `deer.png`, `sheep.png`, `pig.png`, `chicken.png`)
+- Wolf and deer from **Stendhal** (https://stendhalgame.org,
+  https://github.com/arianne/stendhal), GPL 2.0.
+- Sheep, pig and chicken from "LPC style farm animals" by
+  **Daniel Eddeland**, CC-BY-SA 3.0 / GPL 3.0.
+  - https://opengameart.org/content/lpc-style-farm-animals
+
 The Flare-derived creature atlases are themselves CC-BY-SA 3.0. If you
 redistribute this game, keep this credits file with it.
