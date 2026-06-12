@@ -133,7 +133,11 @@ p.portalAt = 0;
 game.handleMove(p, -1, 0);
 assert(p.x === portal.tx && p.y === portal.ty, 'stone circle teleports the player to its twin');
 
-const whisper = game.map.secrets.find((s) => s.type === 'whisper');
+// pick a whisper with no portal nearby (cave-mouth whispers sit on top of one,
+// and the portal would whisk the listener away first)
+const whisper = game.map.secrets.find((s) => s.type === 'whisper' &&
+  !game.map.secrets.some((o) => o.type === 'portal' &&
+    Math.abs(o.x - s.x) <= 2 && Math.abs(o.y - s.y) <= 2));
 assert(whisper, 'whisper spots exist');
 ws.sent.length = 0;
 p.x = whisper.x + 1;
@@ -194,7 +198,7 @@ assert.strictEqual(p.gold, goldBeforeCraft - 30, 'craft consumed gold');
 assert.strictEqual(p.items.length, itemsBefore + 1, 'craft yielded a weapon');
 
 // durability: wear it down against a sturdy chicken and watch it shatter
-game.handleEquip(p, sword.uid);
+if (p.weapon !== sword.uid) game.handleEquip(p, sword.uid);
 sword.dur = 1;
 p.skills.swordsmanship = 100;
 const dummy = { id: 999999, kind: 'chicken', x: p.x + 1, y: p.y, hp: 99999, maxhp: 99999,
@@ -321,6 +325,253 @@ p.dead = false;
 ws.sent.length = 0;
 game.handleSay(p, '/dance');
 assert(ws.sent.some((m) => m.t === 'sys' && /Unknown command/.test(m.text)), 'unknown commands answered');
+
+// -- batch B: gear slots, ranged, spells, bosses ----------------------------------
+p.dead = false;
+p.gold = 5000;
+p.items.length = 0;
+p.weapon = null;
+const tunic = game.makeItem(p, 'leatherarmor', 1);
+const shield = game.makeItem(p, 'kiteshield', 1);
+p.items.push(tunic, shield);
+p.skills.swordsmanship = 60;
+game.handleEquip(p, tunic.uid);
+assert.strictEqual(p.armor, tunic.uid, 'tunic equips to the chest slot');
+game.handleEquip(p, shield.uid);
+assert.strictEqual(p.offhand, shield.uid, 'shield equips offhand');
+
+// armor blunts; shield can block (force both branches)
+p.hp = 60;
+const r = Math.random;
+Math.random = () => 0.99; // no block, no wear
+game.hitPlayer(p, 10, 'a test');
+assert.strictEqual(p.hp, 60 - (10 - 2), 'leather DR applied');
+Math.random = () => 0.01; // guaranteed block
+p.hp = 60;
+game.hitPlayer(p, 10, 'a test');
+assert.strictEqual(p.hp, 60, 'shield blocked the blow');
+Math.random = r;
+
+// ranged: a longbow without arrows refuses, with arrows it fires
+const bow = game.makeItem(p, 'longbow', 1);
+p.items.push(bow);
+game.handleEquip(p, bow.uid);
+assert.strictEqual(p.weapon, bow.uid, 'longbow equipped');
+const dummy2 = { id: 999998, kind: 'chicken', x: p.x + 5, y: p.y, hp: 9999, maxhp: 9999,
+  target: 0, moveAt: 0, swingAt: 0, spawner: { alive: new Set() } };
+game.mobs.set(dummy2.id, dummy2);
+p.target = dummy2.id;
+p.arrows = 0;
+p.swingAt = 0;
+p.nagAt = 0;
+ws.sent.length = 0;
+game.meleeTick(p, Date.now());
+assert(ws.sent.some((m) => m.t === 'sys' && /out of arrows/.test(m.text)), 'no arrows, no shot');
+p.arrows = 3;
+p.swingAt = 0;
+const hpBefore = dummy2.hp;
+for (let i = 0; i < 20 && dummy2.hp === hpBefore; i++) { p.swingAt = 0; game.meleeTick(p, Date.now()); }
+assert(dummy2.hp < hpBefore, 'arrow found its mark');
+assert(p.arrows < 3, 'arrows are consumed');
+
+// poison dot ticks a mob down
+p.skills.magery = 60;
+p.mana = 50;
+p.castAt = 0;
+game.handleCast(p, 'poison', dummy2.id);
+assert(dummy2.poison, 'poison applied');
+dummy2.poison.nextAt = 0;
+const hpBeforeDot = dummy2.hp;
+game.mobTick(dummy2, Date.now());
+assert(dummy2.hp < hpBeforeDot, 'poison ticked');
+
+// bless raises damage output
+p.castAt = 0;
+p.mana = 50;
+game.handleCast(p, 'bless', 0);
+assert(p.buffUntil > Date.now(), 'bless active');
+
+// bosses queue a telegraphed slam
+const bossDummy = { id: 999997, kind: 'bonelord', x: p.x + 3, y: p.y, hp: 500, maxhp: 500,
+  target: p.id, moveAt: Infinity, swingAt: Infinity, spawner: { alive: new Set() } };
+game.mobs.set(bossDummy.id, bossDummy);
+game.pendingAoes.length = 0;
+game.mobTick(bossDummy, Date.now());
+assert(game.pendingAoes.length === 1, 'boss telegraphed a slam');
+game.pendingAoes[0].at = 0;
+p.hp = 80;
+p.x = game.pendingAoes[0].x;
+p.y = game.pendingAoes[0].y;
+Math.random = () => 0.99;
+game.tick();
+Math.random = r;
+assert(p.hp < 80, 'standing in the telegraph hurts');
+game.mobs.delete(dummy2.id);
+game.mobs.delete(bossDummy.id);
+p.target = 0;
+
+// -- batch C: trades, deeds, regional materials -------------------------------------
+// fishing by the shore
+let shore = null;
+outer2:
+for (let y = 900; y < 1150; y++) {
+  for (let x = 900; x < 1150; x++) {
+    if (game.map.tiles[y * 2048 + x] !== TILE.WATER &&
+        [TILE.GRASS, TILE.SAND].includes(game.map.tiles[y * 2048 + x]) &&
+        game.map.tiles[y * 2048 + x + 1] === TILE.WATER) {
+      shore = { x, y };
+      break outer2;
+    }
+  }
+}
+assert(shore, 'found a shoreline');
+p.x = shore.x;
+p.y = shore.y;
+p.skills.fishing = 100;
+p.fish = 0;
+for (let i = 0; i < 10 && !p.fish; i++) { p.swingAt = 0; game.handleGather(p); }
+assert(p.fish > 0, 'caught a fish');
+assert(p.deeds.angler, 'angler deed awarded');
+
+// cooking needs a campfire; eating heals over time
+ws.sent.length = 0;
+game.handleCook(p);
+assert(ws.sent.some((m) => /campfire/.test(m.text)), 'no cooking without a fire');
+const fire = game.map.props.find((pr) => pr.name === 'fx.campfire');
+p.x = fire.x;
+p.y = fire.y;
+p.skills.cooking = 100;
+p.fish = 3;
+p.food = 0;
+for (let i = 0; i < 10 && !p.food; i++) game.handleCook(p);
+assert(p.food > 0, 'cooked a meal');
+game.handleEat(p);
+assert(p.fedUntil > Date.now(), 'well fed');
+
+// blacksmithy governs the forge and earns its deed
+const bren2 = welcome.vendors.find((v) => v.forge);
+p.x = bren2.x;
+p.y = bren2.y - 1;
+p.ore = 30;
+p.logs = 20;
+p.gold = 1000;
+p.items.length = 0;
+delete p.deeds.smith;
+p.skills.blacksmithy = 20;
+game.handleCraft(p, 'dagger');
+assert(p.items.length === 1, 'forged at the anvil');
+assert(p.deeds.smith, 'smith deed awarded');
+
+// regional mats gate the top recipes
+p.mats.frostwood = 0;
+ws.sent.length = 0;
+game.handleCraft(p, 'greatsword');
+assert(ws.sent.some((m) => /frostwood/.test(m.text)), 'greatsword wants frostwood');
+p.mats.frostwood = 2;
+p.ore = 30;
+p.logs = 20;
+game.handleCraft(p, 'greatsword');
+assert(p.items.some((i) => i.id === 'greatsword'), 'frostwood greatsword forged');
+assert.strictEqual(p.mats.frostwood, 0, 'frostwood consumed');
+
+// /forget is a gold sink that resets a skill
+p.gold = 500;
+game.handleSay(p, '/forget cooking');
+assert.strictEqual(p.skills.cooking, 20, 'cooking forgotten');
+assert.strictEqual(p.gold, 400, 'the ritual cost 100 gold');
+
+// grandmaster title rides the wire
+p.skills.fishing = 100;
+ws.sent.length = 0;
+game.sendYou(p);
+const you = ws.sent.find((m) => m.t === 'you');
+assert(/Grandmaster/.test(you.title), 'grandmaster title earned');
+
+// -- batch D: dungeons, raids, treasure maps, rare spawns, tech ----------------------
+// the barrow-deeps: cave mouths at the keeps descend into carved caverns
+let caveTiles = 0;
+for (let i = 0; i < game.map.tiles.length; i++) {
+  if (game.map.tiles[i] === TILE.CAVE) caveTiles++;
+}
+assert(caveTiles >= 500, 'the barrow-deeps are carved (' + caveTiles + ' cave tiles)');
+const cavePortals = game.map.secrets.filter((s) => s.type === 'portal' && s.cave);
+assert(cavePortals.length >= 8, 'cave mouths and exits exist in pairs');
+const mouth = cavePortals.find((cp) =>
+  game.map.tiles[cp.ty * game.map.w + cp.tx] === TILE.CAVE && cp.ty < 64);
+assert(mouth, 'a cave mouth leads underground');
+p.dead = false;
+p.x = mouth.x;
+p.y = mouth.y;
+p.portalAt = 0;
+game.checkSecrets(p, Date.now());
+assert(p.x === mouth.tx && p.y === mouth.ty, 'stepped through the cave mouth');
+assert.strictEqual(game.map.tiles[p.y * game.map.w + p.x], TILE.CAVE, 'and stands underground');
+assert(game.spawners.some((sp) => sp.kind === 'skeleton' && sp.y < 64),
+  'the dead walk the deeps');
+
+// the white stag wanders
+assert(game.spawners.filter((sp) => sp.kind === 'whitestag').length >= 3,
+  'white stags wander the wild');
+
+// treasure maps: loot -> carry -> stand on the X -> the cache gives way
+const r2 = Math.random;
+Math.random = () => 0; // every loot row fires; rand() picks minimums
+p.x = game.map.spawn.x;
+p.y = game.map.spawn.y;
+p.tmaps = [];
+p.items.length = 0;
+game.rollLoot({ kind: 'orc', x: p.x, y: p.y });
+Math.random = r2;
+assert([...game.drops.values()].some((d) => d.item === 'tmap'), 'the orc carried a map');
+game.pickupDrops(p);
+assert.strictEqual(p.tmaps.length, 1, 'the map is in the pack');
+const digIdx = p.tmaps[0];
+const digSpot = game.map.secrets[digIdx];
+assert.strictEqual(digSpot.type, 'cache', 'the X marks a cache');
+for (const [id, d] of [...game.drops]) {
+  if (d.cacheIdx === digIdx) game.drops.delete(id); // someone got here first
+}
+p.x = digSpot.x;
+p.y = digSpot.y;
+p.hp = 100000; // whatever guards the spot must not interrupt the dig
+ws.sent.length = 0;
+game.tick();
+assert.strictEqual(p.tmaps.length, 0, 'the map is spent at the X');
+assert(ws.sent.some((m) => m.t === 'sys' && /X marks the spot/.test(m.text)), 'the dig speaks');
+assert([...game.drops.values()].some((d) => d.cacheIdx === digIdx), 'the cache restocked');
+
+// world events: a raid marches on a village, breaks, and pays out
+game.event = null;
+const r3 = Math.random;
+Math.random = () => 0.1;
+game.maybeStartEvent();
+Math.random = r3;
+assert(game.event, 'a raid begins');
+assert(game.event.ids.size >= 4, 'a warband marches');
+for (const id of game.event.ids) {
+  const m = game.mobs.get(id);
+  assert(m.dest, 'raiders march with purpose');
+  assert.strictEqual(m.aggroBoost, 12, 'raiders look for trouble');
+}
+const raidVillage = game.event.village;
+for (const id of [...game.event.ids]) {
+  const m = game.mobs.get(id);
+  game.mobs.delete(id);
+  m.spawner.alive.delete(id);
+}
+ws.sent.length = 0;
+game.tickEvent(Date.now());
+assert.strictEqual(game.event, null, 'the raid is broken');
+assert(ws.sent.some((m) => m.t === 'sys' && /raid on .* is broken/.test(m.text)), 'victory rings out');
+assert([...game.drops.values()].some((d) =>
+  Math.abs(d.x - raidVillage.x) <= 1 && Math.abs(d.y - raidVillage.y) <= 1),
+  'the villagers leave a reward');
+
+// tech: SQLite persistence and tick timing for /health
+const persist = require('../server/persist');
+assert.strictEqual(persist.usingSqlite(), true, 'saves go to SQLite');
+game.tick();
+assert(game.lastTickMs > 0, 'tick time is measured for /health');
 
 console.log('smoke test: all assertions passed');
 process.exit(0);

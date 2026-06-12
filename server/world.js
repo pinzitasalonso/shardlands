@@ -28,9 +28,10 @@ const TILE = {
   PLANKS: 11,
   SWAMP: 12,
   SWAMPTREE: 13,
+  CAVE: 14,
 };
 
-const WALKABLE = new Set([TILE.GRASS, TILE.ROAD, TILE.FLOOR, TILE.SAND, TILE.SHRINE, TILE.SNOW, TILE.PLANKS, TILE.SWAMP]);
+const WALKABLE = new Set([TILE.GRASS, TILE.ROAD, TILE.FLOOR, TILE.SAND, TILE.SHRINE, TILE.SNOW, TILE.PLANKS, TILE.SWAMP, TILE.CAVE]);
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -225,6 +226,12 @@ function generate(seed = 1337) {
       { type: 'weapon', item: 'mace', q: 1 },
       { type: 'weapon', item: 'battleaxe', q: 1 },
       { type: 'weapon', item: 'greatsword', q: 1 },
+      { type: 'weapon', item: 'longbow', q: 1 },
+      { type: 'weapon', item: 'leatherarmor', q: 1 },
+      { type: 'weapon', item: 'chainmail', q: 1 },
+      { type: 'weapon', item: 'buckler', q: 1 },
+      { type: 'weapon', item: 'kiteshield', q: 1 },
+      { item: 'arrow', name: 'Bundle of Arrows (20)', price: 15, desc: 'For the longbow.' },
     ],
   });
   vendors.push({
@@ -290,6 +297,8 @@ function generate(seed = 1337) {
         { item: 'mana', name: 'Mana Potion', price: 35 + jitter, desc: 'Restores 20-30 mana.' },
         { type: 'weapon', item: 'dagger', q: 1 },
         { type: 'weapon', item: 'sword', q: 1 },
+        { type: 'weapon', item: 'leatherarmor', q: 1 },
+        { item: 'arrow', name: 'Bundle of Arrows (20)', price: 15, desc: 'For the longbow.' },
       ],
     });
     road(v.x, v.y + 5, CX, CY + 11);
@@ -298,7 +307,43 @@ function generate(seed = 1337) {
     if (camp) spawners.push({ kind: 'goblin', count: 6, x: camp.x, y: camp.y, r: 12 });
   }
 
+  // ---- The barrow-deeps: caverns beneath the world ------------------------------
+  // Carved in the dead ocean strip along the top edge; reachable only through
+  // cave mouths at the ruined keeps. Dark, dense with the dead, rich at the end.
+  const dungeons = [];
+  const carveDungeon = (idx) => {
+    const cx = 220 + idx * 300;
+    const cy = 26;
+    // a sealed slab of rock
+    for (let y = cy - 18; y <= cy + 18; y++) {
+      for (let x = cx - 30; x <= cx + 30; x++) set(x, y, TILE.ROCK);
+    }
+    // drunkard's walk carves the halls
+    let wx = cx - 24;
+    let wy = cy;
+    set(wx, wy, TILE.CAVE);
+    let far = { x: wx, y: wy };
+    for (let i = 0; i < 700; i++) {
+      const d = [[1, 0], [-1, 0], [0, 1], [0, -1]][Math.floor(rng() * 4)];
+      wx = Math.max(cx - 28, Math.min(cx + 28, wx + d[0]));
+      wy = Math.max(cy - 16, Math.min(cy + 16, wy + d[1]));
+      set(wx, wy, TILE.CAVE);
+      if (rng() > 0.5) set(wx + 1, wy, TILE.CAVE);
+      if (wx > far.x) far = { x: wx, y: wy };
+    }
+    const entry = { x: cx - 24, y: cy };
+    dungeons.push({ entry, far });
+    // the dead keep these halls
+    spawners.push({ kind: 'skeleton', count: 7, x: cx, y: cy, r: 20 });
+    spawners.push({ kind: 'skeleton', count: 5, x: far.x, y: far.y, r: 8 });
+    // and their hoard waits at the deepest point
+    secrets.push({ type: 'cache', x: far.x, y: far.y,
+      loot: [['gold', 150, 350], ['gems', 1, 2], ['heal', 1, 2]] });
+    return entry;
+  };
+
   // ---- Ruined keeps with graveyards, haunted by the restless dead ---------------
+  let keepIdx = 0;
   for (let k = 0; k < 4; k++) {
     const spot = settle(CX + (rng() - 0.5) * 1500, CY + (rng() - 0.5) * 1500, 120, 12);
     if (!spot) continue;
@@ -313,6 +358,16 @@ function generate(seed = 1337) {
     }
     set(spot.x, spot.y - 6, TILE.GRASS); // the fallen gate
     spawners.push({ kind: 'skeleton', count: 7, x: spot.x, y: spot.y, r: 9 });
+    // a cave mouth descends into the barrow-deeps
+    if (keepIdx < 4) {
+      const entry = carveDungeon(keepIdx++);
+      const mouth = { x: spot.x + 2, y: spot.y + 2 };
+      set(mouth.x, mouth.y, TILE.CAVE);
+      secrets.push({ type: 'portal', x: mouth.x, y: mouth.y, tx: entry.x, ty: entry.y, cave: true });
+      secrets.push({ type: 'portal', x: entry.x, y: entry.y, tx: mouth.x, ty: mouth.y, cave: true });
+      secrets.push({ type: 'whisper', x: mouth.x - 1, y: mouth.y,
+        text: 'Cold air breathes up from a cracked stair descending into the dark.' });
+    }
     if (k === 0) {
       // The Bone Lord holds court in the first keep.
       spawners.push({ kind: 'bonelord', count: 1, x: spot.x, y: spot.y, r: 4, respawnMs: 300_000 });
@@ -461,6 +516,14 @@ function generate(seed = 1337) {
         spawners.push({ kind: swampKinds[swampSpawners % 3], count: 4, x: gx, y: gy, r: 9 });
         swampSpawners++;
       }
+    }
+  }
+
+  // ---- Rare beasts for the patient ---------------------------------------------------
+  for (let i = 0; i < 3; i++) {
+    const spot = settle(CX + (rng() - 0.5) * 1500, CY + (rng() - 0.5) * 1500, 150, 8);
+    if (spot) {
+      spawners.push({ kind: 'whitestag', count: 1, x: spot.x, y: spot.y, r: 14, respawnMs: 20 * 60_000 });
     }
   }
 

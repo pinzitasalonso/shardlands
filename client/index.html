@@ -49,6 +49,8 @@
       <div id="weapon-line"></div>
       <button id="skills-toggle" aria-expanded="false">Skills ▾</button>
       <div id="skills-list" class="hidden"></div>
+      <button id="deeds-toggle" aria-expanded="false">Deeds ▾</button>
+      <div id="deeds-list" class="hidden"></div>
     </div>
 
     <div id="target-frame" class="hidden">
@@ -70,12 +72,34 @@
       <button data-act="cast:magicarrow" data-cd="1500" aria-label="Magic Arrow, key 1" title="Magic Arrow (4 mana)"><span class="slot-icon">✦</span><kbd>1</kbd><div class="cd" aria-hidden="true"></div></button>
       <button data-act="cast:fireball" data-cd="1500" aria-label="Fireball, key 2" title="Fireball (9 mana, 40 Magery)"><span class="slot-icon">☄</span><kbd>2</kbd><div class="cd" aria-hidden="true"></div></button>
       <button data-act="cast:greaterheal" data-cd="1500" aria-label="Greater Heal spell, key 3" title="Greater Heal (11 mana, 30 Magery)"><span class="slot-icon">✚</span><kbd>3</kbd><div class="cd" aria-hidden="true"></div></button>
+      <button data-act="cast:bless" data-cd="1500" aria-label="Bless, key 6" title="Bless (8 mana, 25 Magery)"><span class="slot-icon">✨</span><kbd>6</kbd><div class="cd" aria-hidden="true"></div></button>
+      <button data-act="cast:poison" data-cd="1500" aria-label="Poison, key 7" title="Poison (6 mana, 20 Magery)"><span class="slot-icon">☠</span><kbd>7</kbd><div class="cd" aria-hidden="true"></div></button>
+      <button data-act="cast:energybolt" data-cd="1500" aria-label="Energy Bolt, key 8" title="Energy Bolt (14 mana, 55 Magery)"><span class="slot-icon">⚡</span><kbd>8</kbd><div class="cd" aria-hidden="true"></div></button>
       <button data-act="drink:heal" data-cd="4000" aria-label="Drink heal potion, key 4" title="Drink a heal potion"><span class="slot-icon">🧪</span><kbd>4</kbd><span id="pot-heal-count" class="count">0</span><div class="cd" aria-hidden="true"></div></button>
       <button data-act="drink:mana" data-cd="4000" aria-label="Drink mana potion, key 5" title="Drink a mana potion"><span class="slot-icon">🜄</span><kbd>5</kbd><span id="pot-mana-count" class="count">0</span><div class="cd" aria-hidden="true"></div></button>
       <button data-act="bandage" data-cd="8000" aria-label="Bandage wounds, key B" title="Bandage wounds"><span class="slot-icon">⊕</span><kbd>B</kbd><div class="cd" aria-hidden="true"></div></button>
       <button data-act="gather" data-cd="1200" aria-label="Chop or mine, key G" title="Chop trees / mine rock"><span class="slot-icon">⛏</span><kbd>G</kbd><div class="cd" aria-hidden="true"></div></button>
       <button id="inv-toggle" aria-label="Inventory, key I" title="Inventory" onclick="toggleInventory()"><span class="slot-icon">🎒</span><kbd>I</kbd></button>
+      <button id="map-toggle" aria-label="World map, key M" title="World map" onclick="toggleWorldMap()"><span class="slot-icon">🗺</span><kbd>M</kbd></button>
+      <button id="settings-toggle" aria-label="Settings, key O" title="Settings" onclick="toggleSettings()"><span class="slot-icon">⚙</span><kbd>O</kbd></button>
       <button id="fs-toggle" aria-label="Fullscreen, key F" title="Toggle fullscreen" onclick="toggleFullscreen()"><span class="slot-icon">⛶</span><kbd>F</kbd></button>
+    </div>
+
+    <div id="worldmap" class="hidden" role="dialog" aria-label="World map">
+      <canvas id="worldmap-canvas" width="640" height="640"></canvas>
+    </div>
+
+    <div id="settings" class="hidden" role="dialog" aria-label="Settings">
+      <div class="shop-title">Settings</div>
+      <label class="set-row">Master volume
+        <input id="vol-master" data-vol="master" type="range" min="0" max="1" step="0.05" /></label>
+      <label class="set-row">Effects
+        <input id="vol-sfx" data-vol="sfx" type="range" min="0" max="1" step="0.05" /></label>
+      <label class="set-row">Music
+        <input id="vol-music" data-vol="music" type="range" min="0" max="1" step="0.05" /></label>
+      <label class="set-row">Ambience
+        <input id="vol-amb" data-vol="amb" type="range" min="0" max="1" step="0.05" /></label>
+      <button class="shop-close">Close</button>
     </div>
 
     <div id="inventory" class="hidden">
@@ -93,6 +117,7 @@
     </div>
   </div>
 
+  <script src="audio.js"></script>
   <script src="assets.js"></script>
   <script src="game.js"></script>
 </body>

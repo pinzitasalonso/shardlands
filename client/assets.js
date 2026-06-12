@@ -47,6 +47,7 @@ const Assets = (() => {
     snow: ['#e9eef3', '#dfe6ee', '#f2f6f9', '#d6dfe9'],
     grass: ['#76883e', '#6d7f38', '#7f9244', '#687a36'],
     swamp: ['#5a6b42', '#52613c', '#647549', '#4c5c3a'],
+    cave: ['#4a443c', '#423d36', '#524c42', '#3a352e'],
     water: ['#5b87c8', '#5583c4', '#618fd0', '#5f8bcc'],
   };
 
@@ -173,8 +174,10 @@ const Assets = (() => {
       c.cellW * scale, c.cellH * scale,
     ];
     ctx.drawImage(state.images[c.img], ...args);
-    if (overlay && c.overlays && c.overlays[overlay]) {
-      ctx.drawImage(state.images[c.overlays[overlay]], ...args);
+    if (overlay && c.overlays) {
+      for (const name of Array.isArray(overlay) ? overlay : [overlay]) {
+        if (c.overlays[name]) ctx.drawImage(state.images[c.overlays[name]], ...args);
+      }
     }
     return true;
   }

@@ -8,6 +8,7 @@
   "swamptrees": "swamptrees.png",
   "goblin": "creatures/goblin.png",
   "skeleton": "creatures/skeleton.png",
+  "skelmage": "creatures/skelmage.png",
   "orc": "creatures/orc.png",
   "ettin": "creatures/ettin.png",
   "dragon": "creatures/dragon.png",
@@ -30,7 +31,12 @@
   "w_longsword": "creatures/weapons/longsword.png",
   "w_mace": "creatures/weapons/mace.png",
   "w_battle_axe": "creatures/weapons/battle_axe.png",
-  "w_greatsword": "creatures/weapons/greatsword.png"
+  "w_greatsword": "creatures/weapons/greatsword.png",
+  "w_longbow": "creatures/weapons/longbow.png",
+  "w_leather": "creatures/weapons/leather.png",
+  "w_chain": "creatures/weapons/chain.png",
+  "w_buckler": "creatures/weapons/buckler.png",
+  "w_kite_shield": "creatures/weapons/kite_shield.png"
  },
  "frames": {
   "grass.0": {
@@ -570,6 +576,9 @@
   "12": {
    "groundProc": "swamp"
   },
+  "14": {
+   "groundProc": "cave"
+  },
   "13": {
    "groundProc": "swamp",
    "object": [
@@ -628,6 +637,34 @@
    "cellH": 157,
    "ax": 115,
    "ay": 111,
+   "dirs": 8,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 180,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 8,
+     "ms": 90,
+     "loop": "loop"
+    },
+    "melee": {
+     "start": 12,
+     "frames": 4,
+     "ms": 110,
+     "loop": "loop"
+    }
+   }
+  },
+  "skelmage": {
+   "img": "skelmage",
+   "cellW": 190,
+   "cellH": 135,
+   "ax": 87,
+   "ay": 107,
    "dirs": 8,
    "anims": {
     "stance": {
@@ -766,7 +803,12 @@
     "longsword": "w_longsword",
     "mace": "w_mace",
     "battle_axe": "w_battle_axe",
-    "greatsword": "w_greatsword"
+    "greatsword": "w_greatsword",
+    "longbow": "w_longbow",
+    "leather": "w_leather",
+    "chain": "w_chain",
+    "buckler": "w_buckler",
+    "kite_shield": "w_kite_shield"
    }
   },
   "vendor": {

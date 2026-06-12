@@ -21,12 +21,15 @@ const MINI_SCALE = 8;
 const VIEW_RADIUS = 60;          // tiles; entities beyond this aren't sent
 const CACHE_RESPAWN_MS = 15 * 60_000;
 
-const SKILLS = ['swordsmanship', 'tactics', 'magery', 'healing', 'lumberjacking', 'mining'];
+const SKILLS = ['swordsmanship', 'tactics', 'magery', 'healing', 'lumberjacking', 'mining', 'fishing', 'cooking', 'blacksmithy'];
 
 const SPELLS = {
   magicarrow: { name: 'Magic Arrow', mana: 4, minSkill: 0, dmg: [5, 10], words: 'In Por Ylem' },
   fireball: { name: 'Fireball', mana: 9, minSkill: 40, dmg: [12, 22], words: 'Vas Flam' },
   greaterheal: { name: 'Greater Heal', mana: 11, minSkill: 30, heal: [15, 25], words: 'In Vas Mani' },
+  bless: { name: 'Bless', mana: 8, minSkill: 25, buff: 8, buffMs: 60_000, words: 'Rel Sanct' },
+  poison: { name: 'Poison', mana: 6, minSkill: 20, dot: [3, 5], words: 'In Nox' },
+  energybolt: { name: 'Energy Bolt', mana: 14, minSkill: 55, dmg: [20, 30], words: 'Corp Por' },
 };
 
 const MOB_KINDS = {
@@ -34,7 +37,7 @@ const MOB_KINDS = {
   skeleton: { name: 'a skeleton', hp: 32, dmg: [3, 7], skill: 45, gold: 18, speedMs: 500, aggro: 7 },
   orc: { name: 'an orc', hp: 48, dmg: [4, 9], skill: 55, gold: 30, speedMs: 450, aggro: 7 },
   ettin: { name: 'an ettin', hp: 95, dmg: [8, 16], skill: 65, gold: 70, speedMs: 600, aggro: 8 },
-  dragon: { name: 'a dragon', hp: 320, dmg: [16, 30], skill: 95, gold: 600, speedMs: 400, aggro: 10 },
+  dragon: { name: 'a dragon', hp: 320, dmg: [16, 30], skill: 95, gold: 600, speedMs: 400, aggro: 10, boss: true },
   // Wildlife and livestock. aggro 0 means they never start a fight.
   wolf: { name: 'a wolf', hp: 26, dmg: [3, 6], skill: 35, gold: 8, speedMs: 380, aggro: 5 },
   deer: { name: 'a deer', hp: 14, dmg: [1, 2], skill: 8, gold: 3, speedMs: 350, aggro: 0 },
@@ -48,10 +51,12 @@ const MOB_KINDS = {
   // Townsfolk: protected by the crown, prone to small talk.
   villager: { name: 'a villager', hp: 30, dmg: [0, 1], skill: 5, gold: 0, speedMs: 900, aggro: 0, peaceful: true },
   // Crowned terrors. Slain ones return after a long while.
-  goblinking: { name: 'Skarg, the Goblin King', hp: 130, dmg: [6, 12], skill: 60, gold: 220, speedMs: 320, aggro: 9 },
-  vyrmaur: { name: 'Vyrmaur the Undying', hp: 900, dmg: [22, 40], skill: 110, gold: 1500, speedMs: 380, aggro: 12 },
-  bonelord: { name: 'the Bone Lord', hp: 170, dmg: [8, 14], skill: 75, gold: 280, speedMs: 450, aggro: 9 },
-  wolfking: { name: 'Greyfang, the Wolf King', hp: 150, dmg: [7, 13], skill: 70, gold: 240, speedMs: 330, aggro: 9 },
+  goblinking: { name: 'Skarg, the Goblin King', hp: 130, dmg: [6, 12], skill: 60, gold: 220, speedMs: 320, aggro: 9, boss: true },
+  vyrmaur: { name: 'Vyrmaur the Undying', hp: 900, dmg: [22, 40], skill: 110, gold: 1500, speedMs: 380, aggro: 12, boss: true },
+  bonelord: { name: 'the Bone Lord', hp: 170, dmg: [8, 14], skill: 75, gold: 280, speedMs: 450, aggro: 9, boss: true },
+  wolfking: { name: 'Greyfang, the Wolf King', hp: 150, dmg: [7, 13], skill: 70, gold: 240, speedMs: 330, aggro: 9, boss: true },
+  skelmage: { name: 'a skeleton mage', hp: 26, dmg: [2, 4], skill: 50, gold: 24, speedMs: 550, aggro: 8, caster: { range: 7, dmg: [6, 12], cdMs: 2600 } },
+  whitestag: { name: 'the White Stag', hp: 60, dmg: [1, 2], skill: 30, gold: 50, speedMs: 260, aggro: 0 },
 };
 
 const VILLAGER_NAMES = ['Tomlin', 'Berta', 'Old Casso', 'Wilmot', 'Ysolde', 'Pell',
@@ -74,15 +79,17 @@ const VILLAGER_LINES = [
 const LOOT_TABLES = {
   goblin: [[0.18, 'gold', 4, 10], [0.08, 'mana', 1, 1], [0.04, 'weapon', ['dagger'], 0, 1]],
   skeleton: [[0.2, 'gold', 8, 20], [0.12, 'heal', 1, 1], [0.1, 'weapon', ['sword'], 0, 2]],
-  orc: [[0.22, 'gold', 12, 30], [0.12, 'heal', 1, 1], [0.1, 'ore', 1, 2], [0.08, 'weapon', ['sword', 'mace'], 0, 1]],
-  ettin: [[0.35, 'gold', 30, 70], [0.2, 'heal', 1, 1], [0.15, 'logs', 2, 4], [0.1, 'weapon', ['battleaxe'], 1, 2]],
+  skelmage: [[0.4, 'gold', 10, 26], [0.2, 'mana', 1, 2]],
+  orc: [[0.22, 'gold', 12, 30], [0.12, 'heal', 1, 1], [0.1, 'ore', 1, 2], [0.08, 'weapon', ['sword', 'mace'], 0, 1], [0.04, 'tmap']],
+  ettin: [[0.35, 'gold', 30, 70], [0.2, 'heal', 1, 1], [0.15, 'logs', 2, 4], [0.1, 'weapon', ['battleaxe'], 1, 2], [0.06, 'tmap']],
   dragon: [[1, 'gold', 150, 400], [0.8, 'heal', 1, 2], [0.6, 'mana', 1, 2], [0.5, 'gems', 1, 2], [0.5, 'weapon', ['greatsword'], 3, 4]],
   wolf: [[0.3, 'gold', 3, 10]],
-  deer: [[0.35, 'gold', 2, 6]],
+  deer: [[0.35, 'gold', 2, 6], [0.5, 'meat', 1, 1]],
   snake: [[0.3, 'gold', 3, 9], [0.06, 'mana', 1, 1]],
   crab: [[0.3, 'gold', 2, 7]],
-  boar: [[0.35, 'gold', 3, 10], [0.08, 'heal', 1, 1]],
-  goblinking: [[1, 'gold', 100, 250], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2], [1, 'weapon', ['sword', 'mace'], 2, 3]],
+  boar: [[0.35, 'gold', 3, 10], [0.08, 'heal', 1, 1], [0.6, 'meat', 1, 2]],
+  whitestag: [[1, 'gold', 40, 90], [1, 'gems', 2, 4]],
+  goblinking: [[1, 'gold', 100, 250], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2], [1, 'weapon', ['sword', 'mace'], 2, 3], [0.5, 'tmap']],
   bonelord: [[1, 'gold', 120, 300], [1, 'gems', 1, 2], [0.6, 'mana', 1, 2], [1, 'weapon', ['battleaxe', 'greatsword'], 2, 4]],
   wolfking: [[1, 'gold', 100, 260], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2], [1, 'weapon', ['sword'], 2, 3]],
   vyrmaur: [[1, 'gold', 800, 1500], [1, 'gems', 3, 6], [1, 'heal', 2, 3]],
@@ -102,11 +109,19 @@ const WEAPONS = {
   dagger:     { name: 'Dagger',     dmg: [3, 7],   speedMs: 1100, price: 40,  dur: 90,  sprite: 'dagger',     craft: { ore: 3, logs: 1, gold: 10 } },
   sword:      { name: 'Longsword',  dmg: [5, 12],  speedMs: 1500, price: 120, dur: 110, sprite: 'longsword',  craft: { ore: 8, logs: 3, gold: 30 } },
   mace:       { name: 'Mace',       dmg: [7, 14],  speedMs: 1800, price: 150, dur: 120, sprite: 'mace',       craft: { ore: 10, logs: 4, gold: 40 } },
-  battleaxe:  { name: 'Battle Axe', dmg: [9, 17],  speedMs: 2100, price: 260, dur: 130, minSkill: 40, sprite: 'battle_axe', craft: { ore: 14, logs: 5, gold: 70 } },
-  greatsword: { name: 'Greatsword', dmg: [12, 22], speedMs: 2400, price: 420, dur: 140, minSkill: 60, sprite: 'greatsword', craft: { ore: 20, logs: 6, gold: 120 } },
+  battleaxe:  { name: 'Battle Axe', dmg: [9, 17],  speedMs: 2100, price: 260, dur: 130, minSkill: 40, sprite: 'battle_axe', craft: { ore: 14, logs: 5, gold: 70, sunsteel: 2 } },
+  greatsword: { name: 'Greatsword', dmg: [12, 22], speedMs: 2400, price: 420, dur: 140, minSkill: 60, sprite: 'greatsword', craft: { ore: 20, logs: 6, gold: 120, frostwood: 2 } },
+  longbow:    { name: 'Longbow',    dmg: [6, 13],  speedMs: 1700, price: 180, dur: 100, minSkill: 30, sprite: 'longbow', ranged: true, range: 8, craft: { ore: 2, logs: 10, gold: 40 } },
+  // Armor and shields share the same item machinery; slot routes the equip.
+  leatherarmor: { name: 'Leather Tunic',  slot: 'chest', dr: 2, price: 100, dur: 120, sprite: 'leather', craft: { ore: 2, logs: 6, gold: 25 } },
+  chainmail:    { name: 'Chain Cuirass',  slot: 'chest', dr: 4, price: 320, dur: 160, minSkill: 40, sprite: 'chain', craft: { ore: 16, logs: 2, gold: 90 } },
+  buckler:      { name: 'Buckler',        slot: 'offhand', block: 10, price: 90,  dur: 100, sprite: 'buckler', craft: { ore: 4, logs: 4, gold: 20 } },
+  kiteshield:   { name: 'Kite Shield',    slot: 'offhand', block: 18, price: 280, dur: 150, minSkill: 35, sprite: 'kite_shield', craft: { ore: 12, logs: 6, gold: 70, ironbark: 2 } },
   // There is only one. It is not for sale, and no forge will make another.
   dawnbreaker: { name: 'Dawnbreaker', dmg: [18, 30], speedMs: 2000, price: 2500, dur: 600, sprite: 'greatsword', secret: true },
 };
+
+const ARROW_BUNDLE = 20;
 
 const QUALITIES = [
   { name: 'Shoddy',      dmgMul: 0.85, durMul: 0.6, priceMul: 0.5 },
@@ -143,6 +158,26 @@ function t0Throttle(p) {
   return true;
 }
 
+const DEED_NAMES = {
+  firstblood: 'First Blood',
+  dragonslayer: 'Dragonslayer',
+  kingslayer: 'Slayer of Kings',
+  legend: 'Bearer of the Dawn',
+  angler: 'First Catch',
+  smith: 'At the Anvil',
+  wayfarer: 'Wayfarer',
+  grandmaster: 'Grandmaster',
+};
+
+function titleOf(p) {
+  for (const sk of SKILLS) {
+    if (p.skills[sk] >= 100) {
+      return 'Grandmaster ' + sk.charAt(0).toUpperCase() + sk.slice(1);
+    }
+  }
+  return '';
+}
+
 function hashPassword(password, salt) {
   return crypto.scryptSync(password, salt, 64).toString('hex');
 }
@@ -159,6 +194,7 @@ class Game {
     this.resources = new Map(); // "x,y" -> gathers left before depletion
     this.depleted = new Map();  // "x,y" -> { tile, respawnAt }
     this.drops = new Map();     // id -> { id, x, y, item, amount, despawnAt, cacheIdx? }
+    this.pendingAoes = [];      // telegraphed boss slams awaiting impact
     this.cacheRespawns = new Map(); // secret index -> respawn time
 
     // Vendors come from worldgen; negative ids keep them clear of mob ids.
@@ -176,6 +212,8 @@ class Game {
     });
 
     this.miniData = this.buildMini();
+    this.event = null;
+    setInterval(() => this.maybeStartEvent(), 60_000);
 
     setInterval(() => this.tick(), TICK_MS);
     setInterval(() => this.saveAll(), SAVE_INTERVAL_MS);
@@ -269,6 +307,9 @@ class Game {
         pots: { heal: 1, mana: 0 },
         items: [{ uid: 1, id: 'dagger', q: 0, dur: 54, maxDur: 54 }],
         weapon: 1,
+        armor: null,
+        offhand: null,
+        arrows: 0,
         itemUid: 2,
       };
       persist.saveAccounts(this.accounts);
@@ -294,11 +335,19 @@ class Game {
       y: spot.y,
       str: rec.str, dex: rec.dex, int: rec.int,
       hp: Math.min(rec.hp, maxHp(rec)), mana: Math.min(rec.mana, rec.int),
-      skills: { ...rec.skills },
+      skills: { ...Object.fromEntries(SKILLS.map((sk) => [sk, 20])), ...rec.skills },
       gold: rec.gold, logs: rec.logs, ore: rec.ore, gems: rec.gems || 0,
+      fish: rec.fish || 0, meat: rec.meat || 0, food: rec.food || 0,
+      tmaps: (rec.tmaps || []).slice(),
+      mats: { frostwood: 0, sunsteel: 0, ironbark: 0, ...rec.mats },
+      deeds: { ...rec.deeds },
       pots: { heal: 0, mana: 0, ...rec.pots },
       items: (rec.items || []).map((i) => ({ ...i })),
       weapon: rec.weapon ?? null,
+      armor: rec.armor ?? null,
+      offhand: rec.offhand ?? null,
+      arrows: rec.arrows || 0,
+      buffUntil: 0,
       itemUid: rec.itemUid || 1,
       dead: false,
       target: 0,
@@ -315,6 +364,8 @@ class Game {
       mini: this.miniData,
       buildings: this.map.buildings,
       props: this.map.props,
+      villages: this.map.villages.map((v) => ({ name: v.name, x: v.x, y: v.y })),
+      epoch: Date.now(),
       spells: SPELLS,
       weapons: WEAPONS,
       qualities: QUALITIES,
@@ -342,12 +393,26 @@ class Game {
       hp: Math.max(1, p.hp), mana: p.mana,
       skills: { ...p.skills },
       gold: p.gold, logs: p.logs, ore: p.ore, gems: p.gems,
+      fish: p.fish, meat: p.meat, food: p.food,
+      tmaps: (p.tmaps || []).slice(),
+      mats: { ...p.mats },
+      deeds: { ...p.deeds },
       pots: { ...p.pots },
       items: p.items.map((i) => ({ ...i })),
       weapon: p.weapon,
+      armor: p.armor,
+      offhand: p.offhand,
+      arrows: p.arrows,
       itemUid: p.itemUid,
     });
     this.dirty = true;
+  }
+
+  deed(p, id) {
+    if (p.deeds[id]) return;
+    p.deeds[id] = Date.now();
+    this.sys(p, `⚑ Deed accomplished: ${DEED_NAMES[id] || id}.`);
+    this.sendYou(p);
   }
 
   saveAll() {
@@ -379,6 +444,8 @@ class Game {
       case 'sell': return this.handleSell(p, msg.uid | 0);
       case 'craft': return this.handleCraft(p, String(msg.id || ''));
       case 'story': return this.handleStory(p, msg.id | 0);
+      case 'cook': return this.handleCook(p);
+      case 'eat': return this.handleEat(p);
       case 'chunks': return this.handleChunks(p, msg.l);
     }
   }
@@ -397,6 +464,36 @@ class Game {
       if (i === 0) speak();
       else setTimeout(speak, i * 3500);
     });
+  }
+
+  nearCampfire(p) {
+    return this.map.props.some((pr) =>
+      pr.name === 'fx.campfire' && Math.abs(pr.x - p.x) <= 2 && Math.abs(pr.y - p.y) <= 2);
+  }
+
+  handleCook(p) {
+    if (p.dead) return;
+    if (!this.nearCampfire(p)) return this.sys(p, 'You need a campfire to cook.');
+    if (p.fish <= 0 && p.meat <= 0) return this.sys(p, 'Nothing raw to cook. Fish or hunt first.');
+    if (p.fish > 0) p.fish -= 1;
+    else p.meat -= 1;
+    if (Math.random() * 100 < p.skills.cooking + 35) {
+      p.food += 1;
+      this.sys(p, 'A hot meal, fit for the road.');
+    } else {
+      this.sys(p, 'It burns to a sad black crisp.');
+    }
+    this.gainSkill(p, 'cooking');
+    this.sendYou(p);
+  }
+
+  handleEat(p) {
+    if (p.dead) return;
+    if (p.food <= 0) return this.sys(p, 'Your pack holds no cooked meals.');
+    p.food -= 1;
+    p.fedUntil = now() + 20_000;
+    this.sys(p, 'You eat well. Warmth spreads through you.');
+    this.sendYou(p);
   }
 
   handleChunks(p, list) {
@@ -441,8 +538,13 @@ class Game {
       return this.sys(p, `${vendor.name} says: That is ${good.price} gold, which thou dost not have.`);
     }
     p.gold -= good.price;
-    p.pots[good.item] = (p.pots[good.item] || 0) + 1;
-    this.sys(p, `You buy a ${good.name} for ${good.price} gold.`);
+    if (good.item === 'arrow') {
+      p.arrows += ARROW_BUNDLE;
+      this.sys(p, `You buy ${ARROW_BUNDLE} arrows for ${good.price} gold.`);
+    } else {
+      p.pots[good.item] = (p.pots[good.item] || 0) + 1;
+      this.sys(p, `You buy a ${good.name} for ${good.price} gold.`);
+    }
     this.sendYou(p);
   }
 
@@ -458,6 +560,11 @@ class Game {
     return item || null;
   }
 
+  slotOf(def) {
+    if (def.slot === 'chest') return 'armor';
+    return def.slot || 'weapon';
+  }
+
   handleEquip(p, uid) {
     if (uid === null || uid === 0) {
       p.weapon = null;
@@ -467,12 +574,25 @@ class Game {
     const item = p.items.find((i) => i.uid === uid);
     if (!item) return;
     const def = WEAPONS[item.id];
+    const slot = this.slotOf(def);
     if (def.minSkill && p.skills.swordsmanship < def.minSkill) {
-      return this.sys(p, `You need ${def.minSkill} Swordsmanship to wield a ${def.name}.`);
+      return this.sys(p, `You need ${def.minSkill} Swordsmanship to use a ${def.name}.`);
     }
-    p.weapon = uid;
-    this.sys(p, `You ready your ${weaponLabel(item)}.`);
+    if (p[slot] === uid) {
+      p[slot] = null;
+      this.sys(p, `You remove your ${weaponLabel(item)}.`);
+    } else {
+      p[slot] = uid;
+      this.sys(p, `You ready your ${weaponLabel(item)}.`);
+    }
     this.sendYou(p);
+  }
+
+  equippedIn(p, slot) {
+    if (p[slot] == null) return null;
+    const item = p.items.find((i) => i.uid === p[slot]);
+    if (!item) p[slot] = null;
+    return item || null;
   }
 
   handleSell(p, uid) {
@@ -483,7 +603,7 @@ class Game {
     if (!item) return;
     const price = Math.floor(weaponPrice(item.id, item.q) * 0.4);
     p.items = p.items.filter((i) => i.uid !== uid);
-    if (p.weapon === uid) p.weapon = null;
+    for (const slot of ['weapon', 'armor', 'offhand']) if (p[slot] === uid) p[slot] = null;
     p.gold += price;
     this.sys(p, `You sell your ${weaponLabel(item)} for ${price} gold.`);
     this.sendYou(p);
@@ -496,15 +616,21 @@ class Game {
     const vendor = this.vendors.find((v) => v.forge && dist(p, v) <= 3);
     if (!vendor) return this.sys(p, 'You need a blacksmith\'s forge for that.');
     const c = def.craft;
-    if (p.ore < c.ore || p.logs < c.logs || p.gold < c.gold) {
-      return this.sys(p, `Forging a ${def.name} takes ${c.ore} ore, ${c.logs} logs and ${c.gold} gold.`);
+    const matNeeds = ['frostwood', 'sunsteel', 'ironbark'].filter((m) => c[m]);
+    const matsShort = matNeeds.filter((m) => p.mats[m] < c[m]);
+    if (p.ore < c.ore || p.logs < c.logs || p.gold < c.gold || matsShort.length) {
+      const extras = matNeeds.map((m) => `${c[m]} ${m}`).join(', ');
+      return this.sys(p, `Forging a ${def.name} takes ${c.ore} ore, ${c.logs} logs, ${c.gold} gold${extras ? ' and ' + extras : ''}.`);
     }
     if (p.items.length >= ITEM_CAP) return this.sys(p, 'Your pack is full.');
     p.ore -= c.ore;
     p.logs -= c.logs;
     p.gold -= c.gold;
-    // Craftsmanship rises with your gathering skills; masters forge masterworks.
-    const k = ((p.skills.mining + p.skills.lumberjacking) / 2) / 100;
+    for (const m of matNeeds) p.mats[m] -= c[m];
+    this.deed(p, 'smith');
+    this.gainSkill(p, 'blacksmithy');
+    // The smith's own hand decides the quality.
+    const k = p.skills.blacksmithy / 100;
     const r = Math.random();
     const q = r < 0.05 * k ? 4 : r < 0.2 * k ? 3 : r < 0.55 * k ? 2 : r < 0.55 * k + 0.5 ? 1 : 0;
     const item = this.makeItem(p, id, q);
@@ -583,6 +709,17 @@ class Game {
 
   handleCommand(p, text) {
     const cmd = text.slice(1).split(/\s+/)[0].toLowerCase();
+    if (cmd === 'forget') {
+      const sk = (text.split(/\s+/)[1] || '').toLowerCase();
+      if (!SKILLS.includes(sk)) {
+        return this.sys(p, `Forget which art? ${SKILLS.join(', ')}.`);
+      }
+      if (p.gold < 100) return this.sys(p, 'The mind is willing, but the ritual costs 100 gold.');
+      p.gold -= 100;
+      p.skills[sk] = 20;
+      this.sys(p, `You let your ${skillName(sk)} fade back to instinct. (now 20.0)`);
+      return this.sendYou(p);
+    }
     if (cmd === 'teleport' || cmd === 'home' || cmd === 'recall') {
       if (p.dead) return this.sys(p, 'The dead must walk to a shrine.');
       const t = now();
@@ -640,6 +777,21 @@ class Game {
       const amount = rand(spell.heal[0], spell.heal[1]);
       p.hp = Math.min(maxHp(p), p.hp + amount);
       this.fxNear(p, { t: 'fx', kind: 'heal', x: p.x, y: p.y, amount });
+    } else if (spell.buff) {
+      p.buffUntil = t + spell.buffMs;
+      this.fxNear(p, { t: 'fx', kind: 'heal', x: p.x, y: p.y, amount: 0 });
+      this.sys(p, 'Your arm feels surer. (+damage for a minute)');
+    } else if (spell.dot) {
+      const mob = this.mobs.get(targetId || p.target);
+      if (!mob || dist(p, mob) > 10) {
+        this.sys(p, 'No target in range.');
+      } else if (MOB_KINDS[mob.kind].peaceful) {
+        this.sys(p, 'The townsfolk are under the crown\'s protection.');
+      } else {
+        mob.poison = { left: 5, dmg: rand(spell.dot[0], spell.dot[1]), nextAt: t + 2000, by: p.id };
+        this.fxNear(mob, { t: 'fx', kind: 'poison', x: mob.x, y: mob.y });
+        this.sys(p, `${mob.name || MOB_KINDS[mob.kind].name} turns a sickly green.`);
+      }
     } else {
       const mob = this.mobs.get(targetId || p.target);
       if (!mob || dist(p, mob) > 10) {
@@ -647,8 +799,8 @@ class Game {
       } else if (MOB_KINDS[mob.kind].peaceful) {
         this.sys(p, 'The townsfolk are under the crown\'s protection.');
       } else {
-        const dmg = rand(spell.dmg[0], spell.dmg[1]) + Math.floor(p.skills.magery / 12);
-        this.fxNear(p, { t: 'fx', kind: spellId, x: p.x, y: p.y, tx: mob.x, ty: mob.y, amount: dmg });
+        const dmg = rand(spell.dmg[0], spell.dmg[1]) + Math.floor(p.skills.magery / (spellId === 'energybolt' ? 8 : 12));
+        this.fxNear(p, { t: 'fx', kind: spellId === 'energybolt' ? 'fireball' : spellId, x: p.x, y: p.y, tx: mob.x, ty: mob.y, amount: dmg });
         this.damageMob(p, mob, dmg);
         this.gainStat(p, 'int');
       }
@@ -685,6 +837,13 @@ class Game {
         if (Math.random() * 100 < p.skills.lumberjacking + 40) {
           p.logs += 1;
           this.sys(p, 'You chop some logs.');
+          if (tile === TILE.SNOWTREE && Math.random() < 0.15) {
+            p.mats.frostwood += 1;
+            this.sys(p, 'Beneath the bark: pale frostwood!');
+          } else if (tile === TILE.SWAMPTREE && Math.random() < 0.15) {
+            p.mats.ironbark += 1;
+            this.sys(p, 'This bough is heavy ironbark!');
+          }
           this.consumeResource(p, tx, ty, tile, 'The tree falls.');
         } else {
           this.sys(p, 'You hack at the tree but produce nothing useful.');
@@ -698,6 +857,10 @@ class Game {
         if (Math.random() * 100 < p.skills.mining + 40) {
           p.ore += 1;
           this.sys(p, 'You dig some ore and put it in your pack.');
+          if (tileAt(this.map, p.x, p.y) === TILE.SAND && Math.random() < 0.15) {
+            p.mats.sunsteel += 1;
+            this.sys(p, 'A vein of desert sunsteel glitters in the rubble!');
+          }
           this.consumeResource(p, tx, ty, tile, 'The rock face crumbles to rubble.');
         } else {
           this.sys(p, 'You loosen some rocks but fail to find anything.');
@@ -708,7 +871,22 @@ class Game {
         return;
       }
     }
-    this.sys(p, 'There is nothing here to gather. Stand beside a tree or rock face.');
+    // No tree, no rock — but water means fish.
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      if (tileAt(this.map, p.x + dx, p.y + dy) === TILE.WATER) {
+        if (Math.random() * 100 < p.skills.fishing + 30) {
+          p.fish += 1;
+          this.sys(p, 'You pull a wriggling fish from the water.');
+          this.deed(p, 'angler');
+        } else {
+          this.sys(p, 'The fish are not biting.');
+        }
+        this.gainSkill(p, 'fishing');
+        this.sendYou(p);
+        return;
+      }
+    }
+    this.sys(p, 'There is nothing here to gather. Stand beside a tree, rock face or water.');
   }
 
   // Each tree or rock yields a few harvests, then vanishes and regrows later.
@@ -758,7 +936,14 @@ class Game {
 
   damageMob(attacker, mob, dmg) {
     mob.hp -= dmg;
-    mob.target = attacker.id; // fighting back
+    const def = MOB_KINDS[mob.kind];
+    if (def.aggro === 0 && !def.peaceful) {
+      // Prey bolts rather than bites.
+      mob.fleeUntil = now() + 6000;
+      mob.fleeFrom = { x: attacker.x, y: attacker.y };
+    } else {
+      mob.target = attacker.id; // fighting back
+    }
     this.fxNear(mob, { t: 'fx', kind: 'hit', x: mob.x, y: mob.y, amount: dmg });
     if (mob.hp <= 0) this.killMob(attacker, mob);
   }
@@ -771,6 +956,9 @@ class Game {
     mob.spawner.alive.delete(mob.id);
     mob.spawner.respawnAt = now() + (mob.spawner.respawnMs || 20_000);
     this.sys(killer, `You have slain ${mob.name || def.name}! You loot ${gold} gold.`);
+    this.deed(killer, 'firstblood');
+    if (mob.kind === 'dragon' || mob.kind === 'vyrmaur') this.deed(killer, 'dragonslayer');
+    if (def.boss && mob.kind !== 'dragon') this.deed(killer, 'kingslayer');
     if (mob.spawner.respawnMs) {
       this.broadcastSys(`${killer.name} has slain ${mob.name || def.name}!`);
     }
@@ -808,6 +996,16 @@ class Game {
     }
     for (const entry of LOOT_TABLES[mob.kind] || []) {
       if (Math.random() > entry[0]) continue;
+      if (entry[1] === 'tmap') {
+        const cacheIdxs = this.map.secrets
+          .map((sc, i) => (sc.type === 'cache' ? i : -1)).filter((i) => i >= 0);
+        const m = cacheIdxs[rand(0, cacheIdxs.length - 1)];
+        this.drops.set(this.nextId, {
+          id: this.nextId++, x: mob.x, y: mob.y,
+          item: 'tmap', m, despawnAt: now() + DROP_TTL_MS,
+        });
+        continue;
+      }
       if (entry[1] === 'weapon') {
         const [, , pool, qMin, qMax] = entry;
         const id = pool[rand(0, pool.length - 1)];
@@ -846,6 +1044,7 @@ class Game {
         const item = { uid: p.itemUid++, ...d.w };
         p.items.push(item);
         this.sys(p, `You pick up a ${weaponLabel(item)}.`);
+        if (item.id === 'dawnbreaker') this.deed(p, 'legend');
         this.sendYou(p);
         continue;
       }
@@ -875,9 +1074,58 @@ class Game {
           p.gems += d.amount;
           this.sys(p, `You pick up ${d.amount > 1 ? d.amount + ' sparkling gems' : 'a sparkling gem'}!`);
           break;
+        case 'meat':
+          p.meat += d.amount;
+          this.sys(p, `You take ${d.amount > 1 ? d.amount + ' cuts' : 'a cut'} of meat.`);
+          break;
+        case 'tmap': {
+          p.tmaps = p.tmaps || [];
+          if (p.tmaps.length >= 3) {
+            this.drops.set(id, d); // leave it lying there
+            if (t0Throttle(p)) this.sys(p, 'You cannot carry more maps.');
+            break;
+          }
+          p.tmaps.push(d.m);
+          this.sys(p, 'A weathered map! Someone marked an X far from here.');
+          break;
+        }
       }
       this.sendYou(p);
     }
+  }
+
+  // A blow lands on a player: shields may turn it, armor blunts it,
+  // and worn gear wears further.
+  hitPlayer(p, raw, byName) {
+    const shield = this.equippedIn(p, 'offhand');
+    if (shield && Math.random() * 100 < WEAPONS[shield.id].block) {
+      this.fxNear(p, { t: 'fx', kind: 'miss', x: p.x, y: p.y });
+      this.sys(p, 'You catch the blow on your shield.');
+      this.wearGear(p, shield);
+      return;
+    }
+    const armor = this.equippedIn(p, 'armor');
+    let dmg = raw;
+    if (armor) {
+      dmg = Math.max(1, raw - WEAPONS[armor.id].dr);
+      this.wearGear(p, armor);
+    }
+    p.hp -= dmg;
+    this.fxNear(p, { t: 'fx', kind: 'hit', x: p.x, y: p.y, amount: dmg });
+    if (p.hp <= 0) this.killPlayer(p, byName);
+    else this.sendYou(p);
+  }
+
+  wearGear(p, item) {
+    if (Math.random() >= 0.15) return;
+    item.dur -= 1;
+    if (item.dur <= 0) {
+      p.items = p.items.filter((i) => i.uid !== item.uid);
+      for (const slot of ['weapon', 'armor', 'offhand']) if (p[slot] === item.uid) p[slot] = null;
+      this.sys(p, `Your ${weaponLabel(item)} falls apart!`);
+      this.fxNear(p, { t: 'fx', kind: 'break', x: p.x, y: p.y });
+    }
+    this.sendYou(p);
   }
 
   killPlayer(p, byName) {
@@ -906,9 +1154,18 @@ class Game {
       p.target = 0;
       return;
     }
-    if (dist(p, mob) > 1.5 || t < p.swingAt) return;
     const item = this.equippedWeapon(p);
     const wdef = item ? WEAPONS[item.id] : UNARMED;
+    const reach = wdef.ranged ? wdef.range : 1.5;
+    if (dist(p, mob) > reach || t < p.swingAt) return;
+    if (wdef.ranged) {
+      if (p.arrows <= 0) {
+        if (t0Throttle(p)) this.sys(p, 'You are out of arrows. The fletchers sell bundles.');
+        return;
+      }
+      p.arrows -= 1;
+      this.fxNear(p, { t: 'fx', kind: 'arrow', x: p.x, y: p.y, tx: mob.x, ty: mob.y });
+    }
     p.swingAt = t + Math.max(900, wdef.speedMs - p.dex * 10);
     p.swungAt = t;
 
@@ -921,7 +1178,8 @@ class Game {
     this.gainSkill(p, 'tactics');
     this.gainStat(p, 'str');
     const roll = rand(wdef.dmg[0], wdef.dmg[1]);
-    const base = (item ? Math.round(roll * QUALITIES[item.q].dmgMul) : roll) + Math.floor(p.str / 10);
+    const blessBonus = p.buffUntil > t ? 3 : 0;
+    const base = (item ? Math.round(roll * QUALITIES[item.q].dmgMul) : roll) + Math.floor(p.str / 10) + blessBonus;
     const dmg = Math.max(1, Math.floor(base * (0.5 + p.skills.tactics / 150)));
     this.damageMob(p, mob, dmg);
     if (item) this.wearWeapon(p, item);
@@ -933,7 +1191,7 @@ class Game {
     item.dur -= 1;
     if (item.dur <= 0) {
       p.items = p.items.filter((i) => i.uid !== item.uid);
-      if (p.weapon === item.uid) p.weapon = null;
+      for (const slot of ['weapon', 'armor', 'offhand']) if (p[slot] === item.uid) p[slot] = null;
       this.sys(p, `Your ${weaponLabel(item)} shatters!`);
       this.fxNear(p, { t: 'fx', kind: 'break', x: p.x, y: p.y });
     } else if (item.dur === Math.ceil(item.maxDur * 0.25)) {
@@ -953,6 +1211,7 @@ class Game {
     if (Math.random() < (SKILL_CAP - cur) / 220 + 0.02) {
       p.skills[skill] = Math.min(SKILL_CAP, Math.round((cur + 0.5) * 10) / 10);
       this.sys(p, `Your ${skillName(skill)} has risen to ${p.skills[skill].toFixed(1)}.`);
+      if (p.skills[skill] >= SKILL_CAP) this.deed(p, 'grandmaster');
       this.sendYou(p);
     }
   }
@@ -987,6 +1246,11 @@ class Game {
       if (spawner.kind === 'villager') {
         mob.name = VILLAGER_NAMES[mob.id % VILLAGER_NAMES.length];
       }
+      // Every barrow raises the occasional necromancer.
+      if (spawner.kind === 'skeleton' && Math.random() < 0.18) {
+        mob.kind = 'skelmage';
+        mob.hp = mob.maxhp = MOB_KINDS.skelmage.hp;
+      }
       this.mobs.set(mob.id, mob);
       spawner.alive.add(mob.id);
       return;
@@ -996,35 +1260,86 @@ class Game {
   mobTick(mob, t) {
     const def = MOB_KINDS[mob.kind];
 
+    // Poison eats at the afflicted.
+    if (mob.poison && t >= mob.poison.nextAt) {
+      mob.poison.nextAt = t + 2000;
+      mob.poison.left -= 1;
+      const killer = this.players.get(mob.poison.by);
+      mob.hp -= mob.poison.dmg;
+      this.fxNear(mob, { t: 'fx', kind: 'hit', x: mob.x, y: mob.y, amount: mob.poison.dmg });
+      if (mob.poison.left <= 0) mob.poison = null;
+      if (mob.hp <= 0) {
+        if (killer) this.killMob(killer, mob);
+        else {
+          this.mobs.delete(mob.id);
+          mob.spawner.alive.delete(mob.id);
+        }
+        return;
+      }
+    }
+
+    // The frightened run first and think later.
+    if (mob.fleeUntil && t < mob.fleeUntil) {
+      if (t >= mob.moveAt) {
+        mob.moveAt = t + def.speedMs;
+        this.stepToward(mob, 2 * mob.x - mob.fleeFrom.x, 2 * mob.y - mob.fleeFrom.y);
+      }
+      return;
+    }
+
     // Acquire or validate a target.
     let target = mob.target ? this.players.get(mob.target) : null;
     if (target && (target.dead || dist(mob, target) > 14)) {
       mob.target = 0;
       target = null;
     }
-    if (!target && def.aggro > 0) {
-      for (const p of this.players.values()) {
-        if (!p.dead && dist(mob, p) <= def.aggro) {
-          mob.target = p.id;
-          target = p;
-          break;
+    if (!target && (def.aggro > 0 || mob.aggroBoost)) {
+      const reach = (def.aggro || 0) + (mob.aggroBoost || 0);
+      const cx = mob.x >> 5;
+      const cy = mob.y >> 5;
+      outer:
+      for (let gy = cy - 1; gy <= cy + 1; gy++) {
+        for (let gx = cx - 1; gx <= cx + 1; gx++) {
+          const cell = this.playerGrid && this.playerGrid.get((gx << 16) | gy);
+          if (!cell) continue;
+          for (const p of cell) {
+            if (dist(mob, p) <= reach) {
+              mob.target = p.id;
+              target = p;
+              break outer;
+            }
+          }
         }
       }
     }
 
     if (target) {
       const d = dist(mob, target);
+
+      // Bosses telegraph a ground slam: stand clear or suffer.
+      if (def.boss && d <= 8 && t >= (mob.aoeAt || 0)) {
+        mob.aoeAt = t + 9000;
+        const ax = target.x;
+        const ay = target.y;
+        this.fxNear(mob, { t: 'fx', kind: 'telegraph', x: ax, y: ay });
+        this.pendingAoes.push({ x: ax, y: ay, at: t + 1600, dmg: Math.round(def.dmg[1] * 1.4), by: mob.name || def.name });
+      }
+
+      // Casters bombard from range.
+      if (def.caster && d <= def.caster.range && d > 1.5 && t >= (mob.castAt || 0)) {
+        mob.castAt = t + def.caster.cdMs;
+        this.fxNear(mob, { t: 'fx', kind: 'mbolt', x: mob.x, y: mob.y, tx: target.x, ty: target.y });
+        this.hitPlayer(target, rand(def.caster.dmg[0], def.caster.dmg[1]), mob.name || def.name);
+        return;
+      }
+
       if (d <= 1.5) {
         if (t >= mob.swingAt) {
           mob.swingAt = t + 1600;
           mob.swungAt = t;
           const hitChance = clamp(50 + (def.skill - target.skills.swordsmanship) / 2, 10, 95);
           if (Math.random() * 100 <= hitChance) {
-            const dmg = rand(def.dmg[0], def.dmg[1]);
-            target.hp -= dmg;
-            this.fxNear(target, { t: 'fx', kind: 'hit', x: target.x, y: target.y, amount: dmg });
-            if (target.hp <= 0) this.killPlayer(target, def.name);
-            else this.sendYou(target);
+            this.hitPlayer(target, rand(def.dmg[0], def.dmg[1]), mob.name || def.name);
           } else {
             this.fxNear(target, { t: 'fx', kind: 'miss', x: target.x, y: target.y });
           }
@@ -1048,6 +1363,16 @@ class Game {
           break;
         }
       }
+    }
+
+    // Raiders march on their objective before all else.
+    if (mob.dest) {
+      if (dist(mob, mob.dest) <= 2) mob.dest = null;
+      else if (t >= mob.moveAt) {
+        mob.moveAt = t + def.speedMs;
+        this.stepToward(mob, mob.dest.x, mob.dest.y);
+      }
+      return;
     }
 
     // No target: leash home if wandered far, otherwise amble around.
@@ -1083,21 +1408,112 @@ class Game {
     }
   }
 
+  // ---- world events: every so often, raiders march on a village -------------------
+
+  maybeStartEvent() {
+    if (this.event || this.players.size === 0 || Math.random() > 0.22) return;
+    const v = this.map.villages[rand(0, this.map.villages.length - 1)];
+    const kind = Math.random() > 0.5 ? 'orc' : 'goblin';
+    const stub = { alive: new Set(), x: v.x + 18, y: v.y + 18, r: 4, kind, respawnMs: Infinity };
+    const ids = new Set();
+    for (let i = 0; i < 8; i++) {
+      this.spawnMob(stub);
+    }
+    for (const id of stub.alive) {
+      const m = this.mobs.get(id);
+      if (m) {
+        m.dest = { x: v.x + rand(-3, 3), y: v.y + rand(-3, 3) };
+        m.aggroBoost = 12; // raiders look for trouble
+        ids.add(id);
+      }
+    }
+    this.event = { village: v, ids, until: now() + 6 * 60_000, kind };
+    this.broadcastSys(`⚔ ${kind === 'orc' ? 'An orc warband' : 'A goblin mob'} is raiding ${v.name}! Defenders needed!`);
+  }
+
+  tickEvent(t) {
+    if (!this.event) return;
+    for (const id of this.event.ids) {
+      if (!this.mobs.has(id)) this.event.ids.delete(id);
+    }
+    if (this.event.ids.size === 0) {
+      const v = this.event.village;
+      this.broadcastSys(`🏆 The raid on ${v.name} is broken! The grateful villagers leave a reward.`);
+      for (const [item, min, max] of [['gold', 80, 160], ['heal', 1, 2], ['mana', 1, 2]]) {
+        this.drops.set(this.nextId, {
+          id: this.nextId++, x: v.x + rand(-1, 1), y: v.y + rand(-1, 1),
+          item, amount: rand(min, max), despawnAt: t + 3 * 60_000,
+        });
+      }
+      this.event = null;
+    } else if (t > this.event.until) {
+      for (const id of this.event.ids) {
+        const m = this.mobs.get(id);
+        if (m) {
+          this.mobs.delete(id);
+          m.spawner.alive.delete(id);
+        }
+      }
+      this.broadcastSys(`The raiders have taken what they could from ${this.event.village.name} and slunk away.`);
+      this.event = null;
+    }
+  }
+
   // ---- main loop ----------------------------------------------------------------
 
   tick() {
+    const tickStart = process.hrtime.bigint();
     const t = now();
 
+    // Telegraphed slams land.
+    if (this.pendingAoes.length) {
+      const due = this.pendingAoes.filter((a) => t >= a.at);
+      this.pendingAoes = this.pendingAoes.filter((a) => t < a.at);
+      for (const a of due) {
+        this.fxNear(a, { t: 'fx', kind: 'slam', x: a.x, y: a.y });
+        for (const q of this.players.values()) {
+          if (!q.dead && Math.abs(q.x - a.x) <= 1 && Math.abs(q.y - a.y) <= 1) {
+            this.hitPlayer(q, a.dmg, a.by);
+          }
+        }
+      }
+    }
+
+    this.tickEvent(t);
     for (const mob of this.mobs.values()) this.mobTick(mob, t);
 
     for (const p of this.players.values()) {
       this.meleeTick(p, t);
       if (!p.dead) this.pickupDrops(p);
+      if (!p.dead && p.tmaps && p.tmaps.length) {
+        for (const i of p.tmaps.slice()) {
+          const sc = this.map.secrets[i];
+          if (Math.abs(sc.x - p.x) <= 2 && Math.abs(sc.y - p.y) <= 2) {
+            p.tmaps = p.tmaps.filter((m) => m !== i);
+            const stocked = [...this.drops.values()].some((d) => d.cacheIdx === i);
+            if (!stocked) {
+              this.cacheRespawns.delete(i);
+              this.stockCache(sc, i);
+            }
+            this.sys(p, 'This is the place. X marks the spot — and the ground gives easily.');
+            this.sendYou(p);
+          }
+        }
+      }
+      if (!p.dead && !p.deeds.wayfarer && t % 1000 < TICK_MS) {
+        for (const v of this.map.villages) {
+          if (Math.abs(v.x - p.x) < 12 && Math.abs(v.y - p.y) < 12) {
+            this.deed(p, 'wayfarer');
+            break;
+          }
+        }
+      }
       // Passive regeneration, once a second.
       if (!p.dead && t >= p.regenAt) {
         p.regenAt = t + 1000;
         let changed = false;
         if (p.hp < maxHp(p) && Math.random() < 0.35) { p.hp += 1; changed = true; }
+        if (p.fedUntil > t && p.hp < maxHp(p)) { p.hp = Math.min(maxHp(p), p.hp + 2); changed = true; }
         if (p.mana < p.int) { p.mana = Math.min(p.int, p.mana + 1); changed = true; }
         if (changed) this.sendYou(p);
       }
@@ -1131,12 +1547,15 @@ class Game {
       this.send(p.ws, {
         t: 'state',
         players: players.filter(near).map((q) => {
-          const wi = q.weapon != null && q.items.find((i) => i.uid === q.weapon);
+          const gear = (slot) => {
+            const it = q[slot] != null && q.items.find((i) => i.uid === q[slot]);
+            return it ? it.id : 0;
+          };
           return {
             id: q.id, name: q.name, x: q.x, y: q.y,
             hp: q.hp, maxhp: maxHp(q), dead: q.dead,
             a: t - (q.swungAt || 0) < 600 ? 1 : 0,
-            w: wi ? wi.id : 0,
+            w: gear('weapon'), ar: gear('armor'), oh: gear('offhand'),
           };
         }),
         mobs: mobs.filter(near).map((m) => ({
@@ -1147,6 +1566,8 @@ class Game {
         drops: drops.filter(near).map((d) => ({ id: d.id, x: d.x, y: d.y, item: d.item, q: d.w ? d.w.q : undefined })),
       });
     }
+
+    this.lastTickMs = Number(process.hrtime.bigint() - tickStart) / 1e6;
   }
 
   // ---- plumbing -------------------------------------------------------------------
@@ -1158,9 +1579,21 @@ class Game {
       str: p.str, dex: p.dex, int: p.int,
       skills: p.skills,
       gold: p.gold, logs: p.logs, ore: p.ore, gems: p.gems,
+      fish: p.fish, meat: p.meat, food: p.food,
+      tmaps: (p.tmaps || []).map((i) => {
+        const sc = this.map.secrets[i];
+        return { i, x: sc.x, y: sc.y };
+      }),
+      mats: p.mats,
+      deeds: p.deeds,
+      title: titleOf(p),
       pots: p.pots,
       items: p.items,
       weapon: p.weapon,
+      armor: p.armor,
+      offhand: p.offhand,
+      arrows: p.arrows,
+      blessed: p.buffUntil > now() ? 1 : 0,
       dead: p.dead,
     });
   }

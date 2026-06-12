@@ -10,12 +10,13 @@
 
 const HW = 32; // half tile width on screen
 const HH = 16; // half tile height on screen
-const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SAND: 7, SHRINE: 8, SNOW: 9, SNOWTREE: 10, PLANKS: 11, SWAMP: 12, SWAMPTREE: 13 };
-const WALKABLE = new Set([T.GRASS, T.ROAD, T.FLOOR, T.SAND, T.SHRINE, T.SNOW, T.PLANKS, T.SWAMP]);
+const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SAND: 7, SHRINE: 8, SNOW: 9, SNOWTREE: 10, PLANKS: 11, SWAMP: 12, SWAMPTREE: 13, CAVE: 14 };
+const WALKABLE = new Set([T.GRASS, T.ROAD, T.FLOOR, T.SAND, T.SHRINE, T.SNOW, T.PLANKS, T.SWAMP, T.CAVE]);
 
 const MOB_STYLE = {
   goblin: { color: '#5aa040', size: 0.5, name: 'a goblin' },
   skeleton: { color: '#d8d4c8', size: 0.7, name: 'a skeleton' },
+  skelmage: { color: '#b8a8d8', size: 0.7, name: 'a skeleton mage' },
   orc: { color: '#5a8a3a', size: 0.8, name: 'an orc' },
   ettin: { color: '#a07040', size: 1.0, name: 'an ettin' },
   dragon: { color: '#c03828', size: 1.3, name: 'a dragon' },
@@ -28,6 +29,7 @@ const MOB_STYLE = {
   crab: { color: '#b06a4a', size: 0.4, name: 'a marsh crab' },
   boar: { color: '#6a5240', size: 0.6, name: 'a wild boar' },
   villager: { color: '#b0a890', size: 0.6, name: 'a villager', sprites: ['player', 'villager2', 'villager3'] },
+  whitestag: { color: '#f0f0e8', size: 0.7, name: 'the White Stag', sprite: 'deer', spriteScale: 1.3, boss: true },
   goblinking: { color: '#5aa040', size: 0.9, name: 'Skarg, the Goblin King', sprite: 'goblin', spriteScale: 1.5, boss: true },
   bonelord: { color: '#d8d4c8', size: 1.1, name: 'the Bone Lord', sprite: 'skeleton', spriteScale: 1.4, boss: true },
   wolfking: { color: '#6a625a', size: 0.9, name: 'Greyfang, the Wolf King', sprite: 'wolf', spriteScale: 1.6, boss: true },
@@ -51,13 +53,17 @@ const state = {
   vendors: [],          // static shopkeepers from the welcome message
   drops: [],            // loot lying on the ground
   props: [],            // furniture inside buildings (client-side dressing)
+  villages: [],         // named settlements, for the world map
   me: null,             // my entry in players
   you: null,            // private stats from the server
   speech: new Map(),    // entity id -> { text, until, magic }
   floaters: [],         // { x, y, text, color, born }
   projectiles: [],      // { x, y, tx, ty, born, color }
+  telegraphs: [],       // boss slam warnings: { x, y, born }
   target: 0,            // selected mob id
   walkTarget: null,     // { x, y } click-to-move destination
+  path: null,           // A* steps toward walkTarget
+  pathStuck: 0,         // ticks without progress -> recompute
   myTile: null,         // authoritative tile pos from last state message
   spells: {},
   weapons: {},
@@ -114,6 +120,7 @@ function handleMessage(msg) {
       state.wantedChunks.clear();
       state.buildings = msg.buildings || [];
       state.props = msg.props || [];
+      state.villages = msg.villages || [];
       state.mini = msg.mini;
       buildMinimap();
       document.getElementById('login').classList.add('hidden');
@@ -164,6 +171,10 @@ function handleMessage(msg) {
 
     case 'sys':
       log(esc(msg.text), /risen|increased/.test(msg.text) ? 'gain' : 'sys');
+      if (/risen|increased/.test(msg.text)) Sound.play('gain');
+      else if (/pick up/.test(msg.text)) Sound.play(/gold/.test(msg.text) ? 'gold' : 'pickup');
+      else if (/You drink/.test(msg.text)) Sound.play('drink');
+      else if (/You chop|You dig/.test(msg.text)) Sound.play('chop');
       break;
 
     case 'tile': {
@@ -179,6 +190,95 @@ function handleMessage(msg) {
       handleFx(msg);
       break;
   }
+}
+
+// A* over the loaded chunks, within a window around the player. Returns a
+// list of steps (excluding the start tile), or null if unreachable — the
+// caller falls back to the old greedy stepper. 8-directional, no corner
+// cutting through unwalkable tiles.
+function findPath(sx, sy, tx, ty) {
+  const R = 56;
+  if (Math.abs(tx - sx) > R || Math.abs(ty - sy) > R) return null;
+  if (!WALKABLE.has(tileAt(tx, ty))) return null;
+  const x0 = sx - R;
+  const y0 = sy - R;
+  const W = 2 * R + 1;
+  const N = W * W;
+  const id = (x, y) => (y - y0) * W + (x - x0);
+  const inWin = (x, y) => x >= x0 && y >= y0 && x < x0 + W && y < y0 + W;
+  const g = new Float64Array(N).fill(Infinity);
+  const from = new Int32Array(N).fill(-1);
+  const closed = new Uint8Array(N);
+  // binary heap of [f, nodeId]
+  const heap = [];
+  const push = (f, n) => {
+    heap.push([f, n]);
+    let i = heap.length - 1;
+    while (i > 0) {
+      const par = (i - 1) >> 1;
+      if (heap[par][0] <= heap[i][0]) break;
+      [heap[par], heap[i]] = [heap[i], heap[par]];
+      i = par;
+    }
+  };
+  const pop = () => {
+    const top = heap[0];
+    const last = heap.pop();
+    if (heap.length) {
+      heap[0] = last;
+      let i = 0;
+      for (;;) {
+        const l = 2 * i + 1;
+        const r = l + 1;
+        let m = i;
+        if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+        if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+        if (m === i) break;
+        [heap[m], heap[i]] = [heap[i], heap[m]];
+        i = m;
+      }
+    }
+    return top;
+  };
+  const h = (x, y) => Math.max(Math.abs(tx - x), Math.abs(ty - y));
+  const start = id(sx, sy);
+  g[start] = 0;
+  push(h(sx, sy), start);
+  const goal = id(tx, ty);
+  let expanded = 0;
+  while (heap.length && expanded < 6000) {
+    const [, n] = pop();
+    if (closed[n]) continue;
+    closed[n] = 1;
+    expanded++;
+    if (n === goal) break;
+    const nx = x0 + (n % W);
+    const ny = y0 + ((n / W) | 0);
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const mx = nx + dx;
+        const my = ny + dy;
+        if (!inWin(mx, my) || !WALKABLE.has(tileAt(mx, my))) continue;
+        // no squeezing diagonally between two blockers
+        if (dx && dy && (!WALKABLE.has(tileAt(nx + dx, ny)) || !WALKABLE.has(tileAt(nx, ny + dy)))) continue;
+        const m = id(mx, my);
+        const cost = g[n] + (dx && dy ? 1.41 : 1);
+        if (cost < g[m]) {
+          g[m] = cost;
+          from[m] = n;
+          push(cost + h(mx, my), m);
+        }
+      }
+    }
+  }
+  if (from[goal] === -1 && goal !== start) return null;
+  const path = [];
+  for (let n = goal; n !== start && n !== -1; n = from[n]) {
+    path.push({ x: x0 + (n % W), y: y0 + ((n / W) | 0) });
+  }
+  path.reverse();
+  return path;
 }
 
 function octant(dx, dy) {
@@ -209,21 +309,46 @@ function handleFx(msg) {
   switch (msg.kind) {
     case 'hit':
       state.floaters.push({ x: msg.x, y: msg.y, text: '-' + msg.amount, color: '#e05848', born: t });
+      Sound.play('hit');
       break;
     case 'miss':
       state.floaters.push({ x: msg.x, y: msg.y, text: 'miss', color: '#8a8a8a', born: t });
+      Sound.play('miss');
       break;
     case 'heal':
       state.floaters.push({ x: msg.x, y: msg.y, text: '+' + msg.amount, color: '#5ac05a', born: t });
+      Sound.play('heal');
       break;
     case 'die':
       state.floaters.push({ x: msg.x, y: msg.y, text: '✝', color: '#c8c8c8', born: t });
+      Sound.play('die');
       break;
     case 'portal':
       state.floaters.push({ x: msg.x, y: msg.y, text: '✦ ✦ ✦', color: '#b08aff', born: t });
+      Sound.play('portal');
       break;
     case 'break':
       state.floaters.push({ x: msg.x, y: msg.y, text: '*crack*', color: '#d8a8a0', born: t });
+      Sound.play('break');
+      break;
+    case 'arrow':
+      state.projectiles.push({ x: msg.x, y: msg.y, tx: msg.tx, ty: msg.ty, born: t, color: '#d8c8a0' });
+      Sound.play('swing');
+      break;
+    case 'mbolt':
+      state.projectiles.push({ x: msg.x, y: msg.y, tx: msg.tx, ty: msg.ty, born: t, color: '#b06aff' });
+      Sound.play('spell');
+      break;
+    case 'poison':
+      state.floaters.push({ x: msg.x, y: msg.y, text: '☠', color: '#7ac05a', born: t });
+      break;
+    case 'telegraph':
+      state.telegraphs.push({ x: msg.x, y: msg.y, born: t });
+      Sound.play('bell');
+      break;
+    case 'slam':
+      state.floaters.push({ x: msg.x, y: msg.y, text: '💥', color: '#ffaa44', born: t });
+      Sound.play('hit');
       break;
     case 'magicarrow':
     case 'fireball':
@@ -260,16 +385,26 @@ document.addEventListener('keydown', (ev) => {
 
   switch (ev.key) {
     case 'Enter': chatInput.focus(); ev.preventDefault(); break;
-    case 'Escape': closeShop(); document.getElementById('inventory').classList.add('hidden'); break;
+    case 'Escape':
+      closeShop();
+      document.getElementById('inventory').classList.add('hidden');
+      document.getElementById('worldmap').classList.add('hidden');
+      document.getElementById('settings').classList.add('hidden');
+      break;
     case '1': triggerAction('cast:magicarrow'); break;
     case '2': triggerAction('cast:fireball'); break;
     case '3': triggerAction('cast:greaterheal'); break;
+    case '6': triggerAction('cast:bless'); break;
+    case '7': triggerAction('cast:poison'); break;
+    case '8': triggerAction('cast:energybolt'); break;
     case '4': triggerAction('drink:heal'); break;
     case '5': triggerAction('drink:mana'); break;
     case 'b': case 'B': triggerAction('bandage'); break;
     case 'g': case 'G': triggerAction('gather'); break;
     case 'i': case 'I': toggleInventory(); break;
     case 'f': case 'F': toggleFullscreen(); break;
+    case 'm': case 'M': toggleWorldMap(); break;
+    case 'o': case 'O': toggleSettings(); break;
     default: keys.add(ev.key.toLowerCase());
   }
 });
@@ -292,6 +427,7 @@ function triggerAction(act) {
   const btn = document.querySelector(`#actions button[data-act="${act}"]`);
   const ms = btn && (btn.dataset.cd | 0);
   if (ms) cooldowns.set(act, { until: Date.now() + ms, total: ms });
+  Sound.play(act.startsWith('cast:') ? 'spell' : 'click');
 }
 
 function updateCooldowns(time) {
@@ -353,6 +489,62 @@ function updateTargetFrame() {
   }
 }
 
+function toggleWorldMap() {
+  const panel = document.getElementById('worldmap');
+  panel.classList.toggle('hidden');
+  if (panel.classList.contains('hidden') || !state.mini) return;
+  const cv = document.getElementById('worldmap-canvas');
+  const g = cv.getContext('2d');
+  // base terrain from the downsampled overview
+  const off = document.createElement('canvas');
+  off.width = state.mini.w;
+  off.height = state.mini.h;
+  off.getContext('2d').putImageData(state.minimapImage, 0, 0);
+  g.imageSmoothingEnabled = false;
+  g.clearRect(0, 0, cv.width, cv.height);
+  g.drawImage(off, 0, 0, cv.width, cv.height);
+  const k = cv.width / (state.mini.w * state.mini.s);
+  g.font = 'bold 13px Georgia';
+  g.textAlign = 'center';
+  for (const v of state.villages) {
+    g.fillStyle = '#120d08';
+    g.fillText(v.name, v.x * k + 1, v.y * k - 5);
+    g.fillStyle = '#f4e9c8';
+    g.fillText(v.name, v.x * k, v.y * k - 6);
+    g.fillStyle = '#d8b35e';
+    g.fillRect(v.x * k - 2, v.y * k - 2, 4, 4);
+  }
+  if (state.myTile) {
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    g.arc(state.myTile.x * k, state.myTile.y * k, 4, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = '#120d08';
+    g.stroke();
+  }
+  g.textAlign = 'left';
+}
+
+function toggleSettings() {
+  const panel = document.getElementById('settings');
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) {
+    for (const which of ['master', 'sfx', 'amb', 'music']) {
+      document.getElementById('vol-' + which).value = Sound.vols[which];
+    }
+  }
+}
+
+document.getElementById('settings').addEventListener('input', (ev) => {
+  if (ev.target.dataset.vol) Sound.setVol(ev.target.dataset.vol, +ev.target.value);
+});
+document.getElementById('settings').addEventListener('click', (ev) => {
+  if (ev.target.classList.contains('shop-close')) document.getElementById('settings').classList.add('hidden');
+});
+document.getElementById('worldmap').addEventListener('click', () => {
+  document.getElementById('worldmap').classList.add('hidden');
+});
+
 function toggleFullscreen() {
   if (document.fullscreenElement) document.exitFullscreen();
   else document.documentElement.requestFullscreen().catch(() => {});
@@ -385,9 +577,24 @@ canvas.addEventListener('mousedown', (ev) => {
     updateTargetFrame();
   } else {
     const w = screenToWorld(ev.clientX, ev.clientY, cam);
-    state.walkTarget = { x: Math.floor(w.x), y: Math.floor(w.y) };
+    setWalkTarget(Math.floor(w.x), Math.floor(w.y));
   }
 });
+
+function setWalkTarget(x, y) {
+  state.walkTarget = { x, y };
+  state.path = state.myTile ? findPath(state.myTile.x, state.myTile.y, x, y) : null;
+  state.pathStuck = 0;
+}
+
+// Touch devices: a tap is a click.
+canvas.addEventListener('touchstart', (ev) => {
+  if (ev.touches.length === 1) {
+    const t = ev.touches[0];
+    canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: t.clientX, clientY: t.clientY }));
+    ev.preventDefault();
+  }
+}, { passive: false });
 
 // Movement intents: held keys win over click-to-move.
 setInterval(() => {
@@ -401,6 +608,7 @@ setInterval(() => {
 
   if (dx || dy) {
     state.walkTarget = null;
+    state.path = null;
     send({ t: 'move', dx, dy });
     return;
   }
@@ -410,12 +618,40 @@ setInterval(() => {
   if (wt && my) {
     if (wt.x === my.x && wt.y === my.y) {
       state.walkTarget = null;
+      state.path = null;
       return;
     }
-    // If chasing a target, keep the destination fresh.
+    // If chasing a target, keep the destination fresh and re-path when it strays.
     if (state.target) {
       const mob = state.mobs.get(state.target);
-      if (mob) { wt.x = mob.x; wt.y = mob.y; }
+      if (mob && (mob.x !== wt.x || mob.y !== wt.y)) {
+        wt.x = mob.x;
+        wt.y = mob.y;
+        state.path = findPath(my.x, my.y, wt.x, wt.y);
+      }
+    }
+
+    // Follow the A* path when we have one.
+    if (state.path && state.path.length) {
+      while (state.path.length && state.path[0].x === my.x && state.path[0].y === my.y) {
+        state.path.shift();
+        state.pathStuck = 0;
+      }
+      const next = state.path[0];
+      if (next) {
+        if (Math.abs(wt.x - my.x) <= 1 && Math.abs(wt.y - my.y) <= 1 && state.target) {
+          state.walkTarget = null;
+          state.path = null;
+          return;
+        }
+        send({ t: 'move', dx: Math.sign(next.x - my.x), dy: Math.sign(next.y - my.y) });
+        if (++state.pathStuck > 22) { // ~1.5s without reaching the node
+          state.path = findPath(my.x, my.y, wt.x, wt.y);
+          state.pathStuck = 0;
+        }
+        return;
+      }
+      state.path = null;
     }
     const sx = Math.sign(wt.x - my.x);
     const sy = Math.sign(wt.y - my.y);
@@ -528,7 +764,7 @@ function updateHud() {
   const y = state.you;
   if (!y) return;
   document.getElementById('char-name').textContent =
-    (state.me ? state.me.name : '') + (y.dead ? '  (ghost)' : '');
+    (state.me ? state.me.name : '') + (y.title ? ' — ' + y.title : '') + (y.dead ? '  (ghost)' : '');
   document.getElementById('hp-fill').style.width = (100 * y.hp / y.maxhp) + '%';
   document.getElementById('hp-text').textContent = `${y.hp} / ${y.maxhp}`;
   document.getElementById('mana-fill').style.width = (100 * y.mana / y.maxmana) + '%';
@@ -538,9 +774,15 @@ function updateHud() {
   document.getElementById('stats-line').textContent = `STR ${y.str}  DEX ${y.dex}  INT ${y.int}`;
   const eq = y.weapon != null && (y.items || []).find((i) => i.uid === y.weapon);
   document.getElementById('pack-line').textContent =
-    `⛀ ${y.gold} gold · ${y.logs} logs · ${y.ore} ore` + (y.gems ? ` · ${y.gems} gems` : '');
+    `⛀ ${y.gold} gold · ${y.logs} logs · ${y.ore} ore` + (y.gems ? ` · ${y.gems} gems` : '') +
+    (y.fish ? ` · ${y.fish} fish` : '') + (y.food ? ` · ${y.food} meals` : '');
+  const eqA = y.armor != null && (y.items || []).find((i) => i.uid === y.armor);
+  const eqO = y.offhand != null && (y.items || []).find((i) => i.uid === y.offhand);
   document.getElementById('weapon-line').textContent =
-    '⚔ ' + (eq ? weaponLabel(eq) : 'Fists');
+    '⚔ ' + (eq ? weaponLabel(eq) : 'Fists') +
+    (eqA ? ' · 🛡 ' + weaponLabel(eqA) : '') +
+    (eqO ? ' · ' + weaponLabel(eqO) : '') +
+    (y.arrows ? ' · ➶ ' + y.arrows : '');
   const pots = y.pots || {};
   document.getElementById('pot-heal-count').textContent = pots.heal || 0;
   document.getElementById('pot-mana-count').textContent = pots.mana || 0;
@@ -550,6 +792,17 @@ function updateHud() {
     .map(([k, v]) => `<div class="skill-row"><span>${k[0].toUpperCase() + k.slice(1)}</span><span>${Number(v).toFixed(1)}</span></div>`)
     .join('');
 }
+
+document.getElementById('deeds-toggle').addEventListener('click', () => {
+  const list = document.getElementById('deeds-list');
+  list.classList.toggle('hidden');
+  if (!list.classList.contains('hidden') && state.you) {
+    const deeds = Object.keys(state.you.deeds || {});
+    list.innerHTML = deeds.length
+      ? deeds.map((d) => `<div class="skill-row"><span>⚑ ${esc(d)}</span></div>`).join('')
+      : '<div class="skill-row"><span>No deeds yet. The world is waiting.</span></div>';
+  }
+});
 
 document.getElementById('skills-toggle').addEventListener('click', () => {
   const list = document.getElementById('skills-list');
@@ -570,13 +823,13 @@ function renderInventory() {
   if (!y) return;
   const weaponsHtml = (y.items || []).map((it) => {
     const def = state.weapons[it.id] || {};
-    const equipped = y.weapon === it.uid;
+    const equipped = y.weapon === it.uid || y.armor === it.uid || y.offhand === it.uid;
     const durFrac = it.dur / it.maxDur;
     const durColor = durFrac > 0.5 ? '#48b048' : durFrac > 0.25 ? '#c8a030' : '#c84030';
     return `<div class="inv-weapon${equipped ? ' equipped' : ''}">
        <div class="iw-top">
          <span style="color:${QUALITY_COLORS[it.q]}">${esc(weaponLabel(it))}</span>
-         <span class="iw-dmg">${def.dmg ? def.dmg[0] + '-' + def.dmg[1] : ''}</span>
+         <span class="iw-dmg">${def.dmg ? def.dmg[0] + '-' + def.dmg[1] + ' dmg' : def.dr ? '-' + def.dr + ' dmg taken' : def.block ? def.block + '% block' : ''}</span>
        </div>
        <div class="iw-dur"><div style="width:${Math.round(100 * durFrac)}%;background:${durColor}"></div></div>
        <div class="iw-actions">
@@ -589,6 +842,7 @@ function renderInventory() {
   }).join('') || '<div class="inv-row"><span class="inv-icon">✊</span><span class="inv-label">Fists only</span><span></span><span></span></div>';
   document.getElementById('inv-weapons').innerHTML = weaponsHtml;
   const pots = y.pots || {};
+  const mats = y.mats || {};
   const rows = [
     ['🪙', 'Gold', y.gold, ''],
     ['🧪', 'Heal potions', pots.heal || 0, 'drink:heal'],
@@ -596,13 +850,22 @@ function renderInventory() {
     ['🪵', 'Logs', y.logs, ''],
     ['🪨', 'Ore', y.ore, ''],
     ['💎', 'Gems', y.gems || 0, ''],
-  ];
+    ['🐟', 'Raw fish', y.fish || 0, 'cook'],
+    ['🍖', 'Raw meat', y.meat || 0, 'cook'],
+    ['🍲', 'Hot meals', y.food || 0, 'eat'],
+    ['❄', 'Frostwood', mats.frostwood || 0, ''],
+    ['☀', 'Sunsteel', mats.sunsteel || 0, ''],
+    ['🌿', 'Ironbark', mats.ironbark || 0, ''],
+  ].concat((y.tmaps || []).map((m, i) =>
+    ['🗺', 'Weathered map #' + (i + 1), 1, 'readmap:' + m.x + ',' + m.y])
+  ).filter(([, label, count]) =>
+    count > 0 || ['Gold', 'Heal potions', 'Mana potions', 'Logs', 'Ore'].includes(label));
   document.getElementById('inv-items').innerHTML = rows.map(([icon, label, count, act]) =>
     `<div class="inv-row">
        <span class="inv-icon">${icon}</span>
        <span class="inv-label">${label}</span>
        <span class="inv-count">${count}</span>
-       ${act ? `<button data-act="${act}">use</button>` : '<span></span>'}
+       ${act ? `<button data-act="${act}">${act === 'cook' ? 'cook' : act === 'eat' ? 'eat' : act.startsWith('readmap') ? 'read' : 'use'}</button>` : '<span></span>'}
      </div>`).join('');
 }
 
@@ -610,6 +873,23 @@ document.getElementById('inventory').addEventListener('click', (ev) => {
   if (ev.target.id === 'inv-close') return document.getElementById('inventory').classList.add('hidden');
   const act = ev.target.dataset.act;
   if (act && act.startsWith('drink:')) send({ t: 'drink', kind: act.slice(6) });
+  if (act === 'cook') send({ t: 'cook' });
+  if (act === 'eat') send({ t: 'eat' });
+  if (act && act.startsWith('readmap:')) {
+    const [x, y] = act.slice(8).split(',').map(Number);
+    document.getElementById('inventory').classList.add('hidden');
+    toggleWorldMap();
+    const cv = document.getElementById('worldmap-canvas');
+    const g = cv.getContext('2d');
+    const k = cv.width / (state.mini.w * state.mini.s);
+    g.strokeStyle = '#ff4030';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(x * k - 7, y * k - 7); g.lineTo(x * k + 7, y * k + 7);
+    g.moveTo(x * k + 7, y * k - 7); g.lineTo(x * k - 7, y * k + 7);
+    g.stroke();
+    g.lineWidth = 1;
+  }
   if (ev.target.dataset.equip !== undefined) {
     const uid = ev.target.dataset.equip | 0;
     send({ t: 'equip', uid: uid || null });
@@ -648,6 +928,17 @@ function tileAt(x, y) {
   if (!c) return T.WATER; // not streamed in yet
   return c[(y % m.chunk) * m.chunk + (x % m.chunk)];
 }
+
+// The minstrel follows you: a dirge in the barrow-deeps, town tune near a
+// settlement, a night air after dark, the road-song otherwise.
+setInterval(() => {
+  if (!state.me) return;
+  if (state.myTile && state.myTile.y < 64) return Sound.setTrack('deeps');
+  const nearTown = state.villages.some((v) =>
+    Math.abs(v.x - state.me.x) < 26 && Math.abs(v.y - state.me.y) < 26) ||
+    (Math.abs(1024 - state.me.x) < 30 && Math.abs(1024 - state.me.y) < 30);
+  Sound.setTrack(nearTown ? 'town' : dayDarkness() > 0.3 ? 'night' : 'overworld');
+}, 3000);
 
 // Stream in the chunks around the player as they travel.
 setInterval(() => {
@@ -713,6 +1004,7 @@ const TILE_COLORS = {
   [T.PLANKS]: ['#946e48', '#8a6642'],
   [T.SWAMP]: ['#5a6b42', '#52613c'],
   [T.SWAMPTREE]: ['#4c5c3a', '#46553a'],
+  [T.CAVE]: ['#4a443c', '#423d36'],
 };
 
 function camera() {
@@ -745,6 +1037,88 @@ function fillDiamond(sx, sy, color) {
   ctx.lineTo(sx, sy + HH);
   ctx.closePath();
   ctx.fill();
+}
+
+// 20-minute day. Darkness 0 at noon, ~0.62 at deepest night.
+const DAY_MS = 20 * 60_000;
+function dayDarkness() {
+  if (state.myTile && state.myTile.y < 64) return 0.78; // the barrow-deeps
+  const phase = (Date.now() % DAY_MS) / DAY_MS;        // 0..1
+  return Math.max(0, -Math.cos(phase * Math.PI * 2)) * 0.62;
+}
+
+const lightCanvas = document.createElement('canvas');
+
+// Cover the world in night, then punch warm light around fires, windows
+// and the player's own lantern.
+const weather = { drops: [], mode: null };
+
+function drawWeather(cam, time) {
+  if (!state.myTile) return;
+  const here = tileAt(state.myTile.x, state.myTile.y);
+  const snowy = here === T.SNOW || here === T.SNOWTREE;
+  // rain comes in episodes keyed to the clock
+  const episode = Math.floor(time / 300000) % 4 === 1;
+  const mode = snowy ? 'snow' : episode && [T.GRASS, T.TREE, T.SWAMP, T.SWAMPTREE].includes(here) ? 'rain' : null;
+  if (mode !== weather.mode) {
+    weather.mode = mode;
+    weather.drops.length = 0;
+  }
+  if (!mode) return;
+  while (weather.drops.length < (mode === 'snow' ? 90 : 130)) {
+    weather.drops.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, v: 1 + Math.random() });
+  }
+  ctx.strokeStyle = mode === 'snow' ? 'rgba(240, 245, 250, 0.7)' : 'rgba(170, 190, 220, 0.45)';
+  ctx.lineWidth = mode === 'snow' ? 1.6 : 1;
+  ctx.beginPath();
+  for (const d of weather.drops) {
+    if (mode === 'snow') {
+      d.y += d.v * 1.1;
+      d.x += Math.sin(time / 600 + d.y / 40) * 0.6;
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x + 1, d.y + 1);
+    } else {
+      d.y += d.v * 9;
+      d.x -= d.v * 2;
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x - 2, d.y + 9);
+    }
+    if (d.y > canvas.height) { d.y = -5; d.x = Math.random() * canvas.width; }
+  }
+  ctx.stroke();
+  ctx.lineWidth = 1;
+}
+
+function drawNight(cam, time) {
+  const dark = dayDarkness();
+  if (dark < 0.03) return;
+  lightCanvas.width = canvas.width;
+  lightCanvas.height = canvas.height;
+  const g = lightCanvas.getContext('2d');
+  g.fillStyle = `rgba(8, 10, 30, ${dark})`;
+  g.fillRect(0, 0, canvas.width, canvas.height);
+  g.globalCompositeOperation = 'destination-out';
+  const punch = (x, y, r, a) => {
+    const grad = g.createRadialGradient(x, y, r * 0.15, x, y, r);
+    grad.addColorStop(0, `rgba(0,0,0,${a})`);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grad;
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.fill();
+  };
+  if (state.me) {
+    const s = worldToScreen(state.me.rx + 0.5, state.me.ry + 0.5, cam);
+    punch(s.x, s.y - 20, 150, 0.85); // the traveller's lantern
+  }
+  for (const pr of state.props) {
+    if (pr.name !== 'fx.campfire') continue;
+    const s = worldToScreen(pr.x + 0.5, pr.y + 0.5, cam);
+    if (s.x < -200 || s.x > canvas.width + 200 || s.y < -200 || s.y > canvas.height + 200) continue;
+    punch(s.x, s.y - 6, 120 + Math.sin(time / 130 + pr.x) * 8, 0.95);
+  }
+  ctx.drawImage(lightCanvas, 0, 0);
+  // a faint warm tint over fires so night feels inhabited
 }
 
 function render() {
@@ -882,7 +1256,10 @@ function render() {
     }
   }
 
+  drawTelegraphs(cam, time);
   drawProjectiles(cam, time);
+  drawWeather(cam, time);
+  drawNight(cam, time);
   drawFloaters(cam, time);
   drawSpeech(cam, time);
   drawMinimap();
@@ -1244,9 +1621,11 @@ function drawPlayer(p, cam, time) {
   let labelY;
   if (c) {
     entityShadow(s.x, s.y, 11);
-    const wdef = p.w && state.weapons[p.w];
+    const overlays = [p.ar, p.oh, p.w]
+      .map((id) => id && state.weapons[id] && state.weapons[id].sprite)
+      .filter(Boolean);
     Assets.drawCreature(ctx, 'player', p.heading, entityAnim(p), time + p.id * 137, s.x, s.y,
-      1, wdef ? wdef.sprite : null);
+      1, overlays);
     labelY = s.y - c.ay - 8;
   } else {
     entityShadow(s.x, s.y + 2, 10);
@@ -1312,6 +1691,27 @@ function drawHpBar(sx, sy, hp, maxhp) {
   ctx.fillRect(sx - w / 2, sy, w * Math.max(0, hp / maxhp), 4);
 }
 
+function drawTelegraphs(cam, time) {
+  state.telegraphs = state.telegraphs.filter((a) => time - a.born < 1600);
+  for (const a of state.telegraphs) {
+    const k = (time - a.born) / 1600;
+    const pulse = 0.35 + 0.3 * Math.sin(time / 90);
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const s = worldToScreen(a.x + dx, a.y + dy, cam);
+        ctx.fillStyle = `rgba(255, ${60 + 80 * k}, 40, ${pulse * (0.5 + k * 0.5)})`;
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(s.x + HW, s.y + HH);
+        ctx.lineTo(s.x, s.y + 2 * HH);
+        ctx.lineTo(s.x - HW, s.y + HH);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+}
+
 function drawProjectiles(cam, time) {
   state.projectiles = state.projectiles.filter((p) => time - p.born < 260);
   for (const p of state.projectiles) {
@@ -1375,7 +1775,7 @@ const MINI_COLORS = {
   [T.ROCK]: [110, 106, 96], [T.ROAD]: [154, 138, 100], [T.FLOOR]: [138, 128, 120],
   [T.WALL]: [70, 66, 60], [T.SAND]: [192, 174, 124], [T.SHRINE]: [240, 210, 110],
   [T.SNOW]: [228, 234, 240], [T.SNOWTREE]: [196, 210, 218], [T.PLANKS]: [148, 110, 72],
-  [T.SWAMP]: [90, 107, 66], [T.SWAMPTREE]: [70, 86, 56],
+  [T.SWAMP]: [90, 107, 66], [T.SWAMPTREE]: [70, 86, 56], [T.CAVE]: [50, 46, 40],
 };
 
 function buildMinimap() {
