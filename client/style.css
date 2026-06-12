@@ -565,6 +565,35 @@ button { font-family: inherit; cursor: pointer; }
 
 .set-row input[type="range"] { width: 130px; accent-color: var(--gold); }
 
+/* ---- virtual joystick (touch) ----
+   Blooms under the thumb wherever it lands; purely cosmetic feedback,
+   the input maths lives in game.js. */
+
+#joystick {
+  position: fixed;
+  width: 104px;
+  height: 104px;
+  margin: -52px 0 0 -52px; /* centred on the touch origin */
+  border: 2px solid rgba(216, 179, 94, 0.45);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(28, 21, 14, 0.25) 0%, rgba(28, 21, 14, 0.55) 100%);
+  z-index: 11;
+  pointer-events: none;
+}
+
+#joystick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border: 1px solid var(--gold);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #4a3c24, #241b10);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
 /* ---- desktop: the character sheet can be tucked away (key C) ---- */
 
 #char-panel.collapsed { display: none; }

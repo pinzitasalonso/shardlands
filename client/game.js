@@ -85,12 +85,12 @@ Assets.load();
 
 // ---- networking -------------------------------------------------------------
 
-function connect(email, password, name) {
+function connect(join) {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const ws = new WebSocket(`${proto}://${location.host}/ws`);
   state.ws = ws;
   ws.onopen = () => {
-    send({ t: 'join', email, password, name });
+    send({ t: 'join', ...join });
   };
   ws.onmessage = (ev) => handleMessage(JSON.parse(ev.data));
   ws.onclose = () => {
@@ -109,11 +109,19 @@ function handleMessage(msg) {
     case 'reject':
       state.ws.onclose = null;
       state.ws.close();
-      loginError(msg.reason);
+      if (msg.expired) {
+        // dead session token: fall back to the password form quietly
+        localStorage.removeItem('shardlands:token');
+        loginError('');
+      } else {
+        loginError(msg.reason);
+      }
       break;
 
     case 'welcome': {
       state.myId = msg.id;
+      if (msg.token) localStorage.setItem('shardlands:token', msg.token);
+      if (msg.charName) localStorage.setItem('shardlands:char', msg.charName);
       state.spells = msg.spells;
       state.weapons = msg.weapons || {};
       state.qualities = msg.qualities || [];
@@ -178,7 +186,12 @@ function handleMessage(msg) {
       if (/risen|increased/.test(msg.text)) Sound.play('gain');
       else if (/pick up/.test(msg.text)) Sound.play(/gold/.test(msg.text) ? 'gold' : 'pickup');
       else if (/You drink/.test(msg.text)) Sound.play('drink');
-      else if (/You chop|You dig/.test(msg.text)) Sound.play('chop');
+      else if (/You chop/.test(msg.text)) Sound.play('chop');
+      else if (/You dig/.test(msg.text)) Sound.play('mine');
+      else if (/wriggling fish|not biting/.test(msg.text)) Sound.play('splash');
+      else if (/You bandage/.test(msg.text)) Sound.play('bandage');
+      else if (/You eat|hot meal|black crisp/.test(msg.text)) Sound.play('eat');
+      else if (/You forge/.test(msg.text)) Sound.play('forge');
       break;
 
     case 'tile': {
@@ -337,7 +350,7 @@ function handleFx(msg) {
       break;
     case 'arrow':
       state.projectiles.push({ x: msg.x, y: msg.y, tx: msg.tx, ty: msg.ty, born: t, color: '#d8c8a0' });
-      Sound.play('swing');
+      Sound.play('bow');
       break;
     case 'mbolt':
       state.projectiles.push({ x: msg.x, y: msg.y, tx: msg.tx, ty: msg.ty, born: t, color: '#b06aff' });
@@ -345,6 +358,9 @@ function handleFx(msg) {
       break;
     case 'poison':
       state.floaters.push({ x: msg.x, y: msg.y, text: '☠', color: '#7ac05a', born: t });
+      break;
+    case 'evade':
+      state.floaters.push({ x: msg.x, y: msg.y, text: 'evade', color: '#c0b070', born: t });
       break;
     case 'telegraph':
       state.telegraphs.push({ x: msg.x, y: msg.y, born: t });
@@ -356,10 +372,12 @@ function handleFx(msg) {
       break;
     case 'magicarrow':
     case 'fireball':
+    case 'energybolt':
       state.projectiles.push({
         x: msg.x, y: msg.y, tx: msg.tx, ty: msg.ty, born: t,
-        color: msg.kind === 'fireball' ? '#ff8030' : '#70b0ff',
+        color: { magicarrow: '#70b0ff', fireball: '#ff8030', energybolt: '#c0f0ff' }[msg.kind],
       });
+      Sound.play({ magicarrow: 'marrow', fireball: 'fireball', energybolt: 'zap' }[msg.kind]);
       setTimeout(() => {
         state.floaters.push({ x: msg.tx, y: msg.ty, text: '-' + msg.amount, color: '#e05848', born: Date.now() });
       }, 250);
@@ -578,19 +596,19 @@ function toggleCharPanel() {
   el.classList.remove(mobile ? 'collapsed' : 'open');
 }
 
-canvas.addEventListener('mousedown', (ev) => {
+// Tapping a shopkeeper opens their wares; a mob attacks; ground walks.
+// pickR is the forgiveness radius: fingers get more of it than cursors.
+function pointerAction(cx, cy, pickR) {
   if (!state.me || !state.map) return;
   const cam = camera();
-
-  // Clicking a shopkeeper opens their wares; a mob attacks; ground walks.
   const clickable = [];
   for (const v of state.vendors) clickable.push({ kind: 'vendor', e: v });
   for (const m of state.mobs.values()) clickable.push({ kind: 'mob', e: m });
   let best = null;
-  let bestD = 38;
+  let bestD = pickR;
   for (const c of clickable) {
     const s = worldToScreen(c.e.rx + 0.5, c.e.ry + 0.5, cam);
-    const d = Math.hypot(s.x - ev.clientX, s.y - (ev.clientY + 24));
+    const d = Math.hypot(s.x - cx, s.y - (cy + 24));
     if (d < bestD) { best = c; bestD = d; }
   }
   if (best && best.kind === 'vendor') {
@@ -604,10 +622,12 @@ canvas.addEventListener('mousedown', (ev) => {
     state.walkTarget = { x: best.e.x, y: best.e.y };
     updateTargetFrame();
   } else {
-    const w = screenToWorld(ev.clientX, ev.clientY, cam);
+    const w = screenToWorld(cx, cy, cam);
     setWalkTarget(Math.floor(w.x), Math.floor(w.y));
   }
-});
+}
+
+canvas.addEventListener('mousedown', (ev) => pointerAction(ev.clientX, ev.clientY, 38));
 
 function setWalkTarget(x, y) {
   state.walkTarget = { x, y };
@@ -615,14 +635,86 @@ function setWalkTarget(x, y) {
   state.pathStuck = 0;
 }
 
-// Touch devices: a tap is a click.
+// ---- touch: virtual joystick + taps -------------------------------------------
+// Put a thumb down and drag: a joystick blooms under it and drives continuous
+// movement in the dragged screen direction. A short touch that never drags is
+// a tap (walk / attack / talk, with a fat-finger pick radius). A second finger
+// while steering taps immediately, so you can fight on the move.
+
+const joyBase = document.getElementById('joystick');
+const joyKnob = document.getElementById('joystick-knob');
+const JOY_ENGAGE = 14; // px of drag before a touch becomes a joystick
+const JOY_RANGE = 44;  // px the knob travels
+
+const joy = { touchId: null, ox: 0, oy: 0, engaged: false, startAt: 0 };
+
+// A screen-space drag becomes an isometric world step: screen right is
+// world (+x, -y), screen down is world (+x, +y).
+function joyToWorld(sx, sy) {
+  const wx = sx / HW + sy / HH;
+  const wy = -sx / HW + sy / HH;
+  const m = Math.max(Math.abs(wx), Math.abs(wy));
+  if (m < 0.001) return { dx: 0, dy: 0 };
+  return {
+    dx: Math.abs(wx) > m * 0.45 ? Math.sign(wx) : 0,
+    dy: Math.abs(wy) > m * 0.45 ? Math.sign(wy) : 0,
+  };
+}
+
 canvas.addEventListener('touchstart', (ev) => {
-  if (ev.touches.length === 1) {
-    const t = ev.touches[0];
-    canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: t.clientX, clientY: t.clientY }));
-    ev.preventDefault();
+  ev.preventDefault();
+  for (const t of ev.changedTouches) {
+    if (joy.touchId === null) {
+      joy.touchId = t.identifier;
+      joy.ox = t.clientX;
+      joy.oy = t.clientY;
+      joy.engaged = false;
+      joy.startAt = Date.now();
+    } else {
+      // second finger: instant tap while the first keeps steering
+      pointerAction(t.clientX, t.clientY, 52);
+    }
   }
 }, { passive: false });
+
+canvas.addEventListener('touchmove', (ev) => {
+  ev.preventDefault();
+  for (const t of ev.changedTouches) {
+    if (t.identifier !== joy.touchId) continue;
+    const sx = t.clientX - joy.ox;
+    const sy = t.clientY - joy.oy;
+    if (!joy.engaged && Math.hypot(sx, sy) >= JOY_ENGAGE) {
+      joy.engaged = true;
+      joyBase.style.left = joy.ox + 'px';
+      joyBase.style.top = joy.oy + 'px';
+      joyBase.classList.remove('hidden');
+    }
+    if (joy.engaged) {
+      const len = Math.hypot(sx, sy) || 1;
+      const k = Math.min(1, len / JOY_RANGE);
+      joyKnob.style.transform =
+        `translate(${(sx / len) * k * JOY_RANGE}px, ${(sy / len) * k * JOY_RANGE}px)`;
+      state.joy = joyToWorld(sx, sy);
+    }
+  }
+}, { passive: false });
+
+function endTouch(ev) {
+  ev.preventDefault();
+  for (const t of ev.changedTouches) {
+    if (t.identifier !== joy.touchId) continue;
+    if (!joy.engaged && Date.now() - joy.startAt < 450) {
+      pointerAction(t.clientX, t.clientY, 52);
+    }
+    joy.touchId = null;
+    joy.engaged = false;
+    state.joy = null;
+    joyKnob.style.transform = 'translate(0, 0)';
+    joyBase.classList.add('hidden');
+  }
+}
+canvas.addEventListener('touchend', endTouch, { passive: false });
+canvas.addEventListener('touchcancel', endTouch, { passive: false });
 
 // Movement intents: held keys win over click-to-move.
 setInterval(() => {
@@ -633,6 +725,12 @@ setInterval(() => {
   if (keys.has('s') || keys.has('arrowdown')) dy += 1;
   if (keys.has('a') || keys.has('arrowleft')) dx -= 1;
   if (keys.has('d') || keys.has('arrowright')) dx += 1;
+
+  // A held joystick steers exactly like held keys.
+  if (!dx && !dy && state.joy) {
+    dx = state.joy.dx;
+    dy = state.joy.dy;
+  }
 
   if (dx || dy) {
     state.walkTarget = null;
@@ -772,7 +870,16 @@ function tryLogin() {
   localStorage.setItem('shardlands:email', email);
   if (name) localStorage.setItem('shardlands:lastname', name);
   loginError('');
-  connect(email, password, name);
+  connect({ email, password, name });
+}
+
+// A saved session token walks straight back into the world — no password,
+// which matters most on a phone. An expired token falls back to the form.
+const savedToken = localStorage.getItem('shardlands:token');
+if (savedToken) {
+  const who = localStorage.getItem('shardlands:char');
+  loginError(who ? `Returning as ${who}…` : 'Returning to the world…');
+  connect({ token: savedToken });
 }
 
 document.getElementById('play').addEventListener('click', tryLogin);
@@ -957,14 +1064,25 @@ function tileAt(x, y) {
   return c[(y % m.chunk) * m.chunk + (x % m.chunk)];
 }
 
-// The minstrel follows you: a dirge in the barrow-deeps, town tune near a
-// settlement, a night air after dark, the road-song otherwise.
+// The minstrel follows you: a dirge in the barrow-deeps, a town tune inside
+// settlements, a night air after dark, and out in the wilds the land itself
+// picks the song — frost over the snows, a murk-tune in the mires, a heat-
+// shimmer air in the southeastern desert, the road-song everywhere else.
 setInterval(() => {
-  if (!state.me) return;
-  if (state.myTile && state.myTile.y < 64) return Sound.setTrack('deeps');
+  if (!state.me || !state.myTile) return;
+  const { x, y } = state.myTile;
+  if (y < 64) return Sound.setTrack('deeps');
   const nearTown = state.villages.concat(state.cities).some((v) =>
-    Math.abs(v.x - state.me.x) < 26 && Math.abs(v.y - state.me.y) < 26);
-  Sound.setTrack(nearTown ? 'town' : dayDarkness() > 0.3 ? 'night' : 'overworld');
+    Math.abs(v.x - x) < 26 && Math.abs(v.y - y) < 26);
+  if (nearTown) return Sound.setTrack('town');
+  if (dayDarkness() > 0.3) return Sound.setTrack('night');
+  const t = tileAt(x, y);
+  if (t === T.SNOW || t === T.SNOWTREE) return Sound.setTrack('frost');
+  if (t === T.SWAMP || t === T.SWAMPTREE) return Sound.setTrack('mire');
+  // sand only counts as desert in the sun-baked southeast — beaches keep
+  // the road-song
+  if (t === T.SAND && x + y > 2300) return Sound.setTrack('dunes');
+  Sound.setTrack('overworld');
 }, 3000);
 
 // Stream in the chunks around the player as they travel.

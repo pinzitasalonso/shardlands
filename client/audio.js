@@ -88,19 +88,52 @@ const Sound = (() => {
 
   const FX = {
     click: () => blip(660, 0.05, 'square', 0.05),
+    // melee: air, then steel — a whoosh that ends in a ring
     swing: () => noise(0.12, 0.1, 700, 0.8),
-    hit: () => { noise(0.1, 0.18, 350, 1); blip(140, 0.08, 'square', 0.08, -60); },
+    hit: () => {
+      noise(0.07, 0.16, 350, 1);              // the thud of impact
+      blip(2400, 0.09, 'square', 0.025, -900); // steel ringing off
+      blip(140, 0.08, 'square', 0.08, -60);
+    },
     miss: () => noise(0.08, 0.05, 1500, 1),
+    // the bow: string pluck, then the arrow's hiss
+    bow: () => {
+      blip(220, 0.06, 'triangle', 0.12, 160);  // string snap
+      setTimeout(() => noise(0.16, 0.05, 2400, 0.7), 40); // fletching hiss
+    },
+    // spells sound like what they do
+    marrow: () => { blip(880, 0.14, 'sine', 0.06, 500); noise(0.1, 0.03, 3200, 1); },
+    fireball: () => {
+      noise(0.3, 0.1, 300, 0.5);               // the roar
+      blip(160, 0.28, 'sawtooth', 0.07, -90);  // low rolling boom
+    },
+    zap: () => { blip(1400, 0.12, 'sawtooth', 0.06, -1100); noise(0.08, 0.06, 4000, 2); },
+    spell: () => blip(900, 0.18, 'sawtooth', 0.05, -500),
     heal: () => { blip(520, 0.12, 'sine', 0.08, 200); blip(780, 0.18, 'sine', 0.06, 240); },
-    drink: () => { blip(300, 0.08, 'sine', 0.08, 120); blip(420, 0.1, 'sine', 0.06, 160); },
+    // bodily noises
+    drink: () => { // three swallows, each lower than the last
+      blip(340, 0.07, 'sine', 0.09, -80);
+      setTimeout(() => blip(300, 0.07, 'sine', 0.08, -70), 110);
+      setTimeout(() => blip(260, 0.09, 'sine', 0.07, -60), 230);
+    },
+    eat: () => { noise(0.06, 0.1, 900, 0.6); setTimeout(() => noise(0.06, 0.09, 700, 0.6), 140); },
+    bandage: () => noise(0.28, 0.06, 1100, 0.4), // cloth pulled tight
+    // working the land, each material with its own voice
+    chop: () => { noise(0.05, 0.2, 180, 1.5); blip(95, 0.1, 'triangle', 0.1, -25); }, // axe into wood
+    mine: () => { noise(0.04, 0.14, 2600, 3); blip(1900, 0.12, 'triangle', 0.05, -300); }, // pick on stone
+    splash: () => { noise(0.2, 0.1, 600, 0.5); blip(280, 0.16, 'sine', 0.06, -140); },
+    forge: () => { blip(1300, 0.14, 'square', 0.06, -200); noise(0.1, 0.1, 2000, 2); }, // hammer on anvil
     pickup: () => { blip(880, 0.06, 'triangle', 0.08); blip(1320, 0.08, 'triangle', 0.06); },
-    gold: () => { blip(1180, 0.05, 'triangle', 0.07); blip(1560, 0.09, 'triangle', 0.06); },
-    chop: () => noise(0.1, 0.16, 250, 2),
+    gold: () => { // a fistful of coins, not two
+      blip(1180, 0.05, 'triangle', 0.07);
+      blip(1560, 0.09, 'triangle', 0.06);
+      setTimeout(() => blip(1320, 0.06, 'triangle', 0.05), 70);
+      setTimeout(() => blip(1760, 0.08, 'triangle', 0.04), 130);
+    },
     die: () => blip(180, 0.4, 'sawtooth', 0.07, -120),
     break_: () => { noise(0.2, 0.2, 500, 0.6); blip(220, 0.18, 'square', 0.07, -160); },
     portal: () => { blip(330, 0.5, 'sine', 0.07, 660); blip(495, 0.5, 'sine', 0.05, 990); },
     gain: () => { blip(523, 0.1, 'triangle', 0.07); setTimeout(() => blip(659, 0.12, 'triangle', 0.07), 90); },
-    spell: () => blip(900, 0.18, 'sawtooth', 0.05, -500),
     bell: () => { blip(660, 0.7, 'sine', 0.09, -8); blip(1320, 0.5, 'sine', 0.03); },
   };
 
@@ -226,6 +259,59 @@ const Sound = (() => {
         [40, 2], [40, 2], [35, 2], [35, 2],
       ],
       drums: [[1, 1], [1, 1], [0, 2], [2, 1], [0, 3]],
+    },
+    frost: {
+      bpm: 74,
+      lead: [ // E minor, high and glassy — snowlight over the drifts
+        [76, 2], [79, 2], [83, 3], [81, 1], [79, 2], [76, 4], [0, 2],
+        [74, 2], [76, 2], [79, 3], [83, 1], [81, 2], [79, 4], [0, 2],
+        [76, 2], [79, 2], [88, 3], [86, 1], [83, 2], [79, 2], [76, 4], [0, 2],
+        [74, 2], [71, 2], [74, 3], [76, 1], [71, 2], [64, 4], [0, 2],
+      ],
+      harmony: [
+        [64, 4], [67, 4], [59, 4], [60, 4],
+        [64, 4], [62, 4], [59, 4], [64, 4],
+      ],
+      bass: [
+        [40, 4], [43, 4], [35, 4], [36, 4],
+        [40, 4], [38, 4], [35, 4], [40, 4],
+      ],
+      drums: [[0, 3], [2, 1]], // a lone tick, like settling ice
+    },
+    mire: {
+      bpm: 80,
+      lead: [ // B locrian murk — something is breathing under the water
+        [59, 2], [58, 1], [59, 1], [62, 3], [61, 1], [59, 2], [55, 4], [0, 2],
+        [57, 2], [58, 2], [59, 3], [58, 1], [57, 2], [53, 4], [0, 2],
+        [59, 2], [62, 2], [65, 3], [64, 1], [62, 2], [58, 2], [59, 4], [0, 2],
+      ],
+      harmony: [
+        [47, 4], [46, 4], [50, 4], [47, 4],
+        [45, 4], [46, 4], [47, 4], [46, 4],
+      ],
+      bass: [
+        [35, 2], [35, 2], [34, 2], [34, 2], [38, 2], [38, 2], [35, 2], [35, 2],
+        [33, 2], [33, 2], [34, 2], [34, 2], [35, 2], [34, 2], [35, 2], [35, 2],
+      ],
+      drums: [[1, 2], [0, 1], [2, 1]], // slow squelching pulse
+    },
+    dunes: {
+      bpm: 92,
+      lead: [ // A phrygian dominant — heat shimmer on the southeastern sands
+        [69, 1], [70, 1], [73, 1], [74, 1], [76, 2], [77, 1], [76, 1],
+        [74, 1], [73, 1], [70, 1], [69, 3], [0, 1],
+        [76, 1], [77, 1], [79, 1], [77, 1], [76, 2], [74, 1], [73, 1],
+        [74, 1], [70, 1], [69, 2], [68, 1], [69, 3], [0, 1],
+      ],
+      harmony: [
+        [57, 2], [58, 2], [61, 2], [57, 2],
+        [62, 2], [61, 2], [58, 2], [57, 2],
+      ],
+      bass: [
+        [45, 1], [45, 1], [52, 1], [45, 1], [46, 1], [46, 1], [45, 1], [45, 1],
+        [50, 1], [50, 1], [49, 1], [49, 1], [45, 1], [45, 1], [45, 2],
+      ],
+      drums: [[1, 0.5], [2, 0.5], [2, 1], [1, 1], [2, 0.5], [2, 0.5]],
     },
     night: {
       bpm: 72,
