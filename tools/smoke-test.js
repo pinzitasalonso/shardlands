@@ -699,5 +699,24 @@ game.mobTick(raider, Date.now());
 assert.strictEqual(raider.hp, 5, 'raiders never evade-heal');
 game.mobs.delete(raider.id);
 
+// -- the map editor's overlay: hand edits stamp on top of worldgen -------------------
+const { applyEdits } = require('../server/world');
+const propCountBefore = game.map.props.length;
+const firstProp = game.map.props[0];
+const ec = applyEdits(game.map, {
+  tiles: [[10, 10, TILE.ROAD], [-5, 3, TILE.ROAD], [11, 10, 99]],
+  props: [{ x: 12, y: 10, name: 'prop.well' }],
+  removeProps: [[firstProp.x, firstProp.y]],
+  spawners: [{ kind: 'wolf', count: 3, x: 14, y: 10, r: 6 },
+             { kind: 'notakind', count: 3, x: 15, y: 10, r: 6 }],
+  secrets: [{ type: 'whisper', x: 16, y: 10, text: 'The editor was here.' }],
+}, { validKinds: new Set(['wolf']) });
+assert.strictEqual(ec.tiles, 1, 'only in-bounds, real tile ids paint');
+assert.strictEqual(game.map.tiles[10 * game.map.w + 10], TILE.ROAD, 'painted tile landed');
+assert.strictEqual(ec.spawners, 1, 'unknown mob kinds are refused');
+assert.strictEqual(game.map.props.length, propCountBefore, 'one prop removed, one added');
+assert(game.map.secrets.some((s) => s.type === 'whisper' && s.text === 'The editor was here.'),
+  'edited whisper joined the world');
+
 console.log('smoke test: all assertions passed');
 process.exit(0);

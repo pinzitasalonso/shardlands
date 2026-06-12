@@ -949,4 +949,60 @@ function nearestWalkable(map, x, y) {
   return { x: map.w / 2, y: map.h / 2 + 2 };
 }
 
-module.exports = { TILE, generate, isWalkable, tileAt, nearestWalkable, W, H };
+// Hand-made map edits from the visual editor (serve the game with EDITOR=1
+// and open /editor.html) are stamped on top of the generated world — the
+// same philosophy as art/overrides: regeneration never clobbers hand work.
+// Shape: { tiles: [[x,y,tile]], props: [{x,y,name}], removeProps: [[x,y]],
+//          spawners: [{kind,count,x,y,r}], removeSpawners: [[x,y]],
+//          secrets: [{type:'whisper'|'cache', x, y, text?, loot?}] }
+function applyEdits(map, edits, { validKinds } = {}) {
+  const counts = { tiles: 0, props: 0, spawners: 0, secrets: 0, removed: 0 };
+  if (!edits || typeof edits !== 'object') return counts;
+  const okXY = (x, y) => Number.isInteger(x) && Number.isInteger(y) &&
+    x >= 0 && y >= 0 && x < map.w && y < map.h;
+  for (const [x, y] of edits.removeProps || []) {
+    const i = map.props.findIndex((p) => p.x === x && p.y === y);
+    if (i >= 0) { map.props.splice(i, 1); counts.removed++; }
+  }
+  for (const [x, y] of edits.removeSpawners || []) {
+    const i = map.spawners.findIndex((s) => s.x === x && s.y === y);
+    if (i >= 0) { map.spawners.splice(i, 1); counts.removed++; }
+  }
+  for (const [x, y, v] of edits.tiles || []) {
+    if (okXY(x, y) && Number.isInteger(v) && v >= 0 && v <= TILE.CAVE) {
+      map.tiles[y * map.w + x] = v;
+      counts.tiles++;
+    }
+  }
+  for (const p of edits.props || []) {
+    if (okXY(p.x, p.y) && typeof p.name === 'string') {
+      map.props.push({ x: p.x, y: p.y, name: p.name });
+      counts.props++;
+    }
+  }
+  for (const s of edits.spawners || []) {
+    if (!okXY(s.x, s.y)) continue;
+    if (validKinds && !validKinds.has(s.kind)) continue;
+    map.spawners.push({
+      kind: s.kind,
+      count: Math.max(1, Math.min(12, s.count | 0)),
+      x: s.x, y: s.y,
+      r: Math.max(1, Math.min(24, s.r | 0)),
+    });
+    counts.spawners++;
+  }
+  for (const sc of edits.secrets || []) {
+    if (!okXY(sc.x, sc.y)) continue;
+    if (sc.type === 'whisper' && typeof sc.text === 'string' && sc.text.trim()) {
+      map.secrets.push({ type: 'whisper', x: sc.x, y: sc.y, text: sc.text.slice(0, 200) });
+      counts.secrets++;
+    } else if (sc.type === 'cache') {
+      map.secrets.push({ type: 'cache', x: sc.x, y: sc.y,
+        loot: Array.isArray(sc.loot) && sc.loot.length ? sc.loot : [['gold', 50, 150], ['heal', 0, 1]] });
+      counts.secrets++;
+    }
+  }
+  return counts;
+}
+
+module.exports = { TILE, generate, applyEdits, isWalkable, tileAt, nearestWalkable, W, H };
