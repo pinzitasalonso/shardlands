@@ -171,6 +171,74 @@ html, body {
 
 #actions button:hover { border-color: #d4af5a; color: #f4e9c8; }
 
+.pot-count {
+  display: inline-block;
+  min-width: 18px;
+  margin-left: 4px;
+  padding: 0 4px;
+  text-align: center;
+  font-size: 11px;
+  background: #2a2418;
+  border: 1px solid #4a4434;
+  color: #d4af5a;
+  border-radius: 8px;
+}
+
+/* ---- shop ---- */
+
+#shop {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 320px;
+  padding: 14px 16px;
+  background: rgba(14, 12, 8, 0.95);
+  border: 1px solid #d4af5a;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.7);
+  z-index: 15;
+}
+
+.shop-title {
+  font-size: 17px;
+  color: #d4af5a;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.shop-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px dotted #3a352a;
+  font-size: 13.5px;
+}
+
+.shop-row small { display: block; color: #8b8674; font-size: 11px; }
+
+.shop-row button, #shop .shop-close {
+  padding: 5px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  background: #6b5320;
+  border: 1px solid #d4af5a;
+  color: #f4e9c8;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.shop-row button:hover, #shop .shop-close:hover { background: #86691f; }
+
+#shop .shop-close {
+  display: block;
+  margin: 12px auto 0;
+  background: #1a1d22;
+  border-color: #4a4434;
+  color: #a89c7c;
+}
+
 /* ---- chat ---- */
 
 #chat {

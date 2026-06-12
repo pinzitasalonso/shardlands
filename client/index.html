@@ -20,7 +20,9 @@
         <b>WASD / arrows</b> move &nbsp;·&nbsp; <b>click</b> walk or attack &nbsp;·&nbsp;
         <b>Enter</b> chat<br/>
         <b>1</b> Magic Arrow &nbsp;·&nbsp; <b>2</b> Fireball &nbsp;·&nbsp; <b>3</b> Greater Heal &nbsp;·&nbsp;
-        <b>B</b> bandage &nbsp;·&nbsp; <b>G</b> chop / mine
+        <b>4/5</b> drink potion<br/>
+        <b>B</b> bandage &nbsp;·&nbsp; <b>G</b> chop / mine &nbsp;·&nbsp;
+        visit <b>Mira the Alchemist</b> in Briarhaven for potions
       </div>
     </div>
   </div>
@@ -44,7 +46,11 @@
       <button data-act="cast:greaterheal" title="3 — Greater Heal (11 mana, 30 Magery)">✚ Heal</button>
       <button data-act="bandage" title="B — Bandage wounds">⊕ Bandage</button>
       <button data-act="gather" title="G — Chop trees / mine rock">⛏ Gather</button>
+      <button data-act="drink:heal" title="4 — Drink a heal potion">🧪 Heal <span id="pot-heal-count" class="pot-count">0</span></button>
+      <button data-act="drink:mana" title="5 — Drink a mana potion">🜄 Mana <span id="pot-mana-count" class="pot-count">0</span></button>
     </div>
+
+    <div id="shop" class="hidden"></div>
 
     <div id="chat">
       <div id="chat-log"></div>
@@ -52,6 +58,7 @@
     </div>
   </div>
 
+  <script src="assets.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

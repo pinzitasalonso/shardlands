@@ -40,6 +40,24 @@ const SPAWNERS = [
 
 const SPAWN_POINT = { x: 64, y: 66 };
 
+const RESOURCE_RESPAWN_MS = 90_000;
+
+const POTIONS = {
+  heal: { name: 'Greater Heal Potion', restore: [25, 40] },
+  mana: { name: 'Mana Potion', restore: [20, 30] },
+};
+
+// Shopkeepers. Negative ids keep them out of the mob/player id space.
+const VENDORS = [
+  {
+    id: -1, kind: 'vendor', name: 'Mira the Alchemist', x: 58, y: 71,
+    goods: [
+      { item: 'heal', name: 'Greater Heal Potion', price: 45, desc: 'Restores 25-40 health.' },
+      { item: 'mana', name: 'Mana Potion', price: 35, desc: 'Restores 20-30 mana.' },
+    ],
+  },
+];
+
 const rand = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const now = () => Date.now();
@@ -52,6 +70,8 @@ class Game {
     this.nextId = 1;
     this.records = persist.load(); // lowercase name -> saved character
     this.dirty = false;
+    this.resources = new Map(); // "x,y" -> gathers left before depletion
+    this.depleted = new Map();  // "x,y" -> { tile, respawnAt }
 
     for (const sp of SPAWNERS) {
       sp.alive = new Set();
@@ -90,6 +110,7 @@ class Game {
         hp: 67, mana: 30,
         skills: Object.fromEntries(SKILLS.map((s) => [s, 20])),
         gold: 100, logs: 0, ore: 0,
+        pots: { heal: 1, mana: 0 },
       };
       this.dirty = true;
     }
@@ -109,9 +130,10 @@ class Game {
       hp: Math.min(rec.hp, maxHp(rec)), mana: Math.min(rec.mana, rec.int),
       skills: { ...rec.skills },
       gold: rec.gold, logs: rec.logs, ore: rec.ore,
+      pots: { heal: 0, mana: 0, ...rec.pots }, // older records lack pots
       dead: false,
       target: 0,
-      moveAt: 0, swingAt: 0, castAt: 0, bandageAt: 0, regenAt: 0,
+      moveAt: 0, swingAt: 0, castAt: 0, bandageAt: 0, regenAt: 0, drinkAt: 0,
     };
     ws.player = p;
     this.players.set(p.id, p);
@@ -122,6 +144,7 @@ class Game {
       token: rec.token,
       map: { w: this.map.w, h: this.map.h, tiles: Buffer.from(this.map.tiles).toString('base64') },
       spells: SPELLS,
+      vendors: VENDORS,
     });
     this.sendYou(p);
     this.sys(p, `Welcome to Shardlands, ${p.name}. The shrine in Briarhaven will raise you if you fall.`);
@@ -145,6 +168,7 @@ class Game {
       hp: Math.max(1, p.hp), mana: p.mana,
       skills: { ...p.skills },
       gold: p.gold, logs: p.logs, ore: p.ore,
+      pots: { ...p.pots },
     });
     this.dirty = true;
   }
@@ -172,7 +196,47 @@ class Game {
       case 'cast': return this.handleCast(p, msg.spell, msg.id | 0);
       case 'bandage': return this.handleBandage(p);
       case 'gather': return this.handleGather(p);
+      case 'buy': return this.handleBuy(p, String(msg.item || ''));
+      case 'drink': return this.handleDrink(p, String(msg.kind || ''));
     }
+  }
+
+  handleBuy(p, item) {
+    if (p.dead) return this.sys(p, 'The dead cannot trade.');
+    const vendor = VENDORS.find((v) => dist(p, v) <= 3);
+    if (!vendor) return this.sys(p, 'You are too far from a shopkeeper.');
+    const good = vendor.goods.find((g) => g.item === item);
+    if (!good) return;
+    if (p.gold < good.price) {
+      return this.sys(p, `${vendor.name} says: That is ${good.price} gold, which thou dost not have.`);
+    }
+    p.gold -= good.price;
+    p.pots[item] = (p.pots[item] || 0) + 1;
+    this.sys(p, `You buy a ${good.name} for ${good.price} gold.`);
+    this.sendYou(p);
+  }
+
+  handleDrink(p, kind) {
+    const potion = POTIONS[kind];
+    if (!potion) return;
+    if (p.dead) return this.sys(p, 'The dead cannot drink.');
+    const t = now();
+    if (t < p.drinkAt) return this.sys(p, 'You must wait a moment between potions.');
+    if (!p.pots[kind]) {
+      return this.sys(p, `You have no ${potion.name.toLowerCase()}s. Mira in Briarhaven sells them.`);
+    }
+    p.pots[kind] -= 1;
+    p.drinkAt = t + 4000;
+    const amount = rand(potion.restore[0], potion.restore[1]);
+    if (kind === 'heal') {
+      p.hp = Math.min(maxHp(p), p.hp + amount);
+      this.broadcast({ t: 'fx', kind: 'heal', x: p.x, y: p.y, amount });
+      this.sys(p, `You drink the potion and recover ${amount} health.`);
+    } else {
+      p.mana = Math.min(p.int, p.mana + amount);
+      this.sys(p, `You drink the potion and recover ${amount} mana.`);
+    }
+    this.sendYou(p);
   }
 
   handleMove(p, dx, dy) {
@@ -267,11 +331,14 @@ class Game {
     if (t < p.swingAt) return;
     p.swingAt = t + 1200;
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
-      const tile = tileAt(this.map, p.x + dx, p.y + dy);
+      const tx = p.x + dx;
+      const ty = p.y + dy;
+      const tile = tileAt(this.map, tx, ty);
       if (tile === TILE.TREE) {
         if (Math.random() * 100 < p.skills.lumberjacking + 40) {
           p.logs += 1;
           this.sys(p, 'You chop some logs.');
+          this.consumeResource(p, tx, ty, tile, 'The tree falls.');
         } else {
           this.sys(p, 'You hack at the tree but produce nothing useful.');
         }
@@ -284,6 +351,7 @@ class Game {
         if (Math.random() * 100 < p.skills.mining + 40) {
           p.ore += 1;
           this.sys(p, 'You dig some ore and put it in your pack.');
+          this.consumeResource(p, tx, ty, tile, 'The rock face crumbles to rubble.');
         } else {
           this.sys(p, 'You loosen some rocks but fail to find anything.');
         }
@@ -294,6 +362,48 @@ class Game {
       }
     }
     this.sys(p, 'There is nothing here to gather. Stand beside a tree or rock face.');
+  }
+
+  // Each tree or rock yields a few harvests, then vanishes and regrows later.
+  consumeResource(p, x, y, tile, message) {
+    const key = x + ',' + y;
+    const left = (this.resources.get(key) ?? rand(2, 4)) - 1;
+    if (left > 0) {
+      this.resources.set(key, left);
+      return;
+    }
+    this.resources.delete(key);
+    this.setTile(x, y, TILE.GRASS);
+    this.depleted.set(key, { tile, respawnAt: now() + RESOURCE_RESPAWN_MS });
+    this.sys(p, message);
+  }
+
+  setTile(x, y, tile) {
+    this.map.tiles[y * this.map.w + x] = tile;
+    this.broadcast({ t: 'tile', x, y, tile });
+  }
+
+  respawnResources(t) {
+    for (const [key, d] of this.depleted) {
+      if (t < d.respawnAt) continue;
+      const [x, y] = key.split(',').map(Number);
+      // Never regrow a tree on top of someone standing there.
+      let blocked = false;
+      for (const p of this.players.values()) {
+        if (p.x === x && p.y === y) { blocked = true; break; }
+      }
+      if (!blocked) {
+        for (const m of this.mobs.values()) {
+          if (m.x === x && m.y === y) { blocked = true; break; }
+        }
+      }
+      if (blocked) {
+        d.respawnAt = t + 5000;
+        continue;
+      }
+      this.depleted.delete(key);
+      this.setTile(x, y, d.tile);
+    }
   }
 
   // ---- combat ---------------------------------------------------------------
@@ -503,6 +613,8 @@ class Game {
       }
     }
 
+    this.respawnResources(t);
+
     this.broadcast({
       t: 'state',
       players: [...this.players.values()].map((p) => ({
@@ -524,6 +636,7 @@ class Game {
       str: p.str, dex: p.dex, int: p.int,
       skills: p.skills,
       gold: p.gold, logs: p.logs, ore: p.ore,
+      pots: p.pots,
       dead: p.dead,
     });
   }
