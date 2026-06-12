@@ -1,0 +1,211 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: #0b0d10;
+  font-family: Georgia, 'Times New Roman', serif;
+  color: #d8d2c0;
+}
+
+#game { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; }
+
+.hidden { display: none !important; }
+
+/* ---- login ---- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, #1a2030 0%, #07080c 80%);
+  z-index: 20;
+}
+
+.login-box {
+  text-align: center;
+  padding: 40px 48px;
+  border: 1px solid #5a4a28;
+  background: rgba(12, 14, 18, 0.92);
+  box-shadow: 0 0 60px rgba(180, 140, 60, 0.15);
+  max-width: 460px;
+}
+
+.login-box h1 {
+  font-size: 44px;
+  letter-spacing: 6px;
+  color: #d4af5a;
+  text-shadow: 0 2px 12px rgba(212, 175, 90, 0.4);
+}
+
+.tagline { margin: 8px 0 24px; color: #8b8674; font-style: italic; }
+
+.login-box input {
+  width: 100%;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 16px;
+  background: #14171d;
+  border: 1px solid #4a4434;
+  color: #e8e2d0;
+  outline: none;
+}
+
+.login-box input:focus { border-color: #d4af5a; }
+
+.login-box button {
+  margin-top: 14px;
+  width: 100%;
+  padding: 11px;
+  font-family: inherit;
+  font-size: 17px;
+  letter-spacing: 1px;
+  background: #6b5320;
+  border: 1px solid #d4af5a;
+  color: #f4e9c8;
+  cursor: pointer;
+}
+
+.login-box button:hover { background: #86691f; }
+
+.error { color: #d06050; margin-top: 10px; min-height: 1.2em; }
+
+.help { margin-top: 22px; font-size: 12.5px; color: #767160; line-height: 1.9; }
+.help b { color: #a89c7c; }
+
+/* ---- HUD ---- */
+
+#char-panel {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  width: 218px;
+  padding: 10px 12px;
+  background: rgba(10, 12, 16, 0.88);
+  border: 1px solid #4a4434;
+  font-size: 13px;
+  z-index: 10;
+}
+
+#char-name { font-size: 16px; color: #d4af5a; margin-bottom: 6px; }
+
+.bar {
+  position: relative;
+  height: 14px;
+  background: #1a1d22;
+  border: 1px solid #3a352a;
+  margin-bottom: 4px;
+}
+
+.bar div { height: 100%; width: 100%; transition: width 0.2s; }
+.bar.hp div { background: linear-gradient(#b03830, #802820); }
+.bar.mana div { background: linear-gradient(#3858b0, #283a80); }
+
+.bar span {
+  position: absolute;
+  inset: 0;
+  text-align: center;
+  font-size: 10.5px;
+  line-height: 14px;
+  color: #fff;
+  text-shadow: 0 1px 2px #000;
+}
+
+#stats-line, #pack-line { margin-top: 5px; color: #a89c7c; }
+
+#skills-toggle {
+  margin-top: 8px;
+  width: 100%;
+  padding: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  background: #1a1d22;
+  border: 1px solid #3a352a;
+  color: #a89c7c;
+  cursor: pointer;
+}
+
+#skills-list { margin-top: 6px; }
+
+#skills-list .skill-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 1.5px 0;
+  border-bottom: 1px dotted #2a2d32;
+}
+
+#minimap {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: 156px;
+  height: 156px;
+  border: 1px solid #4a4434;
+  background: #000;
+  image-rendering: pixelated;
+  z-index: 10;
+}
+
+#actions {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 10;
+}
+
+#actions button {
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  background: rgba(20, 23, 29, 0.9);
+  border: 1px solid #4a4434;
+  color: #d8d2c0;
+  cursor: pointer;
+  text-align: left;
+}
+
+#actions button:hover { border-color: #d4af5a; color: #f4e9c8; }
+
+/* ---- chat ---- */
+
+#chat {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  width: 420px;
+  z-index: 10;
+}
+
+#chat-log {
+  max-height: 168px;
+  overflow-y: auto;
+  font-size: 12.5px;
+  line-height: 1.5;
+  padding: 6px 8px;
+  background: rgba(8, 10, 13, 0.75);
+  border: 1px solid #2a2d32;
+}
+
+#chat-log .sys { color: #7a8a9a; font-style: italic; }
+#chat-log .gain { color: #6ab06a; }
+#chat-log .speech { color: #e8e2d0; }
+#chat-log .speech b { color: #d4af5a; }
+
+#chat-input {
+  width: 100%;
+  margin-top: 4px;
+  padding: 7px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  background: rgba(16, 18, 23, 0.92);
+  border: 1px solid #3a352a;
+  color: #e8e2d0;
+  outline: none;
+}
+
+#chat-input:focus { border-color: #d4af5a; }

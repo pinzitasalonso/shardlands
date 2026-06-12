@@ -1,0 +1,13 @@
+{
+  "name": "shardlands",
+  "version": "0.1.0",
+  "description": "A browser-based MMO in the spirit of Ultima Online: persistent characters, use-based skills, real-time combat, magic, gathering, and chat over WebSockets.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.21.0"
+  }
+}

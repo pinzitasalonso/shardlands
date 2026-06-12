@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shardlands — an MMO in the spirit of Ultima Online</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="login" class="overlay">
+    <div class="login-box">
+      <h1>Shardlands</h1>
+      <p class="tagline">A small shard in the spirit of Ultima Online</p>
+      <input id="name" maxlength="15" placeholder="Character name" autocomplete="off" />
+      <button id="play">Enter the World</button>
+      <p id="login-error" class="error"></p>
+      <div class="help">
+        <b>WASD / arrows</b> move &nbsp;·&nbsp; <b>click</b> walk or attack &nbsp;·&nbsp;
+        <b>Enter</b> chat<br/>
+        <b>1</b> Magic Arrow &nbsp;·&nbsp; <b>2</b> Fireball &nbsp;·&nbsp; <b>3</b> Greater Heal &nbsp;·&nbsp;
+        <b>B</b> bandage &nbsp;·&nbsp; <b>G</b> chop / mine
+      </div>
+    </div>
+  </div>
+
+  <div id="hud" class="hidden">
+    <div id="char-panel">
+      <div id="char-name"></div>
+      <div class="bar hp"><div id="hp-fill"></div><span id="hp-text"></span></div>
+      <div class="bar mana"><div id="mana-fill"></div><span id="mana-text"></span></div>
+      <div id="stats-line"></div>
+      <div id="pack-line"></div>
+      <button id="skills-toggle">Skills ▾</button>
+      <div id="skills-list" class="hidden"></div>
+    </div>
+
+    <canvas id="minimap" width="128" height="128"></canvas>
+
+    <div id="actions">
+      <button data-act="cast:magicarrow" title="1 — Magic Arrow (4 mana)">✦ Arrow</button>
+      <button data-act="cast:fireball" title="2 — Fireball (9 mana, 40 Magery)">☄ Fireball</button>
+      <button data-act="cast:greaterheal" title="3 — Greater Heal (11 mana, 30 Magery)">✚ Heal</button>
+      <button data-act="bandage" title="B — Bandage wounds">⊕ Bandage</button>
+      <button data-act="gather" title="G — Chop trees / mine rock">⛏ Gather</button>
+    </div>
+
+    <div id="chat">
+      <div id="chat-log"></div>
+      <input id="chat-input" maxlength="120" placeholder="Press Enter to speak…" />
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
