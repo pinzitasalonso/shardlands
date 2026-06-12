@@ -44,6 +44,7 @@ const Assets = (() => {
   const PROC_PALETTES = {
     sand: ['#c8b478', '#c0ac70', '#d0bc84', '#bca868'],
     dirt: ['#9a7a52', '#8f714b', '#a5845a', '#856844'],
+    snow: ['#e9eef3', '#dfe6ee', '#f2f6f9', '#d6dfe9'],
   };
 
   function buildProcGrounds() {
@@ -96,25 +97,31 @@ const Assets = (() => {
     return state.manifest.creatures[kind];
   }
 
-  // Stance animations play back-and-forth (0,1,2,3,2,1,...), like Flare.
-  function stanceFrame(c, timeMs) {
-    if (c.frames < 2) return 0;
-    const cycle = 2 * c.frames - 2;
-    const k = Math.floor(timeMs / c.frameMs) % cycle;
-    return k < c.frames ? k : cycle - k;
+  // Frame index within an animation band. 'back_forth' plays 0,1,2,3,2,1;
+  // 'loop' wraps around.
+  function animFrame(a, timeMs) {
+    if (a.frames < 2) return 0;
+    if (a.loop === 'back_forth') {
+      const cycle = 2 * a.frames - 2;
+      const k = Math.floor(timeMs / a.ms) % cycle;
+      return k < a.frames ? k : cycle - k;
+    }
+    return Math.floor(timeMs / a.ms) % a.frames;
   }
 
   // (sx, sy) is the creature's feet — the centre of the tile it stands on.
-  function drawCreature(ctx, kind, heading, timeMs, sx, sy) {
+  // anim is 'stance', 'run' or 'melee'; falls back to stance.
+  function drawCreature(ctx, kind, heading, anim, timeMs, sx, sy) {
     const c = state.manifest.creatures[kind];
     if (!c) return false;
+    const a = c.anims[anim] || c.anims.stance;
     const row = c.dirs > 1 ? heading : 0;
-    const col = stanceFrame(c, timeMs);
+    const col = a.start + animFrame(a, timeMs);
     ctx.drawImage(state.images[c.img],
       col * c.cellW, row * c.cellH, c.cellW, c.cellH,
       Math.round(sx - c.ax), Math.round(sy - c.ay), c.cellW, c.cellH);
     return true;
   }
 
-  return { state, load, tile, creature, drawFrame, drawGround, drawCreature, stanceFrame };
+  return { state, load, tile, creature, drawFrame, drawGround, drawCreature };
 })();

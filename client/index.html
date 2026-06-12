@@ -13,16 +13,19 @@
     <div class="login-box">
       <h1>Shardlands</h1>
       <p class="tagline">A small shard in the spirit of Ultima Online</p>
-      <input id="name" maxlength="15" placeholder="Character name" autocomplete="off" />
+      <input id="email" type="email" placeholder="Email" autocomplete="email" />
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
+      <input id="name" maxlength="15" placeholder="Character name (new accounts)" autocomplete="off" />
       <button id="play">Enter the World</button>
+      <p class="hint">First visit? Pick a password and a character name — your account is created on the spot.</p>
       <p id="login-error" class="error"></p>
       <div class="help">
         <b>WASD / arrows</b> move &nbsp;·&nbsp; <b>click</b> walk or attack &nbsp;·&nbsp;
         <b>Enter</b> chat<br/>
         <b>1</b> Magic Arrow &nbsp;·&nbsp; <b>2</b> Fireball &nbsp;·&nbsp; <b>3</b> Greater Heal &nbsp;·&nbsp;
-        <b>4/5</b> drink potion<br/>
+        <b>4/5</b> drink potion &nbsp;·&nbsp; <b>I</b> inventory<br/>
         <b>B</b> bandage &nbsp;·&nbsp; <b>G</b> chop / mine &nbsp;·&nbsp;
-        visit <b>Mira the Alchemist</b> in Briarhaven for potions
+        town alchemists sell potions &nbsp;·&nbsp; the wilds hide secrets…
       </div>
     </div>
   </div>
@@ -38,7 +41,7 @@
       <div id="skills-list" class="hidden"></div>
     </div>
 
-    <canvas id="minimap" width="128" height="128"></canvas>
+    <canvas id="minimap" width="192" height="192"></canvas>
 
     <div id="actions">
       <button data-act="cast:magicarrow" title="1 — Magic Arrow (4 mana)">✦ Arrow</button>
@@ -48,6 +51,13 @@
       <button data-act="gather" title="G — Chop trees / mine rock">⛏ Gather</button>
       <button data-act="drink:heal" title="4 — Drink a heal potion">🧪 Heal <span id="pot-heal-count" class="pot-count">0</span></button>
       <button data-act="drink:mana" title="5 — Drink a mana potion">🜄 Mana <span id="pot-mana-count" class="pot-count">0</span></button>
+      <button id="inv-toggle" title="I — Inventory" onclick="toggleInventory()">🎒 Inventory</button>
+    </div>
+
+    <div id="inventory" class="hidden">
+      <div class="shop-title">Backpack</div>
+      <div id="inv-items"></div>
+      <button id="inv-close" class="shop-close">Close</button>
     </div>
 
     <div id="shop" class="hidden"></div>

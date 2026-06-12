@@ -19,13 +19,27 @@ each tab is a player in the same world.
 
 ## The world
 
-A 128×128 island, generated deterministically from a seed:
+A 2048×2048 island, generated deterministically from a seed and streamed to
+the client in chunks as you explore:
 
-- **Briarhaven**, the town at the centre, with a stone plaza, four buildings,
-  and the **glowing ankh shrine** — walk your ghost onto it to resurrect.
-- A **graveyard** to the northwest crawling with skeletons.
-- **Orc camps** east, **ettins** in the southwest, mongbats in the meadows,
-  and **a dragon** brooding in the southeast mountains.
+- **Briarhaven**, the town at the crossroads, with a stone plaza, four
+  buildings, **Mira the Alchemist** selling potions, and the **glowing ankh
+  shrine** — walk your ghost onto it to resurrect.
+- **Nine villages** scattered across the island, each with a potion vendor
+  and a road back to the capital — all buildings wear proper roofs, which
+  fade away when you step inside.
+- **Ruined keeps** crawling with skeletons, watchtowers, deep pine and oak
+  forests, deadwood groves, a vast southeastern desert, and **snowfields**
+  with frosted pines across the far north.
+- **Secrets**: twin stone circles that teleport travellers between them,
+  treasure caches in the far corners of the world, whispering places, a
+  hermit with suspiciously cheap potions, and dragon hoards beside the
+  three dragon roosts.
+- Monsters sometimes **drop loot** — gold, potions, materials, even gems —
+  walk over it to pick it up. Press **I** for your backpack. Trees and rocks
+  **deplete** after a few harvests and regrow.
+- Sign in with **email and password**; your account and character are created
+  on first login (passwords are scrypt-hashed, stored in `data/accounts.json`).
 
 ## How to play
 
