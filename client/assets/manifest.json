@@ -12,6 +12,11 @@
   "dragon": "creatures/dragon.png",
   "player": "creatures/player.png",
   "vendor": "creatures/vendor.png",
+  "smith": "creatures/smith.png",
+  "bard": "creatures/bard.png",
+  "hermit": "creatures/hermit.png",
+  "villager2": "creatures/villager2.png",
+  "villager3": "creatures/villager3.png",
   "wolf": "creatures/wolf.png",
   "deer": "creatures/deer.png",
   "sheep": "creatures/sheep.png",
@@ -701,6 +706,146 @@
      "start": 0,
      "frames": 4,
      "ms": 320,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 8,
+     "ms": 90,
+     "loop": "loop"
+    },
+    "melee": {
+     "start": 12,
+     "frames": 4,
+     "ms": 110,
+     "loop": "loop"
+    }
+   }
+  },
+  "smith": {
+   "img": "smith",
+   "cellW": 121,
+   "cellH": 115,
+   "ax": 55,
+   "ay": 93,
+   "dirs": 8,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 300,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 8,
+     "ms": 90,
+     "loop": "loop"
+    },
+    "melee": {
+     "start": 12,
+     "frames": 4,
+     "ms": 110,
+     "loop": "loop"
+    }
+   }
+  },
+  "bard": {
+   "img": "bard",
+   "cellW": 121,
+   "cellH": 115,
+   "ax": 55,
+   "ay": 93,
+   "dirs": 8,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 280,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 8,
+     "ms": 90,
+     "loop": "loop"
+    },
+    "melee": {
+     "start": 12,
+     "frames": 4,
+     "ms": 110,
+     "loop": "loop"
+    }
+   }
+  },
+  "hermit": {
+   "img": "hermit",
+   "cellW": 121,
+   "cellH": 116,
+   "ax": 55,
+   "ay": 94,
+   "dirs": 8,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 340,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 8,
+     "ms": 90,
+     "loop": "loop"
+    },
+    "melee": {
+     "start": 12,
+     "frames": 4,
+     "ms": 110,
+     "loop": "loop"
+    }
+   }
+  },
+  "villager2": {
+   "img": "villager2",
+   "cellW": 121,
+   "cellH": 115,
+   "ax": 55,
+   "ay": 93,
+   "dirs": 8,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 300,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 8,
+     "ms": 90,
+     "loop": "loop"
+    },
+    "melee": {
+     "start": 12,
+     "frames": 4,
+     "ms": 110,
+     "loop": "loop"
+    }
+   }
+  },
+  "villager3": {
+   "img": "villager3",
+   "cellW": 121,
+   "cellH": 115,
+   "ax": 55,
+   "ay": 93,
+   "dirs": 8,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 300,
      "loop": "back_forth"
     },
     "run": {

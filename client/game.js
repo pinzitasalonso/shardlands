@@ -24,7 +24,7 @@ const MOB_STYLE = {
   sheep: { color: '#e8e4da', size: 0.5, name: 'a sheep' },
   pig: { color: '#d8a8a0', size: 0.5, name: 'a pig' },
   chicken: { color: '#e8d8b0', size: 0.3, name: 'a chicken' },
-  villager: { color: '#b0a890', size: 0.6, name: 'a villager', sprite: 'player' },
+  villager: { color: '#b0a890', size: 0.6, name: 'a villager', sprites: ['player', 'villager2', 'villager3'] },
   goblinking: { color: '#5aa040', size: 0.9, name: 'Skarg, the Goblin King', sprite: 'goblin', spriteScale: 1.5, boss: true },
   bonelord: { color: '#d8d4c8', size: 1.1, name: 'the Bone Lord', sprite: 'skeleton', spriteScale: 1.4, boss: true },
   wolfking: { color: '#6a625a', size: 0.9, name: 'Greyfang, the Wolf King', sprite: 'wolf', spriteScale: 1.6, boss: true },
@@ -335,7 +335,10 @@ function updateTargetFrame() {
   const bar = tf.querySelector('.bar');
   bar.setAttribute('aria-valuenow', Math.round(100 * frac));
   if (targetPortraitKind !== mob.kind) {
-    if (drawPortrait('target-portrait', style.sprite || mob.kind, style.spriteScale ? 1.2 : 1.7)) {
+    const portraitKind = style.sprites
+      ? style.sprites[mob.id % style.sprites.length]
+      : style.sprite || mob.kind;
+    if (drawPortrait('target-portrait', portraitKind, style.spriteScale ? 1.2 : 1.7)) {
       targetPortraitKind = mob.kind;
     }
   }
@@ -1191,7 +1194,9 @@ function drawMob(m, cam, time) {
     ctx.lineWidth = 1;
   }
 
-  const spriteKind = style.sprite || m.kind;
+  const spriteKind = style.sprites
+    ? style.sprites[m.id % style.sprites.length]
+    : style.sprite || m.kind;
   const spriteScale = style.spriteScale || 1;
   const c = Assets.state.ok && Assets.creature(spriteKind);
   let labelY;
@@ -1257,11 +1262,12 @@ function drawPlayer(p, cam, time) {
 
 function drawVendor(v, cam, time) {
   const s = worldToScreen(v.rx + 0.5, v.ry + 0.5, cam);
-  const c = Assets.state.ok && Assets.creature('vendor');
+  const model = v.model && Assets.state.ok && Assets.creature(v.model) ? v.model : 'vendor';
+  const c = Assets.state.ok && Assets.creature(model);
   let labelY;
   if (c) {
     entityShadow(s.x, s.y, 11);
-    Assets.drawCreature(ctx, 'vendor', v.heading, 'stance', time, s.x, s.y);
+    Assets.drawCreature(ctx, model, v.heading, 'stance', time + (v.id || 0) * 211, s.x, s.y);
     labelY = s.y - c.ay - 8;
   } else {
     entityShadow(s.x, s.y + 2, 10);

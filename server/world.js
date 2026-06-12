@@ -211,7 +211,7 @@ function generate(seed = 1337) {
   props.push({ x: CX + 7, y: CY - 9, name: 'prop.table' });  // the inn's common table
   props.push({ x: CX + 8, y: CY - 8, name: 'prop.stool' });
   vendors.push({
-    name: 'Bren the Blacksmith', x: CX - 8, y: CY - 8, forge: true,
+    name: 'Bren the Blacksmith', x: CX - 8, y: CY - 8, forge: true, model: 'smith',
     goods: [
       { type: 'weapon', item: 'dagger', q: 1 },
       { type: 'weapon', item: 'dagger', q: 2 },
@@ -510,7 +510,7 @@ function generate(seed = 1337) {
     flatten(hermitSpot.x, hermitSpot.y, 6);
     building(hermitSpot.x - 2, hermitSpot.y - 2, 5, 4, hermitSpot.x, hermitSpot.y + 1);
     vendors.push({
-      name: HERMIT_NAMES[hermits], x: hermitSpot.x, y: hermitSpot.y - 1,
+      name: HERMIT_NAMES[hermits], x: hermitSpot.x, y: hermitSpot.y - 1, model: 'hermit',
       goods: [
         { item: 'heal', name: 'Greater Heal Potion', price: 25, desc: 'They will not say where they get them.' },
         { item: 'mana', name: 'Mana Potion', price: 20, desc: 'Tastes faintly of moss.' },
@@ -651,7 +651,7 @@ function generate(seed = 1337) {
     while (own.length < Math.min(6, pool.length)) {
       own.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
     }
-    vendors.push({ name, x, y, goods: [], stories: own });
+    vendors.push({ name, x, y, goods: [], stories: own, model: 'bard' });
   };
   mkBard(BARD_NAMES[0], CX + 6, CY - 8); // holds court in the capital inn
   villages.filter((v, i) => i % 3 === 0).slice(0, 3).forEach((v, i) => {
