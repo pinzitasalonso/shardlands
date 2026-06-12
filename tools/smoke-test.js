@@ -54,18 +54,20 @@ assert.strictEqual(chunks.length, 2, 'requested chunks are served');
 assert.strictEqual(Buffer.from(chunks[0].d, 'base64').length, 64 * 64, 'chunk payload is 64x64 tiles');
 
 // -- vendor -------------------------------------------------------------------
-const vendor = welcome.vendors[0];
+const mira = welcome.vendors.find((v) => v.goods.some((g) => g.item === 'heal'));
+const healIdx = mira.goods.findIndex((g) => g.item === 'heal');
 ws.sent.length = 0;
 p.x = 5;
 p.y = 5; // far corner: ocean, nobody around
-game.handleBuy(p, 'heal');
+game.handleBuy(p, healIdx);
 assert(ws.sent.some((m) => m.t === 'sys' && /far/.test(m.text)), 'rejects distant buyer');
 
-p.x = vendor.x;
-p.y = vendor.y - 1;
+p.x = mira.x;
+p.y = mira.y - 1;
 const goldBefore = p.gold;
-game.handleBuy(p, 'heal');
-assert.strictEqual(p.gold, goldBefore - vendor.goods[0].price, 'gold deducted');
+// indexes are per-vendor; Mira must be the nearest vendor here
+game.handleBuy(p, healIdx);
+assert.strictEqual(p.gold, goldBefore - mira.goods[healIdx].price, 'gold deducted');
 assert.strictEqual(p.pots.heal, 2, 'heal potion added');
 
 // -- drinking -----------------------------------------------------------------
@@ -147,6 +149,94 @@ const st = ws.sent.find((m) => m.t === 'state');
 assert(st, 'tick sends state');
 const far = st.mobs.find((m) => Math.abs(m.x - p.x) > 60 || Math.abs(m.y - p.y) > 60);
 assert(!far, 'state only contains nearby entities');
+
+// -- weapons --------------------------------------------------------------------
+assert(welcome.weapons && welcome.weapons.sword, 'welcome carries the weapon catalog');
+assert.strictEqual(p.items.length, 1, 'new character has the starter dagger');
+assert.strictEqual(p.weapon, p.items[0].uid, 'starter dagger is equipped');
+
+const bren = welcome.vendors.find((v) => v.forge);
+assert(bren, 'the blacksmith exists');
+p.x = bren.x;
+p.y = bren.y - 1;
+p.gold = 2000;
+const swordIdx = bren.goods.findIndex((g) => g.type === 'weapon' && g.item === 'sword' && g.q === 1);
+game.handleBuy(p, swordIdx);
+const sword = p.items.find((i) => i.id === 'sword');
+assert(sword, 'bought a longsword');
+assert.strictEqual(p.gold, 2000 - 120, 'weapon price deducted');
+assert.strictEqual(sword.dur, 110, 'common longsword durability');
+
+// quality math: a Fine dagger hits harder and lasts longer than a Shoddy one
+const fine = game.makeItem(p, 'dagger', 2);
+assert.strictEqual(fine.maxDur, Math.round(90 * 1.4), 'quality scales durability');
+
+// equip + minSkill gate
+game.handleEquip(p, sword.uid);
+assert.strictEqual(p.weapon, sword.uid, 'sword equipped');
+const gs = game.makeItem(p, 'greatsword', 1);
+p.items.push(gs);
+ws.sent.length = 0;
+game.handleEquip(p, gs.uid);
+assert(p.weapon === sword.uid, 'greatsword rejected below 60 swordsmanship');
+assert(ws.sent.some((m) => m.t === 'sys' && /Swordsmanship/.test(m.text)), 'skill gate message');
+p.items = p.items.filter((i) => i.uid !== gs.uid);
+
+// crafting consumes materials and yields an instance
+p.ore = 20;
+p.logs = 10;
+const goldBeforeCraft = p.gold;
+const itemsBefore = p.items.length;
+game.handleCraft(p, 'sword');
+assert.strictEqual(p.ore, 12, 'craft consumed ore');
+assert.strictEqual(p.logs, 7, 'craft consumed logs');
+assert.strictEqual(p.gold, goldBeforeCraft - 30, 'craft consumed gold');
+assert.strictEqual(p.items.length, itemsBefore + 1, 'craft yielded a weapon');
+
+// durability: wear it down against a sturdy chicken and watch it shatter
+game.handleEquip(p, sword.uid);
+sword.dur = 1;
+p.skills.swordsmanship = 100;
+const dummy = { id: 999999, kind: 'chicken', x: p.x + 1, y: p.y, hp: 99999, maxhp: 99999,
+  target: 0, moveAt: 0, swingAt: 0, spawner: { alive: new Set() } };
+game.mobs.set(dummy.id, dummy);
+p.target = dummy.id;
+ws.sent.length = 0;
+for (let i = 0; i < 500 && p.items.some((it) => it.uid === sword.uid); i++) {
+  p.swingAt = 0;
+  game.meleeTick(p, Date.now());
+}
+assert(!p.items.some((it) => it.uid === sword.uid), 'worn sword shattered');
+assert.strictEqual(p.weapon, null, 'shattered weapon unequipped');
+assert(ws.sent.some((m) => m.t === 'fx' && m.kind === 'break'), 'break fx sent');
+assert(ws.sent.some((m) => m.t === 'sys' && /shatters/.test(m.text)), 'shatter message');
+game.mobs.delete(dummy.id);
+p.target = 0;
+
+// selling refunds 40% of the quality-adjusted price
+p.items.push(fine);
+const goldBeforeSell = p.gold;
+game.handleSell(p, fine.uid);
+assert.strictEqual(p.gold, goldBeforeSell + Math.floor(40 * 2.0 * 0.4), 'sell refunds 40%');
+assert(!p.items.some((i) => i.uid === fine.uid), 'sold item removed');
+
+// bosses always drop a weapon; full packs leave it on the ground
+game.rollLoot({ kind: 'bonelord', x: p.x, y: p.y });
+assert([...game.drops.values()].some((d) => d.item === 'weapon' && d.x === p.x), 'boss dropped a weapon');
+while (p.items.length < 10) p.items.push(game.makeItem(p, 'dagger', 0));
+game.pickupDrops(p);
+assert([...game.drops.values()].some((d) => d.item === 'weapon' && d.x === p.x),
+  'weapon drop stays when the pack is full');
+p.items.length = 3;
+game.pickupDrops(p);
+assert(p.items.some((i) => ['battleaxe', 'greatsword'].includes(i.id)), 'picked up the boss weapon');
+
+// persistence round-trip
+game.persistPlayer(p);
+const rec = game.records[p.key];
+assert.strictEqual(rec.items.length, p.items.length, 'items persisted');
+assert.strictEqual(rec.weapon, p.weapon, 'equipped weapon persisted');
+assert.strictEqual(rec.itemUid, p.itemUid, 'uid counter persisted');
 
 console.log('smoke test: all assertions passed');
 process.exit(0);

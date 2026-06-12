@@ -211,6 +211,18 @@ function generate(seed = 1337) {
   props.push({ x: CX + 7, y: CY - 9, name: 'prop.table' });  // the inn's common table
   props.push({ x: CX + 8, y: CY - 8, name: 'prop.stool' });
   vendors.push({
+    name: 'Bren the Blacksmith', x: CX - 8, y: CY - 8, forge: true,
+    goods: [
+      { type: 'weapon', item: 'dagger', q: 1 },
+      { type: 'weapon', item: 'dagger', q: 2 },
+      { type: 'weapon', item: 'sword', q: 1 },
+      { type: 'weapon', item: 'sword', q: 2 },
+      { type: 'weapon', item: 'mace', q: 1 },
+      { type: 'weapon', item: 'battleaxe', q: 1 },
+      { type: 'weapon', item: 'greatsword', q: 1 },
+    ],
+  });
+  vendors.push({
     name: 'Mira the Alchemist', x: CX - 7, y: CY + 9,
     goods: [
       { item: 'heal', name: 'Greater Heal Potion', price: 45, desc: 'Restores 25-40 health.' },
@@ -271,6 +283,8 @@ function generate(seed = 1337) {
       goods: [
         { item: 'heal', name: 'Greater Heal Potion', price: 45 + jitter, desc: 'Restores 25-40 health.' },
         { item: 'mana', name: 'Mana Potion', price: 35 + jitter, desc: 'Restores 20-30 mana.' },
+        { type: 'weapon', item: 'dagger', q: 1 },
+        { type: 'weapon', item: 'sword', q: 1 },
       ],
     });
     road(v.x, v.y + 5, CX, CY + 11);
