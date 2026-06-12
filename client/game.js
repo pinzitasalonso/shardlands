@@ -24,6 +24,10 @@ const MOB_STYLE = {
   sheep: { color: '#e8e4da', size: 0.5, name: 'a sheep' },
   pig: { color: '#d8a8a0', size: 0.5, name: 'a pig' },
   chicken: { color: '#e8d8b0', size: 0.3, name: 'a chicken' },
+  villager: { color: '#b0a890', size: 0.6, name: 'a villager', sprite: 'player' },
+  goblinking: { color: '#5aa040', size: 0.9, name: 'Skarg, the Goblin King', sprite: 'goblin', spriteScale: 1.5, boss: true },
+  bonelord: { color: '#d8d4c8', size: 1.1, name: 'the Bone Lord', sprite: 'skeleton', spriteScale: 1.4, boss: true },
+  wolfking: { color: '#6a625a', size: 0.9, name: 'Greyfang, the Wolf King', sprite: 'wolf', spriteScale: 1.6, boss: true },
 };
 
 const canvas = document.getElementById('game');
@@ -681,11 +685,15 @@ function render() {
     drawables.push({ depth: b.x + b.w - 1 + b.y + b.h - 1 + 0.5, kind: 'roof', b });
   }
 
-  // Interior furniture.
+  // Furniture and trail dressing.
   for (const pr of state.props) {
     if (pr.x < x0 || pr.x > x1 || pr.y < y0 || pr.y > y1) continue;
     const s = worldToScreen(pr.x, pr.y, cam);
-    drawables.push({ depth: pr.x + pr.y, kind: 'sprite', name: pr.name, x: s.x, y: s.y + HH, stack: 1 });
+    if (pr.name === 'fx.campfire') {
+      drawables.push({ depth: pr.x + pr.y, kind: 'campfire', x: s.x, y: s.y + HH });
+    } else {
+      drawables.push({ depth: pr.x + pr.y, kind: 'sprite', name: pr.name, x: s.x, y: s.y + HH, stack: 1 });
+    }
   }
 
   // Entities join the same depth-sorted pass.
@@ -711,6 +719,7 @@ function render() {
       case 'shrine': drawShrine(d.x, d.y, time); break;
       case 'drop': drawDrop(d.e, cam, time); break;
       case 'roof': drawRoof(d.b, cam, time); break;
+      case 'campfire': drawCampfire(d.x, d.y, time); break;
       case 'vendor': drawVendor(d.e, cam, time); break;
       case 'mob': drawMob(d.e, cam, time); break;
       case 'player': drawPlayer(d.e, cam, time); break;
@@ -972,6 +981,36 @@ function drawDrop(d, cam, time) {
   }
 }
 
+// A small camp fire: crossed logs, flickering flame, ember glow.
+function drawCampfire(cx, cy, time) {
+  ctx.fillStyle = 'rgba(255, 150, 50, 0.10)';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 26, 13, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#5a4028';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(cx - 8, cy + 3); ctx.lineTo(cx + 8, cy - 3);
+  ctx.moveTo(cx - 8, cy - 3); ctx.lineTo(cx + 8, cy + 3);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 3; i++) {
+    const fl = Math.sin(time / (90 + i * 37) + i * 2.1) * 2;
+    const h = 12 + i * 4 + fl * 2;
+    ctx.fillStyle = ['rgba(255, 90, 30, 0.85)', 'rgba(255, 160, 40, 0.8)', 'rgba(255, 230, 120, 0.85)'][i];
+    ctx.beginPath();
+    ctx.moveTo(cx - 6 + i * 2, cy);
+    ctx.quadraticCurveTo(cx + fl, cy - h, cx + 6 - i * 2, cy);
+    ctx.closePath();
+    ctx.fill();
+  }
+  const k = (time / 1400) % 1;
+  ctx.fillStyle = `rgba(120, 120, 120, ${0.25 * (1 - k)})`;
+  ctx.beginPath();
+  ctx.arc(cx + Math.sin(time / 500) * 3, cy - 22 - k * 18, 3 + k * 4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 function entityAnim(e) {
   if (e.a) return 'melee';
   if (Date.now() - (e.movedAt || 0) < 350) return 'run';
@@ -998,11 +1037,13 @@ function drawMob(m, cam, time) {
     ctx.lineWidth = 1;
   }
 
-  const c = Assets.state.ok && Assets.creature(m.kind);
+  const spriteKind = style.sprite || m.kind;
+  const spriteScale = style.spriteScale || 1;
+  const c = Assets.state.ok && Assets.creature(spriteKind);
   let labelY;
   if (c) {
-    Assets.drawCreature(ctx, m.kind, m.heading, entityAnim(m), time + m.id * 137, s.x, s.y);
-    labelY = s.y - c.ay - 8;
+    Assets.drawCreature(ctx, spriteKind, m.heading, entityAnim(m), time + m.id * 137, s.x, s.y, spriteScale);
+    labelY = s.y - c.ay * spriteScale - 8;
   } else {
     const r = 22 * style.size;
     entityShadow(s.x, s.y + 2, r * 0.8);
@@ -1013,11 +1054,11 @@ function drawMob(m, cam, time) {
     labelY = s.y - r * 1.6 - 10;
   }
 
-  drawHpBar(s.x, labelY + 4, m.hp, m.maxhp);
-  ctx.fillStyle = 'rgba(220, 214, 200, 0.85)';
-  ctx.font = '11px Georgia';
+  if (!style.sprite || style.boss) drawHpBar(s.x, labelY + 4, m.hp, m.maxhp);
+  ctx.fillStyle = style.boss ? '#ffd060' : 'rgba(220, 214, 200, 0.85)';
+  ctx.font = style.boss ? 'bold 12px Georgia' : '11px Georgia';
   ctx.textAlign = 'center';
-  ctx.fillText(style.name, s.x, labelY);
+  ctx.fillText(m.name || style.name, s.x, labelY);
   ctx.textAlign = 'left';
 }
 
@@ -1139,7 +1180,7 @@ function drawSpeech(cam, time) {
       state.speech.delete(id);
       continue;
     }
-    const e = state.players.get(id) || state.vendors.find((v) => v.id === id);
+    const e = state.players.get(id) || state.mobs.get(id) || state.vendors.find((v) => v.id === id);
     if (!e) continue;
     const pos = worldToScreen(e.rx + 0.5, e.ry + 0.5, cam);
     const y = pos.y - 64;

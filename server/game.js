@@ -41,7 +41,27 @@ const MOB_KINDS = {
   sheep: { name: 'a sheep', hp: 10, dmg: [0, 1], skill: 5, gold: 2, speedMs: 700, aggro: 0 },
   pig: { name: 'a pig', hp: 12, dmg: [1, 2], skill: 5, gold: 3, speedMs: 650, aggro: 0 },
   chicken: { name: 'a chicken', hp: 4, dmg: [0, 1], skill: 3, gold: 1, speedMs: 500, aggro: 0 },
+  // Townsfolk: protected by the crown, prone to small talk.
+  villager: { name: 'a villager', hp: 30, dmg: [0, 1], skill: 5, gold: 0, speedMs: 900, aggro: 0, peaceful: true },
+  // Crowned terrors. Slain ones return after a long while.
+  goblinking: { name: 'Skarg, the Goblin King', hp: 130, dmg: [6, 12], skill: 60, gold: 220, speedMs: 320, aggro: 9 },
+  bonelord: { name: 'the Bone Lord', hp: 170, dmg: [8, 14], skill: 75, gold: 280, speedMs: 450, aggro: 9 },
+  wolfking: { name: 'Greyfang, the Wolf King', hp: 150, dmg: [7, 13], skill: 70, gold: 240, speedMs: 330, aggro: 9 },
 };
+
+const VILLAGER_NAMES = ['Tomlin', 'Berta', 'Old Casso', 'Wilmot', 'Ysolde', 'Pell',
+  'Marta', 'Edric', 'Nan', 'Osric', 'Tilly', 'Bram', 'Greta', 'Hob', 'Sera', 'Dunstan'];
+
+const VILLAGER_LINES = [
+  'Fine weather for the crops.',
+  'Mind the wolves if thou art headed north.',
+  'They say the old keep is haunted. I believe it.',
+  'A dragon took my cousin\'s sheep. The whole flock!',
+  'The alchemist pays good coin... for what, I dare not ask.',
+  'Welcome, traveller. The shrine will keep thee safe.',
+  'I heard the standing stones can carry you across the world.',
+  'Gems! A fellow came through with a fistful of gems last week.',
+];
 
 // What corpses leave behind, beyond the guaranteed gold: [chance, item, min, max].
 const LOOT_TABLES = {
@@ -52,6 +72,9 @@ const LOOT_TABLES = {
   dragon: [[1, 'gold', 150, 400], [0.8, 'heal', 1, 2], [0.6, 'mana', 1, 2], [0.5, 'gems', 1, 2]],
   wolf: [[0.3, 'gold', 3, 10]],
   deer: [[0.35, 'gold', 2, 6]],
+  goblinking: [[1, 'gold', 100, 250], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2]],
+  bonelord: [[1, 'gold', 120, 300], [1, 'gems', 1, 2], [0.6, 'mana', 1, 2]],
+  wolfking: [[1, 'gold', 100, 260], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2]],
 };
 
 const DROP_TTL_MS = 60_000;
@@ -396,8 +419,11 @@ class Game {
     if (p.dead) return this.sys(p, 'You are a ghost. Seek the shrine.');
     const mob = this.mobs.get(mobId);
     if (!mob) return;
+    if (MOB_KINDS[mob.kind].peaceful) {
+      return this.sys(p, 'The townsfolk are under the crown\'s protection.');
+    }
     p.target = mobId;
-    this.sys(p, `You attack ${MOB_KINDS[mob.kind].name}.`);
+    this.sys(p, `You attack ${mob.name || MOB_KINDS[mob.kind].name}.`);
   }
 
   handleCast(p, spellId, targetId) {
@@ -431,6 +457,8 @@ class Game {
       const mob = this.mobs.get(targetId || p.target);
       if (!mob || dist(p, mob) > 10) {
         this.sys(p, 'No target in range.');
+      } else if (MOB_KINDS[mob.kind].peaceful) {
+        this.sys(p, 'The townsfolk are under the crown\'s protection.');
       } else {
         const dmg = rand(spell.dmg[0], spell.dmg[1]) + Math.floor(p.skills.magery / 12);
         this.fxNear(p, { t: 'fx', kind: spellId, x: p.x, y: p.y, tx: mob.x, ty: mob.y, amount: dmg });
@@ -553,8 +581,11 @@ class Game {
     killer.gold += gold;
     this.mobs.delete(mob.id);
     mob.spawner.alive.delete(mob.id);
-    mob.spawner.respawnAt = now() + 20_000;
-    this.sys(killer, `You have slain ${def.name}! You loot ${gold} gold.`);
+    mob.spawner.respawnAt = now() + (mob.spawner.respawnMs || 20_000);
+    this.sys(killer, `You have slain ${mob.name || def.name}! You loot ${gold} gold.`);
+    if (mob.spawner.respawnMs) {
+      this.broadcastSys(`${killer.name} has slain ${mob.name || def.name}!`);
+    }
     this.fxNear(mob, { t: 'fx', kind: 'die', x: mob.x, y: mob.y });
     this.rollLoot(mob);
     this.sendYou(killer);
@@ -688,9 +719,12 @@ class Game {
         homeX: x, homeY: y,
         hp: def.hp, maxhp: def.hp,
         target: 0,
-        moveAt: 0, swingAt: 0,
+        moveAt: 0, swingAt: 0, chatAt: 0,
         spawner,
       };
+      if (spawner.kind === 'villager') {
+        mob.name = VILLAGER_NAMES[mob.id % VILLAGER_NAMES.length];
+      }
       this.mobs.set(mob.id, mob);
       spawner.alive.add(mob.id);
       return;
@@ -738,6 +772,20 @@ class Game {
         this.stepToward(mob, target.x, target.y);
       }
       return;
+    }
+
+    // Townsfolk gossip at passers-by.
+    if (def.peaceful && t >= mob.chatAt && Math.random() < 0.004) {
+      for (const p of this.players.values()) {
+        if (dist(mob, p) <= 7) {
+          mob.chatAt = t + 25_000;
+          this.fxNear(mob, {
+            t: 'chat', id: mob.id, name: mob.name || def.name,
+            text: VILLAGER_LINES[rand(0, VILLAGER_LINES.length - 1)],
+          });
+          break;
+        }
+      }
     }
 
     // No target: leash home if wandered far, otherwise amble around.
@@ -795,7 +843,7 @@ class Game {
 
     for (const sp of this.spawners) {
       if (sp.alive.size < sp.count && t >= (sp.respawnAt || 0)) {
-        sp.respawnAt = t + 20_000;
+        sp.respawnAt = t + (sp.respawnMs || 20_000);
         this.spawnMob(sp);
       }
     }
@@ -828,6 +876,7 @@ class Game {
         mobs: mobs.filter(near).map((m) => ({
           id: m.id, kind: m.kind, x: m.x, y: m.y, hp: m.hp, maxhp: m.maxhp,
           a: t - (m.swungAt || 0) < 700 ? 1 : 0,
+          name: m.name,
         })),
         drops: drops.filter(near).map((d) => ({ id: d.id, x: d.x, y: d.y, item: d.item })),
       });

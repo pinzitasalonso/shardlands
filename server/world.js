@@ -257,6 +257,7 @@ function generate(seed = 1337) {
     const lcx = v.x + 3 + (w2 >> 1);
     const lcy = v.y - 5 + (h2 >> 1);
     if (lcy < v.y - 5 + h2 - 1) props.push({ x: lcx, y: lcy, name: 'prop.table' });
+    spawners.push({ kind: 'villager', count: 3, x: v.x, y: v.y, r: 6 });
     // Livestock graze around every village.
     for (let k = 0; k < 2; k++) {
       const kind = ['sheep', 'pig', 'chicken'][Math.floor(rng() * 3)];
@@ -293,6 +294,10 @@ function generate(seed = 1337) {
     }
     set(spot.x, spot.y - 6, TILE.GRASS); // the fallen gate
     spawners.push({ kind: 'skeleton', count: 7, x: spot.x, y: spot.y, r: 9 });
+    if (k === 0) {
+      // The Bone Lord holds court in the first keep.
+      spawners.push({ kind: 'bonelord', count: 1, x: spot.x, y: spot.y, r: 4, respawnMs: 300_000 });
+    }
     // The dead guard their treasure.
     secrets.push({ type: 'cache', x: spot.x, y: spot.y,
       loot: [['gold', 80, 200], ['heal', 1, 2]] });
@@ -316,26 +321,116 @@ function generate(seed = 1337) {
   }
 
   // ---- Wildlife: deer in the woods, wolves prowling the wilds --------------------
-  for (let i = 0; i < 16; i++) {
-    const spot = settle(CX + (rng() - 0.5) * 1700, CY + (rng() - 0.5) * 1700, 100, 8);
-    if (spot) spawners.push({ kind: 'deer', count: 3, x: spot.x, y: spot.y, r: 10 });
-  }
-  for (let i = 0; i < 12; i++) {
-    const spot = settle(CX + (rng() - 0.5) * 1800, CY + (rng() - 0.5) * 1800, 100, 8);
-    if (spot && Math.hypot(spot.x - CX, spot.y - CY) > 150) {
-      spawners.push({ kind: 'wolf', count: 2, x: spot.x, y: spot.y, r: 9 });
+  const scatter = (n, spread, fn) => {
+    for (let i = 0; i < n; i++) {
+      const spot = settle(CX + (rng() - 0.5) * spread, CY + (rng() - 0.5) * spread, 100, 8);
+      if (spot) fn(spot);
     }
-  }
+  };
+  scatter(60, 1750, (s) => spawners.push({ kind: 'deer', count: 3, x: s.x, y: s.y, r: 10 }));
+  scatter(34, 1800, (s) => {
+    if (Math.hypot(s.x - CX, s.y - CY) > 150) {
+      spawners.push({ kind: 'wolf', count: 2, x: s.x, y: s.y, r: 9 });
+    }
+  });
+
+  // ---- Wilderness dangers: warrens, warbands, barrows, mounds ---------------------
+  scatter(28, 1750, (s) => spawners.push({ kind: 'goblin', count: 5, x: s.x, y: s.y, r: 11 }));
+  scatter(20, 1800, (s) => {
+    if (Math.hypot(s.x - CX, s.y - CY) > 250) {
+      spawners.push({ kind: 'orc', count: 5, x: s.x, y: s.y, r: 12 });
+    }
+  });
+  scatter(16, 1800, (s) => {
+    // A barrow of the restless dead, marked by standing stones.
+    for (const [ox, oy] of [[-2, 0], [2, 0], [0, -2], [0, 2]]) {
+      if (get(s.x + ox, s.y + oy) !== TILE.WATER) set(s.x + ox, s.y + oy, TILE.ROCK);
+    }
+    spawners.push({ kind: 'skeleton', count: 4, x: s.x, y: s.y, r: 8 });
+    if (rng() > 0.5) {
+      secrets.push({ type: 'cache', x: s.x, y: s.y, loot: [['gold', 40, 120], ['heal', 0, 1]] });
+    }
+  });
+  scatter(10, 1700, (s) => {
+    if (Math.hypot(s.x - CX, s.y - CY) > 300) {
+      spawners.push({ kind: 'ettin', count: 2, x: s.x, y: s.y, r: 9 });
+    }
+  });
+
+  // ---- Farmsteads: a lonely hut, a well, and livestock ----------------------------
+  scatter(12, 1500, (s) => {
+    flatten(s.x, s.y, 7);
+    building(s.x - 2, s.y - 2, 5, 4, s.x, s.y + 1);
+    props.push({ x: s.x + 3, y: s.y, name: 'prop.well' });
+    const kind = ['sheep', 'pig', 'chicken'][Math.floor(rng() * 3)];
+    spawners.push({ kind, count: 3, x: s.x + 5, y: s.y + 4, r: 5 });
+    spawners.push({ kind: 'villager', count: 1, x: s.x, y: s.y + 2, r: 4 });
+  });
+
+  // ---- Campsites: a fire still burning, but whose? ---------------------------------
+  scatter(15, 1700, (s) => {
+    flatten(s.x, s.y, 4);
+    props.push({ x: s.x, y: s.y, name: 'fx.campfire' });
+    props.push({ x: s.x + 1, y: s.y + 1, name: 'prop.stool' });
+    if (rng() > 0.5) {
+      secrets.push({ type: 'cache', x: s.x - 1, y: s.y, loot: [['gold', 20, 70], [rng() > 0.5 ? 'heal' : 'mana', 1, 1]] });
+      spawners.push({ kind: rng() > 0.5 ? 'wolf' : 'goblin', count: 3, x: s.x + 6, y: s.y + 6, r: 6 });
+    }
+  });
+
+  // ---- Quarries: rich rock, guarded ------------------------------------------------
+  scatter(6, 1600, (s) => {
+    for (let i = 0; i < 10; i++) {
+      const a = rng() * Math.PI * 2;
+      const d = 2 + rng() * 3;
+      const x = Math.round(s.x + Math.cos(a) * d);
+      const y = Math.round(s.y + Math.sin(a) * d);
+      if (get(x, y) !== TILE.WATER) set(x, y, TILE.ROCK);
+    }
+    spawners.push({ kind: 'ettin', count: 2, x: s.x, y: s.y, r: 8 });
+    secrets.push({ type: 'cache', x: s.x, y: s.y, loot: [['gold', 60, 140], ['gems', 0, 1]] });
+  });
+
+  // ---- Menhirs: lone stones that remember things -----------------------------------
+  const MENHIR_WHISPERS = [
+    'The stone is warm, though the sun is not.',
+    'Something is buried here. Best leave it be.',
+    'Runes spiral down the stone, older than any tongue you know.',
+    'The grass refuses to grow in the stone\'s shadow.',
+    'A traveller scratched a tally here: forty-one days. Then nothing.',
+    'The stone hums when you press your ear to it. You step back.',
+  ];
+  let menhirs = 0;
+  scatter(20, 1850, (s) => {
+    if (get(s.x, s.y) === TILE.WATER) return;
+    set(s.x, s.y, TILE.ROCK);
+    secrets.push({ type: 'whisper', x: s.x, y: s.y, text: MENHIR_WHISPERS[menhirs++ % MENHIR_WHISPERS.length] });
+  });
   // The capital's own pastures and nearby deer, so the world greets you alive.
+  spawners.push({ kind: 'villager', count: 5, x: CX, y: CY, r: 9 });
   spawners.push({ kind: 'sheep', count: 4, x: CX - 24, y: CY + 18, r: 6 });
   spawners.push({ kind: 'chicken', count: 4, x: CX + 22, y: CY + 16, r: 5 });
   spawners.push({ kind: 'deer', count: 3, x: CX + 28, y: CY - 22, r: 8 });
   spawners.push({ kind: 'goblin', count: 4, x: CX - 38, y: CY - 34, r: 8 });
 
+  // ---- Crowned terrors of the wild --------------------------------------------------
+  const kingSpot = settle(CX + (rng() - 0.5) * 1400, CY + (rng() - 0.5) * 1400, 200, 9);
+  if (kingSpot) {
+    spawners.push({ kind: 'goblinking', count: 1, x: kingSpot.x, y: kingSpot.y, r: 4, respawnMs: 300_000 });
+    spawners.push({ kind: 'goblin', count: 8, x: kingSpot.x, y: kingSpot.y, r: 10 });
+    secrets.push({ type: 'cache', x: kingSpot.x + 2, y: kingSpot.y,
+      loot: [['gold', 150, 350], ['gems', 1, 2]] });
+  }
+  const wolfSpot = settle(CX + (rng() - 0.5) * 1000, CY - 600 - rng() * 300, 200, 9);
+  if (wolfSpot) {
+    spawners.push({ kind: 'wolfking', count: 1, x: wolfSpot.x, y: wolfSpot.y, r: 4, respawnMs: 300_000 });
+    spawners.push({ kind: 'wolf', count: 5, x: wolfSpot.x, y: wolfSpot.y, r: 9 });
+  }
+
   // ---- Dragons roost far from civilisation ---------------------------------------
   let dragons = 0;
   tries = 0;
-  while (dragons < 3 && tries++ < 200) {
+  while (dragons < 5 && tries++ < 350) {
     const spot = settle(CX + (rng() - 0.5) * 1800, CY + (rng() - 0.5) * 1800, 120, 10);
     if (!spot) continue;
     if (Math.hypot(spot.x - CX, spot.y - CY) < 600) continue;
@@ -351,7 +446,7 @@ function generate(seed = 1337) {
   // Twin stone circles: step into one and the old magic carries you to its twin.
   const circles = [];
   tries = 0;
-  while (circles.length < 4 && tries++ < 300) {
+  while (circles.length < 10 && tries++ < 600) {
     const spot = settle(CX + (rng() - 0.5) * 1700, CY + (rng() - 0.5) * 1700, 110, 7);
     if (!spot) continue;
     if (circles.some((c) => Math.hypot(c.x - spot.x, c.y - spot.y) < 500)) continue;
@@ -370,26 +465,29 @@ function generate(seed = 1337) {
     secrets.push({ type: 'portal', x: b.x, y: b.y, tx: a.x, ty: a.y });
   }
 
-  // The hermit: a lone hut deep in the wilds with suspiciously cheap potions.
-  const hermitSpot = settle(CX + (rng() - 0.5) * 1400, CY + (rng() - 0.5) * 1400, 150, 8);
+  // Hermits: lone huts deep in the wilds with suspiciously cheap potions.
+  const HERMIT_NAMES = ['Old Wendel', 'Mother Issel', 'Cranky Tobben'];
+  for (let hermits = 0; hermits < 3; hermits++) {
+  const hermitSpot = settle(CX + (rng() - 0.5) * (1200 + hermits * 300), CY + (rng() - 0.5) * (1200 + hermits * 300), 150, 8);
   if (hermitSpot) {
     flatten(hermitSpot.x, hermitSpot.y, 6);
     building(hermitSpot.x - 2, hermitSpot.y - 2, 5, 4, hermitSpot.x, hermitSpot.y + 1);
     vendors.push({
-      name: 'Old Wendel', x: hermitSpot.x, y: hermitSpot.y - 1,
+      name: HERMIT_NAMES[hermits], x: hermitSpot.x, y: hermitSpot.y - 1,
       goods: [
-        { item: 'heal', name: 'Greater Heal Potion', price: 25, desc: 'He will not say where he gets them.' },
+        { item: 'heal', name: 'Greater Heal Potion', price: 25, desc: 'They will not say where they get them.' },
         { item: 'mana', name: 'Mana Potion', price: 20, desc: 'Tastes faintly of moss.' },
       ],
     });
     secrets.push({ type: 'whisper', x: hermitSpot.x, y: hermitSpot.y + 2,
       text: 'A trail of crushed herbs leads to a crooked hut. Someone lives out here.' });
   }
+  }
 
   // Treasure caches buried in the far corners of the world.
   tries = 0;
   let caches = 0;
-  while (caches < 8 && tries++ < 300) {
+  while (caches < 20 && tries++ < 700) {
     const spot = settle(CX + (rng() - 0.5) * 1900, CY + (rng() - 0.5) * 1900, 80, 4);
     if (!spot) continue;
     if (Math.hypot(spot.x - CX, spot.y - CY) < 500) continue;

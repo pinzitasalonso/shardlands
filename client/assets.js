@@ -156,7 +156,7 @@ const Assets = (() => {
 
   // (sx, sy) is the creature's feet — the centre of the tile it stands on.
   // anim is 'stance', 'run' or 'melee'; falls back to stance.
-  function drawCreature(ctx, kind, heading, anim, timeMs, sx, sy) {
+  function drawCreature(ctx, kind, heading, anim, timeMs, sx, sy, scale = 1) {
     const c = state.manifest.creatures[kind];
     if (!c) return false;
     const a = c.anims[anim] || c.anims.stance;
@@ -164,7 +164,8 @@ const Assets = (() => {
     const col = a.start + animFrame(a, timeMs);
     ctx.drawImage(state.images[c.img],
       col * c.cellW, row * c.cellH, c.cellW, c.cellH,
-      Math.round(sx - c.ax), Math.round(sy - c.ay), c.cellW, c.cellH);
+      Math.round(sx - c.ax * scale), Math.round(sy - c.ay * scale),
+      c.cellW * scale, c.cellH * scale);
     return true;
   }
 
