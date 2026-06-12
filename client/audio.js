@@ -6,13 +6,14 @@
 
 const Sound = (() => {
   let ctx = null;
-  let master, sfxBus, ambBus;
+  let master, sfxBus, ambBus, musicBus;
   let started = false;
 
   const vols = {
     master: +(localStorage.getItem('shardlands:vol') ?? 0.7),
     sfx: +(localStorage.getItem('shardlands:vol.sfx') ?? 0.8),
-    amb: +(localStorage.getItem('shardlands:vol.amb') ?? 0.5),
+    amb: +(localStorage.getItem('shardlands:vol.amb') ?? 0.4),
+    music: +(localStorage.getItem('shardlands:vol.music') ?? 0.5),
   };
 
   function ensure() {
@@ -31,7 +32,11 @@ const Sound = (() => {
     ambBus = ctx.createGain();
     ambBus.gain.value = vols.amb;
     ambBus.connect(master);
+    musicBus = ctx.createGain();
+    musicBus.gain.value = vols.music;
+    musicBus.connect(master);
     startAmbience();
+    startMusic();
     return true;
   }
 
@@ -39,7 +44,7 @@ const Sound = (() => {
     vols[which] = v;
     localStorage.setItem('shardlands:vol' + (which === 'master' ? '' : '.' + which), String(v));
     if (!ctx) return;
-    ({ master, sfx: sfxBus, amb: ambBus })[which].gain.value = v;
+    ({ master, sfx: sfxBus, amb: ambBus, music: musicBus })[which].gain.value = v;
   }
 
   // ---- tiny synth helpers -----------------------------------------------------
@@ -131,8 +136,7 @@ const Sound = (() => {
     lfo.connect(lfoG).connect(g.gain);
     lfo.start();
 
-    // birds by day, harp notes always (the realm has a resident minstrel)
-    const PENTA = [262, 294, 330, 392, 440, 523, 587, 659];
+    // birdsong by day
     setInterval(() => {
       if (!started) return;
       const night = typeof dayDarkness === 'function' ? dayDarkness() > 0.3 : false;
@@ -150,20 +154,180 @@ const Sound = (() => {
         o.start(t);
         o.stop(t + 0.25);
       }
-      if (Math.random() < 0.3) {
-        const n = PENTA[Math.floor(Math.random() * PENTA.length)] / 2;
-        const t = ctx.currentTime;
-        const o = ctx.createOscillator();
-        const gg = ctx.createGain();
-        o.type = 'triangle';
-        o.frequency.value = n;
-        gg.gain.setValueAtTime(0.03, t);
-        gg.gain.exponentialRampToValueAtTime(0.001, t + 1.6);
-        o.connect(gg).connect(ambBus);
-        o.start(t);
-        o.stop(t + 1.7);
-      }
     }, 1800);
+  }
+
+  // ---- the OST: old-school chiptunes, sequenced live -----------------------------
+  // Three channels in the NES spirit: pulse lead, triangle bass, noise drums.
+  // Notes are [midi, beats]; 0 = rest. Each track loops seamlessly.
+
+  const N = null; // readability for rests
+  const TRACKS = {
+    overworld: {
+      bpm: 112,
+      lead: [ // A minor, a road-song
+        [69, 1], [72, 1], [76, 1], [81, 1], [79, 1], [76, 1], [72, 1], [76, 0.5], [74, 0.5],
+        [74, 1], [77, 1], [81, 0.5], [77, 0.5], [76, 1], [72, 1], [69, 2], [0, 1],
+        [69, 1], [72, 1], [76, 1], [81, 1], [83, 1], [81, 1], [79, 1], [76, 0.5], [79, 0.5],
+        [81, 1], [79, 1], [76, 1], [74, 1], [72, 2], [69, 1], [0, 1],
+      ],
+      harmony: [
+        [60, 2], [64, 2], [57, 2], [59, 2],
+        [62, 2], [65, 2], [64, 2], [57, 2],
+        [60, 2], [64, 2], [67, 2], [64, 2],
+        [65, 2], [64, 2], [60, 2], [57, 2],
+      ],
+      bass: [
+        [45, 1], [45, 1], [52, 1], [45, 1], [41, 1], [41, 1], [48, 1], [41, 1],
+        [43, 1], [43, 1], [50, 1], [43, 1], [45, 1], [52, 1], [45, 1], [45, 1],
+        [45, 1], [45, 1], [52, 1], [45, 1], [43, 1], [43, 1], [50, 1], [43, 1],
+        [41, 1], [41, 1], [48, 1], [41, 1], [45, 1], [40, 1], [45, 1], [45, 1],
+      ],
+      drums: [ // 1 = kick-ish thump, 2 = hat tick
+        [1, 1], [2, 1], [2, 1], [2, 1], [1, 1], [2, 1], [1, 0.5], [2, 0.5], [2, 1],
+      ],
+    },
+    town: {
+      bpm: 100,
+      lead: [ // C major, market-day jig
+        [72, 1], [76, 0.5], [74, 0.5], [72, 1], [79, 1], [77, 1], [76, 1], [74, 2],
+        [71, 1], [74, 0.5], [72, 0.5], [71, 1], [67, 1], [69, 1], [71, 1], [72, 2],
+        [72, 1], [76, 0.5], [74, 0.5], [72, 1], [79, 1], [81, 1], [79, 1], [77, 2],
+        [76, 1], [74, 1], [72, 1], [71, 1], [72, 3], [0, 1],
+      ],
+      harmony: [
+        [64, 2], [67, 2], [65, 2], [62, 2],
+        [62, 2], [64, 2], [62, 2], [64, 2],
+        [64, 2], [67, 2], [69, 2], [65, 2],
+        [67, 2], [65, 2], [64, 2], [60, 2],
+      ],
+      bass: [
+        [48, 1], [55, 1], [52, 1], [55, 1], [53, 1], [55, 1], [43, 1], [47, 1],
+        [43, 1], [50, 1], [48, 1], [52, 1], [41, 1], [43, 1], [48, 1], [48, 1],
+        [48, 1], [55, 1], [52, 1], [55, 1], [53, 1], [57, 1], [53, 1], [50, 1],
+        [55, 1], [50, 1], [48, 1], [43, 1], [48, 2], [48, 2],
+      ],
+      drums: [[2, 1], [2, 1], [1, 1], [2, 1]],
+    },
+    night: {
+      bpm: 72,
+      lead: [ // D dorian, sparse and watchful
+        [62, 2], [65, 2], [69, 3], [67, 1], [65, 2], [62, 4], [0, 2],
+        [60, 2], [62, 2], [65, 3], [69, 1], [67, 2], [65, 4], [0, 2],
+        [62, 2], [65, 2], [72, 3], [70, 1], [69, 2], [65, 2], [62, 4], [0, 2],
+      ],
+      harmony: [
+        [53, 4], [57, 4], [50, 4], [48, 4],
+        [53, 4], [55, 4], [57, 4], [50, 4],
+      ],
+      bass: [
+        [38, 4], [41, 4], [36, 4], [38, 4],
+        [41, 4], [43, 4], [38, 4], [38, 4],
+      ],
+      drums: [[0, 4]],
+    },
+  };
+
+  const CHANNEL_VOICE = {
+    lead: { type: 'square', gain: 0.045, decay: 0.9 },
+    harmony: { type: 'square', gain: 0.022, decay: 0.95, detune: -1200 },
+    bass: { type: 'triangle', gain: 0.07, decay: 0.95 },
+  };
+
+  let currentTrack = 'overworld';
+  let pendingTrack = null;
+
+  function midiHz(m) {
+    return 440 * Math.pow(2, (m - 69) / 12);
+  }
+
+  function startMusic() {
+    const pos = {}; // channel -> { i, t }
+    let trackStart = ctx.currentTime + 0.2;
+    const resetPos = () => {
+      for (const ch of ['lead', 'harmony', 'bass', 'drums']) pos[ch] = { i: 0, t: trackStart };
+    };
+    resetPos();
+    setInterval(() => {
+      if (!started) return;
+      const track = TRACKS[currentTrack];
+      const spb = 60 / track.bpm;
+      const horizon = ctx.currentTime + 0.4;
+      // switch tracks at a loop boundary-ish (when the lead wraps)
+      for (const ch of ['lead', 'harmony', 'bass', 'drums']) {
+        const seq = track[ch];
+        if (!seq || !seq.length) continue;
+        const P = pos[ch];
+        while (P.t < horizon) {
+          const [note, beats] = seq[P.i % seq.length];
+          const dur = beats * spb;
+          if (ch === 'drums') {
+            if (note === 1) scheduleThump(P.t);
+            else if (note === 2) scheduleTick(P.t);
+          } else if (note) {
+            scheduleNote(ch, note, P.t, dur);
+          }
+          P.t += dur;
+          P.i++;
+          if (ch === 'lead' && P.i % seq.length === 0 && pendingTrack) {
+            currentTrack = pendingTrack;
+            pendingTrack = null;
+            trackStart = P.t;
+            resetPos();
+            break;
+          }
+        }
+      }
+    }, 150);
+  }
+
+  function scheduleNote(ch, midi, at, dur) {
+    const v = CHANNEL_VOICE[ch];
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = v.type;
+    o.frequency.value = midiHz(midi);
+    if (v.detune) o.detune.value = v.detune;
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(v.gain, at + 0.02);
+    g.gain.setValueAtTime(v.gain, at + dur * 0.6);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur * v.decay);
+    o.connect(g).connect(musicBus);
+    o.start(at);
+    o.stop(at + dur);
+  }
+
+  function scheduleThump(at) {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(110, at);
+    o.frequency.exponentialRampToValueAtTime(45, at + 0.12);
+    g.gain.setValueAtTime(0.09, at);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + 0.13);
+    o.connect(g).connect(musicBus);
+    o.start(at);
+    o.stop(at + 0.15);
+  }
+
+  function scheduleTick(at) {
+    const len = Math.ceil(ctx.sampleRate * 0.03);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.value = 6000;
+    const g = ctx.createGain();
+    g.gain.value = 0.05;
+    src.connect(f).connect(g).connect(musicBus);
+    src.start(at);
+  }
+
+  function setTrack(name) {
+    if (TRACKS[name] && name !== currentTrack) pendingTrack = name;
   }
 
   function start() {
@@ -177,5 +341,5 @@ const Sound = (() => {
   document.addEventListener('pointerdown', start, { once: true });
   document.addEventListener('keydown', start, { once: true });
 
-  return { play, setVol, vols };
+  return { play, setVol, vols, setTrack };
 })();

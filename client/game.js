@@ -504,7 +504,7 @@ function toggleSettings() {
   const panel = document.getElementById('settings');
   panel.classList.toggle('hidden');
   if (!panel.classList.contains('hidden')) {
-    for (const which of ['master', 'sfx', 'amb']) {
+    for (const which of ['master', 'sfx', 'amb', 'music']) {
       document.getElementById('vol-' + which).value = Sound.vols[which];
     }
   }
@@ -859,6 +859,16 @@ function tileAt(x, y) {
   if (!c) return T.WATER; // not streamed in yet
   return c[(y % m.chunk) * m.chunk + (x % m.chunk)];
 }
+
+// The minstrel follows you: town tune near a settlement, a night air after
+// dark, the road-song otherwise.
+setInterval(() => {
+  if (!state.me) return;
+  const nearTown = state.villages.some((v) =>
+    Math.abs(v.x - state.me.x) < 26 && Math.abs(v.y - state.me.y) < 26) ||
+    (Math.abs(1024 - state.me.x) < 30 && Math.abs(1024 - state.me.y) < 30);
+  Sound.setTrack(nearTown ? 'town' : dayDarkness() > 0.3 ? 'night' : 'overworld');
+}, 3000);
 
 // Stream in the chunks around the player as they travel.
 setInterval(() => {
