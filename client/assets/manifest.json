@@ -284,6 +284,24 @@
    "ax": 32,
    "ay": 48
   },
+  "prop.table": {
+   "img": "building",
+   "x": 64,
+   "y": 337,
+   "w": 107,
+   "h": 43,
+   "ax": 53,
+   "ay": 27
+  },
+  "prop.stool": {
+   "img": "building",
+   "x": 211,
+   "y": 353,
+   "w": 26,
+   "h": 22,
+   "ax": 13,
+   "ay": 6
+  },
   "tree.snowpine0": {
    "img": "snowtrees",
    "x": 0,
@@ -586,10 +604,10 @@
   },
   "dragon": {
    "img": "dragon",
-   "cellW": 146,
-   "cellH": 90,
-   "ax": 73,
-   "ay": 70,
+   "cellW": 234,
+   "cellH": 144,
+   "ax": 117,
+   "ay": 112,
    "dirs": 1,
    "anims": {
     "stance": {
@@ -614,9 +632,9 @@
   },
   "player": {
    "img": "player",
-   "cellW": 114,
-   "cellH": 110,
-   "ax": 46,
+   "cellW": 130,
+   "cellH": 127,
+   "ax": 61,
    "ay": 102,
    "dirs": 8,
    "anims": {
@@ -642,9 +660,9 @@
   },
   "vendor": {
    "img": "vendor",
-   "cellW": 117,
-   "cellH": 111,
-   "ax": 46,
+   "cellW": 132,
+   "cellH": 128,
+   "ax": 61,
    "ay": 104,
    "dirs": 8,
    "anims": {

@@ -37,6 +37,7 @@ const state = {
   mobs: new Map(),
   vendors: [],          // static shopkeepers from the welcome message
   drops: [],            // loot lying on the ground
+  props: [],            // furniture inside buildings (client-side dressing)
   me: null,             // my entry in players
   you: null,            // private stats from the server
   speech: new Map(),    // entity id -> { text, until, magic }
@@ -88,6 +89,22 @@ function handleMessage(msg) {
       state.chunks.clear();
       state.wantedChunks.clear();
       state.buildings = msg.buildings || [];
+      // Dress interiors with furniture, avoiding tiles where a vendor stands.
+      state.props = [];
+      const occupied = new Set(state.vendors.map((v) => v.x + ',' + v.y));
+      for (const b of state.buildings) {
+        if (b.w < 5 || b.h < 4) continue;
+        const cx = b.x + Math.floor(b.w / 2);
+        const cy = b.y + Math.floor(b.h / 2);
+        const spots = [[cx, cy], [cx - 1, cy], [cx, cy - 1], [cx + 1, cy]];
+        const free = spots.filter(([x, y]) =>
+          !occupied.has(x + ',' + y) &&
+          x > b.x && x < b.x + b.w - 1 && y > b.y && y < b.y + b.h - 1);
+        if (free.length) {
+          state.props.push({ x: free[0][0], y: free[0][1], name: b.w >= 6 ? 'prop.table' : 'prop.stool' });
+          if (free.length > 1) state.props.push({ x: free[1][0], y: free[1][1], name: 'prop.stool' });
+        }
+      }
       state.mini = msg.mini;
       buildMinimap();
       document.getElementById('login').classList.add('hidden');
@@ -509,6 +526,23 @@ function hash(x, y) {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
+// Terrain blending: tiles with higher priority bleed a soft fringe onto
+// lower-priority neighbours. Masonry (floor/wall/shrine) stays crisp.
+const TILE_BLEND = {
+  [T.WATER]: { pal: 'water', pri: 0 },
+  [T.SAND]: { pal: 'sand', pri: 1 },
+  [T.ROCK]: { pal: 'dirt', pri: 2 },
+  [T.ROAD]: { pal: 'dirt', pri: 3 },
+  [T.GRASS]: { pal: 'grass', pri: 4 },
+  [T.TREE]: { pal: 'grass', pri: 4 },
+  [T.SNOW]: { pal: 'snow', pri: 5 },
+  [T.SNOWTREE]: { pal: 'snow', pri: 5 },
+};
+
+// Neighbour offsets for the four diamond edges, in edge order
+// (upper-left, upper-right, lower-right, lower-left).
+const EDGE_NEIGHBOR = [[-1, 0], [0, -1], [1, 0], [0, 1]];
+
 // Flat-shaded fallback palette, used when sprite assets are unavailable.
 const TILE_COLORS = {
   [T.WATER]: ['#1d4d6e', '#1a4664'],
@@ -601,6 +635,17 @@ function render() {
         const recipe = Assets.tile(tile) || Assets.tile(T.WATER);
         Assets.drawGround(ctx, recipe, h, sx, sy);
 
+        // Feather higher-priority neighbours over this tile's edges.
+        const blend = TILE_BLEND[tile];
+        if (blend) {
+          for (let e = 0; e < 4; e++) {
+            const nb = TILE_BLEND[tileAt(tx + EDGE_NEIGHBOR[e][0], ty + EDGE_NEIGHBOR[e][1])];
+            if (nb && nb.pri > blend.pri && nb.pal !== blend.pal) {
+              Assets.drawFringe(ctx, nb.pal, e, sx, sy);
+            }
+          }
+        }
+
         if (recipe.objectSets) {
           const sets = recipe.objectSets;
           const set = sets[Math.floor(hash((tx >> 4) * 7 + 3, (ty >> 4) * 13 + 5) * sets.length)];
@@ -609,7 +654,8 @@ function render() {
         } else if (recipe.object) {
           const name = recipe.object[Math.floor(hash(tx * 5 + 1, ty) * recipe.object.length)];
           drawables.push({ depth: tx + ty, kind: 'sprite', name, x: top.x, y: top.y + HH,
-            stack: recipe.stack || 1 });
+            stack: recipe.stack || 1,
+            win: recipe.stack > 1 && hash(tx * 3 + 5, ty * 7 + 1) > 0.55 });
         } else if (recipe.decor && hash(tx, ty * 3 + 1) < recipe.decor.chance) {
           const name = recipe.decor.objects[Math.floor(h * recipe.decor.objects.length)];
           drawables.push({ depth: tx + ty, kind: 'sprite', name, x: top.x, y: top.y + HH });
@@ -637,6 +683,13 @@ function render() {
     drawables.push({ depth: b.x + b.w + b.y + b.h + 0.5, kind: 'roof', b });
   }
 
+  // Interior furniture.
+  for (const pr of state.props) {
+    if (pr.x < x0 || pr.x > x1 || pr.y < y0 || pr.y > y1) continue;
+    const s = worldToScreen(pr.x, pr.y, cam);
+    drawables.push({ depth: pr.x + pr.y, kind: 'sprite', name: pr.name, x: s.x, y: s.y + HH, stack: 1 });
+  }
+
   // Entities join the same depth-sorted pass.
   for (const d of state.drops) drawables.push({ depth: d.x + d.y, kind: 'drop', e: d });
   for (const v of state.vendors) drawables.push({ depth: v.rx + v.ry, kind: 'vendor', e: v });
@@ -651,6 +704,7 @@ function render() {
           // Stacked wall cubes: plain blocks below, the variant on top.
           for (let i = 0; i < d.stack - 1; i++) Assets.drawFrame(ctx, 'wall.0', d.x, d.y - 32 * i);
           Assets.drawFrame(ctx, d.name, d.x, d.y - 32 * (d.stack - 1));
+          if (d.win) drawWindow(d.x, d.y);
         } else {
           Assets.drawFrame(ctx, d.name, d.x, d.y);
         }
@@ -658,7 +712,7 @@ function render() {
       case 'block': drawFallbackBlock(d); break;
       case 'shrine': drawShrine(d.x, d.y, time); break;
       case 'drop': drawDrop(d.e, cam, time); break;
-      case 'roof': drawRoof(d.b, cam); break;
+      case 'roof': drawRoof(d.b, cam, time); break;
       case 'vendor': drawVendor(d.e, cam, time); break;
       case 'mob': drawMob(d.e, cam, time); break;
       case 'player': drawPlayer(d.e, cam, time); break;
@@ -746,9 +800,21 @@ function drawFallbackBlock(d) {
   }
 }
 
+// A shuttered window on the southeast face of an upper wall cube.
+function drawWindow(cx, cy) {
+  const x = cx + 9;
+  const y = cy - 56;
+  ctx.fillStyle = '#241a12';
+  ctx.fillRect(x, y, 8, 11);
+  ctx.fillStyle = 'rgba(250, 220, 130, 0.25)';
+  ctx.fillRect(x + 1, y + 1, 6, 4);
+  ctx.strokeStyle = '#54483a';
+  ctx.strokeRect(x - 0.5, y - 0.5, 9, 12);
+}
+
 // A gabled roof drawn as an isometric prism above the building's walls.
 // UO-style: it vanishes while you stand inside.
-function drawRoof(b, cam) {
+function drawRoof(b, cam, time) {
   const e = 0.3; // eave overhang in tiles
   const x0 = b.x - e;
   const y0 = b.y - e;
@@ -787,6 +853,7 @@ function drawRoof(b, cam) {
     ctx.stroke();
   };
 
+  let chimney;
   if (b.w >= b.h) {
     // Ridge runs west-east.
     const my = (y0 + y1) / 2;
@@ -796,6 +863,12 @@ function drawRoof(b, cam) {
     poly([D, C, rB, rA], '#a0523f');  // south slope (faces camera)
     courses(D, C, rA, rB);
     poly([B, C, rB], '#874437');      // east gable
+    // ridge cap
+    ctx.strokeStyle = '#552a22';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(rA[0], rA[1]); ctx.lineTo(rB[0], rB[1]); ctx.stroke();
+    ctx.lineWidth = 1;
+    chimney = P(x0 + 1.4, my, ridgeLift);
   } else {
     // Ridge runs north-south.
     const mx = (x0 + x1) / 2;
@@ -805,6 +878,27 @@ function drawRoof(b, cam) {
     poly([B, C, rB, rA], '#a0523f');  // east slope (faces camera)
     courses(B, C, rA, rB);
     poly([D, C, rB], '#874437');      // south gable
+    ctx.strokeStyle = '#552a22';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(rA[0], rA[1]); ctx.lineTo(rB[0], rB[1]); ctx.stroke();
+    ctx.lineWidth = 1;
+    chimney = P(mx, y0 + 1.4, ridgeLift);
+  }
+
+  // Chimney and a lazy plume of smoke.
+  ctx.fillStyle = '#6a6258';
+  ctx.fillRect(chimney[0] - 4, chimney[1] - 14, 8, 14);
+  ctx.fillStyle = '#544e46';
+  ctx.fillRect(chimney[0] - 5, chimney[1] - 16, 10, 3);
+  const seed = (b.x * 31 + b.y * 17) % 1000;
+  for (let i = 0; i < 3; i++) {
+    const k = ((time / 1800 + seed / 1000 + i / 3) % 1);
+    const px = chimney[0] + Math.sin((k * 5 + i) * 2.2) * 4 + k * 8;
+    const py = chimney[1] - 18 - k * 26;
+    ctx.fillStyle = `rgba(200, 198, 192, ${0.3 * (1 - k)})`;
+    ctx.beginPath();
+    ctx.arc(px, py, 3 + k * 5, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 

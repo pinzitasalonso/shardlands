@@ -51,6 +51,8 @@ SOURCES = {
     'head_short.txt': f'{FLARE}/fantasycore/animations/avatar/male/head_short.txt',
     'mage_hood.png': f'{FLARE}/fantasycore/images/avatar/male/mage_hood.png',
     'mage_hood.txt': f'{FLARE}/fantasycore/animations/avatar/male/mage_hood.txt',
+    'leather_boots.png': f'{FLARE}/fantasycore/images/avatar/male/leather_boots.png',
+    'leather_boots.txt': f'{FLARE}/fantasycore/animations/avatar/male/leather_boots.txt',
 }
 
 # Flare's calcDirection: dir = (round(theta / 45deg) + 5) % 8, theta in tile
@@ -334,6 +336,8 @@ def main():
     trim_object(terrain, (448, 832, 640, 1024), 'tree.oak', frames, 'terrain')
     trim_object(building, (0, 0, 64, 64), 'wall.0', frames, 'building')
     trim_object(building, (64, 0, 128, 64), 'wall.1', frames, 'building')
+    trim_object(building, (64, 320, 178, 384), 'prop.table', frames, 'building')
+    trim_object(building, (208, 352, 240, 384), 'prop.stool', frames, 'building')
 
     # Snow-dusted trees: copies of the conifers with whitened foliage.
     snow_sources = ['tree.pine0', 'tree.pine1', 'tree.pine2', 'tree.pine3',
@@ -411,16 +415,17 @@ def main():
     creatures['skeleton'] = build_creature('skeleton', [packed('skeleton')], scale=0.6)
     creatures['orc'] = build_creature('orc', [packed('hobgoblin')], scale=0.95)
     creatures['ettin'] = build_minotaur(scale=1.0)
-    creatures['dragon'] = build_dragon(scale=0.5)
+    creatures['dragon'] = build_dragon(scale=0.8)
 
     pants = packed('cloth_pants')
+    boots = packed('leather_boots')
     shirt = packed('cloth_shirt')
     head = packed('head_short')
     hood = packed('mage_hood')
     creatures['player'] = build_creature(
-        'player', [pants, shirt, head], scale=0.66, stance_ms=260)
+        'player', [boots, pants, shirt, head], scale=0.66, stance_ms=260)
     creatures['vendor'] = build_creature(
-        'vendor', [pants, shirt, hood], scale=0.66, stance_ms=320)
+        'vendor', [boots, pants, shirt, hood], scale=0.66, stance_ms=320)
 
     manifest = {
         'tileW': 64, 'tileH': 32,
