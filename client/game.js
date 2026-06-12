@@ -787,39 +787,36 @@ function drawFallbackBlock(d) {
   }
 }
 
-// A window on an upper wall cube, drawn as a parallelogram that follows
-// the isometric face: face 1 = southeast (right), face 2 = southwest (left).
+// A window on an upper wall cube. The cube art uses horizontal brick
+// courses on its faces, so the window is axis-aligned to match: recessed
+// dark opening under a stone lintel, with a sill and a faint lamp glow.
+// face 1 = southeast (right of the cube's front corner), 2 = southwest.
 function drawWindow(cx, cy, face) {
-  const w = 10;
-  const h = 11;
-  const sgn = face === 1 ? 1 : -1;
-  const x0 = cx + sgn * 6;               // inner edge of the face
-  const x1 = x0 + sgn * w;
-  const y0 = cy - 42;                    // top of the frame, on the upper cube's face
-  const y1 = y0 + w / 2;                 // face slope: |dy| = dx / 2
-  const quad = (yo, hh, fill) => {
-    ctx.fillStyle = fill;
-    ctx.beginPath();
-    ctx.moveTo(x0, y0 + yo);
-    ctx.lineTo(x1, y1 + yo);
-    ctx.lineTo(x1, y1 + yo + hh);
-    ctx.lineTo(x0, y0 + yo + hh);
-    ctx.closePath();
-    ctx.fill();
-  };
-  quad(-1, h + 2, '#4e4438');            // stone frame
-  quad(0, h, '#1d1610');                 // opening
-  quad(1, 4, 'rgba(252, 222, 130, 0.3)'); // lamplight inside
-  // mullions
-  ctx.strokeStyle = '#4e4438';
-  ctx.beginPath();
-  const mx = (x0 + x1) / 2;
-  const my = (y0 + y1) / 2;
-  ctx.moveTo(mx, my);
-  ctx.lineTo(mx, my + h);
-  ctx.moveTo(x0, y0 + h / 2);
-  ctx.lineTo(x1, y1 + h / 2);
-  ctx.stroke();
+  const w = 12;
+  const h = 15;
+  const x = face === 1 ? cx + 9 : cx - 9 - w;
+  const y = cy - 41;
+  // lintel and sill in the wall's lighter stone
+  ctx.fillStyle = '#aeb6a2';
+  ctx.fillRect(x - 2, y - 3, w + 4, 3);
+  ctx.fillRect(x - 2, y + h, w + 4, 3);
+  ctx.fillStyle = '#7e8674';
+  ctx.fillRect(x - 2, y + h + 3, w + 4, 1);
+  // recessed opening
+  ctx.fillStyle = '#171209';
+  ctx.fillRect(x, y, w, h);
+  // lamplight behind the panes
+  ctx.fillStyle = 'rgba(252, 206, 110, 0.5)';
+  ctx.fillRect(x + 2, y + 3, w - 4, h - 6);
+  ctx.fillStyle = 'rgba(255, 235, 170, 0.35)';
+  ctx.fillRect(x + 2, y + 3, w - 4, 3);
+  // timber cross frame
+  ctx.fillStyle = '#241a10';
+  ctx.fillRect(x + (w >> 1) - 1, y, 2, h);
+  ctx.fillRect(x, y + (h >> 1) - 1, w, 2);
+  // outline
+  ctx.strokeStyle = 'rgba(30, 26, 18, 0.8)';
+  ctx.strokeRect(x - 0.5, y - 0.5, w + 1, h + 1);
 }
 
 // Roofs come in a few weathered colours so towns don't look stamped out.
