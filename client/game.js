@@ -28,6 +28,7 @@ const MOB_STYLE = {
   goblinking: { color: '#5aa040', size: 0.9, name: 'Skarg, the Goblin King', sprite: 'goblin', spriteScale: 1.5, boss: true },
   bonelord: { color: '#d8d4c8', size: 1.1, name: 'the Bone Lord', sprite: 'skeleton', spriteScale: 1.4, boss: true },
   wolfking: { color: '#6a625a', size: 0.9, name: 'Greyfang, the Wolf King', sprite: 'wolf', spriteScale: 1.6, boss: true },
+  vyrmaur: { color: '#c03828', size: 1.6, name: 'Vyrmaur the Undying', sprite: 'dragon', spriteScale: 2.0, boss: true },
 };
 
 const canvas = document.getElementById('game');
@@ -61,7 +62,7 @@ const state = {
   minimapImage: null,
 };
 
-const QUALITY_COLORS = ['#9a9a9a', '#e8e2d0', '#6ac06a', '#6a9ae0', '#e0a040'];
+const QUALITY_COLORS = ['#9a9a9a', '#e8e2d0', '#6ac06a', '#6a9ae0', '#e0a040', '#ff5a3c'];
 
 function weaponLabel(item) {
   const q = state.qualities[item.q];
@@ -380,7 +381,7 @@ function openShop(vendor) {
   let forge = '';
   if (vendor.forge) {
     forge = '<div class="shop-title" style="margin-top:10px">Forge</div>' +
-      Object.entries(state.weapons).map(([id, def]) =>
+      Object.entries(state.weapons).filter(([, def]) => def.craft && !def.secret).map(([id, def]) =>
         `<div class="shop-row">
            <span>${esc(def.name)}<small>${def.craft.ore} ore · ${def.craft.logs} logs · ${def.craft.gold} gp</small></span>
            <button data-craft="${esc(id)}">Forge</button>

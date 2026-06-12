@@ -45,6 +45,7 @@ const MOB_KINDS = {
   villager: { name: 'a villager', hp: 30, dmg: [0, 1], skill: 5, gold: 0, speedMs: 900, aggro: 0, peaceful: true },
   // Crowned terrors. Slain ones return after a long while.
   goblinking: { name: 'Skarg, the Goblin King', hp: 130, dmg: [6, 12], skill: 60, gold: 220, speedMs: 320, aggro: 9 },
+  vyrmaur: { name: 'Vyrmaur the Undying', hp: 900, dmg: [22, 40], skill: 110, gold: 1500, speedMs: 380, aggro: 12 },
   bonelord: { name: 'the Bone Lord', hp: 170, dmg: [8, 14], skill: 75, gold: 280, speedMs: 450, aggro: 9 },
   wolfking: { name: 'Greyfang, the Wolf King', hp: 150, dmg: [7, 13], skill: 70, gold: 240, speedMs: 330, aggro: 9 },
 };
@@ -61,6 +62,7 @@ const VILLAGER_LINES = [
   'Welcome, traveller. The shrine will keep thee safe.',
   'I heard the standing stones can carry you across the world.',
   'Gems! A fellow came through with a fistful of gems last week.',
+  'My grandmother swore something old sleeps at the rim of the world.',
 ];
 
 // What corpses leave behind, beyond the guaranteed gold: [chance, item, min, max].
@@ -76,6 +78,7 @@ const LOOT_TABLES = {
   goblinking: [[1, 'gold', 100, 250], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2], [1, 'weapon', ['sword', 'mace'], 2, 3]],
   bonelord: [[1, 'gold', 120, 300], [1, 'gems', 1, 2], [0.6, 'mana', 1, 2], [1, 'weapon', ['battleaxe', 'greatsword'], 2, 4]],
   wolfking: [[1, 'gold', 100, 260], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2], [1, 'weapon', ['sword'], 2, 3]],
+  vyrmaur: [[1, 'gold', 800, 1500], [1, 'gems', 3, 6], [1, 'heal', 2, 3]],
 };
 
 const DROP_TTL_MS = 60_000;
@@ -94,6 +97,8 @@ const WEAPONS = {
   mace:       { name: 'Mace',       dmg: [7, 14],  speedMs: 1800, price: 150, dur: 120, sprite: 'mace',       craft: { ore: 10, logs: 4, gold: 40 } },
   battleaxe:  { name: 'Battle Axe', dmg: [9, 17],  speedMs: 2100, price: 260, dur: 130, minSkill: 40, sprite: 'battle_axe', craft: { ore: 14, logs: 5, gold: 70 } },
   greatsword: { name: 'Greatsword', dmg: [12, 22], speedMs: 2400, price: 420, dur: 140, minSkill: 60, sprite: 'greatsword', craft: { ore: 20, logs: 6, gold: 120 } },
+  // There is only one. It is not for sale, and no forge will make another.
+  dawnbreaker: { name: 'Dawnbreaker', dmg: [18, 30], speedMs: 2000, price: 2500, dur: 600, sprite: 'greatsword', secret: true },
 };
 
 const QUALITIES = [
@@ -102,6 +107,7 @@ const QUALITIES = [
   { name: 'Fine',        dmgMul: 1.15, durMul: 1.4, priceMul: 2.0 },
   { name: 'Exceptional', dmgMul: 1.3,  durMul: 1.9, priceMul: 4.0 },
   { name: 'Masterwork',  dmgMul: 1.45, durMul: 2.5, priceMul: 8.0 },
+  { name: '',            dmgMul: 1.0,  durMul: 1.0, priceMul: 1.0 }, // the legend speaks for itself
 ];
 
 const ITEM_CAP = 10;
@@ -462,7 +468,7 @@ class Game {
   handleCraft(p, id) {
     if (p.dead) return this.sys(p, 'The dead cannot work a forge.');
     const def = WEAPONS[id];
-    if (!def) return;
+    if (!def || !def.craft || def.secret) return;
     const vendor = this.vendors.find((v) => v.forge && dist(p, v) <= 3);
     if (!vendor) return this.sys(p, 'You need a blacksmith\'s forge for that.');
     const c = def.craft;
@@ -728,7 +734,31 @@ class Game {
 
   // The corpse sometimes leaves something on the ground; first to step on
   // the tile claims it.
+  // True singletons: nothing drops again while a copy exists anywhere —
+  // in a pack, in a saved record, or lying on the ground.
+  legendOwned(id) {
+    for (const rec of Object.values(this.records)) {
+      if ((rec.items || []).some((i) => i.id === id)) return true;
+    }
+    for (const q of this.players.values()) {
+      if (q.items.some((i) => i.id === id)) return true;
+    }
+    for (const d of this.drops.values()) {
+      if (d.item === 'weapon' && d.w.id === id) return true;
+    }
+    return false;
+  }
+
   rollLoot(mob) {
+    if (mob.kind === 'vyrmaur' && !this.legendOwned('dawnbreaker')) {
+      const def = WEAPONS.dawnbreaker;
+      this.drops.set(this.nextId, {
+        id: this.nextId++,
+        x: mob.x, y: mob.y,
+        item: 'weapon', w: { id: 'dawnbreaker', q: 5, dur: def.dur, maxDur: def.dur },
+        despawnAt: now() + 10 * 60_000, // it waits longer than common spoils
+      });
+    }
     for (const entry of LOOT_TABLES[mob.kind] || []) {
       if (Math.random() > entry[0]) continue;
       if (entry[1] === 'weapon') {

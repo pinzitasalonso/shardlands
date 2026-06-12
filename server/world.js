@@ -441,6 +441,28 @@ function generate(seed = 1337) {
     spawners.push({ kind: 'wolf', count: 5, x: wolfSpot.x, y: wolfSpot.y, r: 9 });
   }
 
+  // ---- At the rim of the world, something older than the dragons sleeps ----------
+  let rim = null;
+  tries = 0;
+  while (!rim && tries++ < 400) {
+    const a = rng() * Math.PI * 2;
+    const d = 940 - tries * 0.5; // hug the edge, fall back inland if it must
+    const spot = settle(CX + Math.cos(a) * d, CY + Math.sin(a) * d, 50, 7);
+    if (spot && Math.hypot(spot.x - CX, spot.y - CY) > 700) rim = spot;
+  }
+  if (rim) {
+    flatten(rim.x, rim.y, 7);
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const x = Math.round(rim.x + Math.cos(a) * 5);
+      const y = Math.round(rim.y + Math.sin(a) * 5);
+      if (get(x, y) !== TILE.WATER) set(x, y, TILE.ROCK);
+    }
+    spawners.push({ kind: 'vyrmaur', count: 1, x: rim.x, y: rim.y, r: 3, respawnMs: 30 * 60_000 });
+    secrets.push({ type: 'whisper', x: rim.x, y: rim.y - 9,
+      text: 'The air shimmers with heat, and the very stones seem afraid.' });
+  }
+
   // ---- Dragons roost far from civilisation ---------------------------------------
   let dragons = 0;
   tries = 0;
