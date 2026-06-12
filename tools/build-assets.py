@@ -7,7 +7,13 @@ them into the atlases under client/assets/, and writes manifest.json.
 The game runs fine without ever running this script -- the generated assets
 are committed. Re-run it when adding creatures or changing the slicing.
 
-    python3 tools/build-assets.py
+    python3 tools/build-assets.py            # full build, then applies art/overrides/
+    python3 tools/build-assets.py --export   # dump editable copies + grid guides to art/
+
+Hand-editing art (Photoshop, Figma, Aseprite, ...): run with --export, edit
+the PNGs under art/editable/ (the matching *.guide.png shows the frame grid),
+save your version under art/overrides/ at the same relative path, and run the
+build again. See art/README.md for the full workflow.
 
 Requires: pillow, numpy.
 
@@ -28,6 +34,7 @@ from PIL import Image
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, 'tools', 'asset-src')
 OUT = os.path.join(ROOT, 'client', 'assets')
+ART = os.path.join(ROOT, 'art')
 
 FLARE = 'https://raw.githubusercontent.com/flareteam/flare-game/master/mods'
 OGA = 'https://opengameart.org/sites/default/files'
@@ -624,6 +631,170 @@ def main():
         json.dump(manifest, f, indent=1)
     print('wrote', os.path.join(OUT, 'manifest.json'))
 
+    apply_overrides()
+
+
+# ---- hand-editing workflow: export to art/, override from art/ ----------------
+#
+# Every finished PNG under client/assets/ can be replaced by dropping an
+# edited copy (same relative path, same pixel size) under art/overrides/.
+# --export writes editable copies plus *.guide.png sheets that draw the
+# frame grid on top, so Photoshop/Figma users can see exactly where each
+# animation cell or terrain frame sits.
+
+def asset_pngs():
+    for dirpath, _, files in os.walk(OUT):
+        for fn in sorted(files):
+            if fn.endswith('.png'):
+                full = os.path.join(dirpath, fn)
+                yield os.path.relpath(full, OUT), full
+
+
+def apply_overrides():
+    src = os.path.join(ART, 'overrides')
+    if not os.path.isdir(src):
+        return
+    applied = 0
+    for rel, full in asset_pngs():
+        ov = os.path.join(src, rel)
+        if not os.path.exists(ov):
+            continue
+        edited = Image.open(ov).convert('RGBA')
+        current = Image.open(full)
+        if edited.size != current.size:
+            print(f'!! override {rel}: size is {edited.size}, expected {current.size} — '
+                  'skipped. Keep the canvas size; the manifest depends on it.')
+            continue
+        edited.save(full)
+        applied += 1
+        print('override applied:', rel)
+    if applied:
+        print(f'{applied} override(s) applied from art/overrides/')
+
+
+GUIDE_GRID = (255, 0, 255, 160)   # magenta frame lines
+GUIDE_BAND = (0, 200, 255, 200)   # cyan animation-band separators
+
+
+def export_editable():
+    from PIL import ImageDraw
+    with open(os.path.join(OUT, 'manifest.json')) as f:
+        manifest = json.load(f)
+    dest = os.path.join(ART, 'editable')
+
+    # editable copies of every atlas
+    for rel, full in asset_pngs():
+        out = os.path.join(dest, rel)
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        Image.open(full).save(out)
+
+    def guide_for(rel):
+        img = Image.open(os.path.join(OUT, rel)).convert('RGBA')
+        return img, ImageDraw.Draw(img)
+
+    def save_guide(img, rel):
+        out = os.path.join(dest, rel[:-4] + '.guide.png')
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        img.save(out)
+
+    # creature atlases: cell grid, one row per facing, labelled anim bands
+    for name, c in manifest['creatures'].items():
+        rel = manifest['images'][c['img']]
+        img, draw = guide_for(rel)
+        w, h = img.size
+        for x in range(0, w + 1, c['cellW']):
+            draw.line([(x, 0), (x, h)], fill=GUIDE_GRID)
+        for y in range(0, h + 1, c['cellH']):
+            draw.line([(0, y), (w, y)], fill=GUIDE_GRID)
+        for anim, a in c['anims'].items():
+            x = a['start'] * c['cellW']
+            draw.line([(x, 0), (x, h)], fill=GUIDE_BAND, width=2)
+            draw.text((x + 3, 2), f"{anim} x{a['frames']}", fill=GUIDE_BAND)
+        if c.get('dirs', 1) > 1:
+            for row in range(c['dirs']):
+                draw.text((2, row * c['cellH'] + c['cellH'] - 12), f'dir {row}', fill=GUIDE_GRID)
+        save_guide(img, rel)
+
+    # frame atlases (terrain, buildings, tinted trees): outline + name each frame
+    by_img = {}
+    for fname, fr in manifest['frames'].items():
+        by_img.setdefault(fr['img'], []).append((fname, fr))
+    for img_key, frames in by_img.items():
+        rel = manifest['images'][img_key]
+        img, draw = guide_for(rel)
+        for fname, fr in frames:
+            draw.rectangle([fr['x'], fr['y'], fr['x'] + fr['w'] - 1, fr['y'] + fr['h'] - 1],
+                           outline=GUIDE_GRID)
+            draw.text((fr['x'] + 2, fr['y'] + 1), fname, fill=GUIDE_BAND)
+        save_guide(img, rel)
+
+    write_art_readme()
+    print('exported editable art + guides to', dest)
+
+
+def write_art_readme():
+    os.makedirs(ART, exist_ok=True)
+    with open(os.path.join(ART, 'README.md'), 'w') as f:
+        f.write('''# Editing Shardlands art by hand
+
+The game draws everything from the PNG atlases in `client/assets/` (laid out
+by `client/assets/manifest.json`). This folder is the round-trip for editing
+them in Photoshop, Figma, Aseprite or any other image editor.
+
+## Workflow
+
+1. `python3 tools/build-assets.py --export`
+   - `art/editable/` — a copy of every atlas, ready to open and edit
+   - next to each atlas, a `*.guide.png` overlay drawing the frame grid:
+     magenta lines are frame/cell boundaries, cyan marks animation bands
+     (`stance`/`run`/`melee`) with their frame counts, and each creature row
+     is one of the 8 facing directions
+2. Edit the PNG (not the guide). Keep:
+   - **the exact canvas size** — the manifest stores pixel rectangles
+   - **each frame inside its cell** — use the guide as a reference layer
+   - **transparent background** (straight alpha, no matte)
+3. Save your edited file to `art/overrides/<same relative path>`,
+   e.g. `art/overrides/creatures/goblin.png` or `art/overrides/terrain.png`.
+4. `python3 tools/build-assets.py` — rebuilds everything, then stamps your
+   overrides on top. Refresh the browser; no code changes needed.
+
+Overrides are permanent until you delete the file from `art/overrides/`:
+every rebuild reapplies them, so source-art updates never clobber your work.
+
+## Photoshop notes
+
+- Open the atlas from `art/editable/`, drag the matching `.guide.png` in as a
+  top reference layer, set it to ~50% opacity, and lock it.
+- Hide the guide layer before exporting: File > Export As > PNG,
+  with transparency on and the image size untouched (1x).
+
+## Figma notes
+
+- Drag the atlas PNG onto the canvas, then drop the `.guide.png` on top of it
+  at the same position as a reference (set 50% opacity, lock it).
+- Work at 100% zoom multiples with "Pixel preview" on (Ctrl/Cmd+Shift+P) so
+  pixels stay crisp.
+- To export: select only the atlas frame (hide the guide), Export > PNG at
+  **1x** — Figma must not resample the image.
+
+## Adding brand-new art
+
+New creatures/tiles need a manifest entry, which comes from the recipes in
+`tools/build-assets.py` (see `build_creature`, `build_dir4_creature` and the
+`tiles` table in `main()`). Add a recipe there, then use this same override
+flow to refine the result by hand.
+
+## Licensing
+
+Only freely licensed or original art may ship — see
+`client/assets/CREDITS.md`. Never copy Ultima Online assets; EA owns them.
+If you add art from a new source, credit it in CREDITS.md.
+''')
+
 
 if __name__ == '__main__':
-    main()
+    import sys
+    if '--export' in sys.argv:
+        export_editable()
+    else:
+        main()

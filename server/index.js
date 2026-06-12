@@ -78,10 +78,13 @@ wss.on('connection', (ws) => {
   ws.on('error', () => {});
 });
 
-process.on('SIGINT', () => {
-  game.saveAll();
-  process.exit(0);
-});
+// Railway (and most supervisors) send SIGTERM on redeploys; save on both.
+for (const sig of ['SIGINT', 'SIGTERM']) {
+  process.on(sig, () => {
+    game.saveAll();
+    process.exit(0);
+  });
+}
 
 server.listen(PORT, () => {
   console.log(`Shardlands is up: http://localhost:${PORT}`);

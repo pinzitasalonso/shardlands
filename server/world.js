@@ -307,39 +307,139 @@ function generate(seed = 1337) {
     if (camp) spawners.push({ kind: 'goblin', count: 6, x: camp.x, y: camp.y, r: 12 });
   }
 
+  // ---- Walled cities: bastions of the crown, safe ground in a wild world --------
+  // Bigger than villages: stone walls with gates, a full plaza of services,
+  // guards on patrol. Mobs will not hunt you inside the walls, and touching
+  // a city shrine binds your recall there.
+  const CITY_DEFS = [
+    { name: 'Frosthelm', angle: -Math.PI / 2 },   // under the northern snows
+    { name: 'Sunwatch', angle: Math.PI / 4 },     // facing the burning southeast
+    { name: 'Mirehold', angle: (3 * Math.PI) / 4 }, // holding the swamp road
+  ];
+  const cities = [];
+  for (const def of CITY_DEFS) {
+    let spot = null;
+    for (let i = 0; i < 80 && !spot; i++) {
+      const a = def.angle + (rng() - 0.5) * 0.6;
+      const d = 520 + rng() * 220;
+      const c = settle(CX + Math.cos(a) * d, CY + Math.sin(a) * d, 110, 17);
+      if (c && !villages.some((v) => Math.hypot(v.x - c.x, v.y - c.y) < 120)) spot = c;
+    }
+    if (!spot) continue;
+    const { x: cx, y: cy } = spot;
+    flatten(cx, cy, 20);
+    for (let y = cy - 10; y <= cy + 10; y++) {
+      for (let x = cx - 12; x <= cx + 12; x++) set(x, y, TILE.FLOOR);
+    }
+    // The wall, with a gate in each face.
+    for (let y = cy - 13; y <= cy + 13; y++) {
+      for (let x = cx - 15; x <= cx + 15; x++) {
+        const onEdge = x === cx - 15 || x === cx + 15 || y === cy - 13 || y === cy + 13;
+        if (!onEdge) continue;
+        const gate = (Math.abs(x - cx) <= 1 && (y === cy - 13 || y === cy + 13)) ||
+          (Math.abs(y - cy) <= 1 && (x === cx - 15 || x === cx + 15));
+        set(x, y, gate ? TILE.ROAD : TILE.WALL);
+      }
+    }
+    building(cx - 10, cy - 9, 8, 6, cx - 6, cy - 4);   // smithy
+    building(cx + 3, cy - 9, 8, 6, cx + 7, cy - 4);    // inn
+    building(cx - 10, cy + 4, 7, 5, cx - 7, cy + 4);   // healer
+    set(cx, cy - 2, TILE.SHRINE);
+    props.push({ x: cx + 5, y: cy + 3, name: 'prop.well' });
+    props.push({ x: cx - 4, y: cy + 1, name: 'prop.table' });
+    props.push({ x: cx - 3, y: cy + 2, name: 'prop.stool' });
+    props.push({ x: cx + 6, y: cy - 7, name: 'prop.table' }); // the inn hearth
+    props.push({ x: cx + 7, y: cy - 6, name: 'prop.stool' });
+    vendors.push({
+      name: `Garrick of ${def.name}`, x: cx - 7, y: cy - 6, forge: true, model: 'smith',
+      goods: [
+        { type: 'weapon', item: 'dagger', q: 1 },
+        { type: 'weapon', item: 'sword', q: 1 },
+        { type: 'weapon', item: 'sword', q: 2 },
+        { type: 'weapon', item: 'mace', q: 1 },
+        { type: 'weapon', item: 'longbow', q: 1 },
+        { type: 'weapon', item: 'leatherarmor', q: 1 },
+        { type: 'weapon', item: 'chainmail', q: 1 },
+        { type: 'weapon', item: 'buckler', q: 1 },
+        { item: 'arrow', name: 'Bundle of Arrows (20)', price: 15, desc: 'For the longbow.' },
+      ],
+    });
+    vendors.push({
+      name: `Apothecary of ${def.name}`, x: cx - 8, y: cy + 6,
+      goods: [
+        { item: 'heal', name: 'Greater Heal Potion', price: 45, desc: 'Restores 25-40 health.' },
+        { item: 'mana', name: 'Mana Potion', price: 35, desc: 'Restores 20-30 mana.' },
+      ],
+    });
+    spawners.push({ kind: 'villager', count: 4, x: cx, y: cy, r: 8 });
+    spawners.push({ kind: 'guard', count: 4, x: cx, y: cy, r: 11 });
+    road(cx, cy + 14, CX, CY + 11);
+    cities.push({ name: def.name, x: cx, y: cy, r: 16 });
+  }
+  // The capital is the first city of all: guarded and safe within the plaza.
+  spawners.push({ kind: 'guard', count: 4, x: CX, y: CY, r: 11 });
+  cities.push({ name: 'Briarhaven', x: CX, y: CY, r: 16 });
+
   // ---- The barrow-deeps: caverns beneath the world ------------------------------
   // Carved in the dead ocean strip along the top edge; reachable only through
   // cave mouths at the ruined keeps. Dark, dense with the dead, rich at the end.
   const dungeons = [];
-  const carveDungeon = (idx) => {
+  // Each dungeon gets its own slab in the strip and a theme: who keeps its
+  // halls, what waits at the deepest point, and how the carving wanders.
+  const carveDungeon = (idx, theme = {}) => {
     const cx = 220 + idx * 300;
     const cy = 26;
     // a sealed slab of rock
     for (let y = cy - 18; y <= cy + 18; y++) {
       for (let x = cx - 30; x <= cx + 30; x++) set(x, y, TILE.ROCK);
     }
-    // drunkard's walk carves the halls
+    // drunkard's walk carves the halls; warrens run tight, grottos open wide
+    const wander = theme.wander || 0.5;
     let wx = cx - 24;
     let wy = cy;
     set(wx, wy, TILE.CAVE);
     let far = { x: wx, y: wy };
-    for (let i = 0; i < 700; i++) {
+    for (let i = 0; i < (theme.steps || 700); i++) {
       const d = [[1, 0], [-1, 0], [0, 1], [0, -1]][Math.floor(rng() * 4)];
       wx = Math.max(cx - 28, Math.min(cx + 28, wx + d[0]));
       wy = Math.max(cy - 16, Math.min(cy + 16, wy + d[1]));
       set(wx, wy, TILE.CAVE);
-      if (rng() > 0.5) set(wx + 1, wy, TILE.CAVE);
+      if (rng() > wander) set(wx + 1, wy, TILE.CAVE);
+      if (rng() > 0.85) set(wx, wy + 1, TILE.CAVE);
       if (wx > far.x) far = { x: wx, y: wy };
     }
     const entry = { x: cx - 24, y: cy };
     dungeons.push({ entry, far });
-    // the dead keep these halls
-    spawners.push({ kind: 'skeleton', count: 7, x: cx, y: cy, r: 20 });
-    spawners.push({ kind: 'skeleton', count: 5, x: far.x, y: far.y, r: 8 });
-    // and their hoard waits at the deepest point
+    // keepers: [kind, count, 'mid'|'far', radius]
+    const keepers = theme.keepers ||
+      [['skeleton', 7, 'mid', 20], ['skeleton', 5, 'far', 8]];
+    for (const [kind, count, where, r] of keepers) {
+      const at = where === 'far' ? far : { x: cx, y: cy };
+      spawners.push({ kind, count, x: at.x, y: at.y, r: r || 12 });
+    }
+    // and a hoard waits at the deepest point
     secrets.push({ type: 'cache', x: far.x, y: far.y,
-      loot: [['gold', 150, 350], ['gems', 1, 2], ['heal', 1, 2]] });
+      loot: theme.loot || [['gold', 150, 350], ['gems', 1, 2], ['heal', 1, 2]] });
     return entry;
+  };
+
+  // Connect a surface mouth to a freshly carved dungeon.
+  const openMouth = (mouth, idx, theme, whisperText) => {
+    const entry = carveDungeon(idx, theme);
+    set(mouth.x, mouth.y, TILE.CAVE);
+    secrets.push({ type: 'portal', x: mouth.x, y: mouth.y, tx: entry.x, ty: entry.y, cave: true });
+    secrets.push({ type: 'portal', x: entry.x, y: entry.y, tx: mouth.x, ty: mouth.y, cave: true });
+    secrets.push({ type: 'whisper', x: mouth.x - 1, y: mouth.y, text: whisperText });
+  };
+
+  // Hunt the wilds for a tile of the given kind to break open.
+  const findGround = (kinds, x0, x1, y0, y1) => {
+    for (let i = 0; i < 4000; i++) {
+      const x = Math.round(x0 + rng() * (x1 - x0));
+      const y = Math.round(y0 + rng() * (y1 - y0));
+      if (kinds.includes(get(x, y)) && landScore(x, y, 4) === 1) return { x, y };
+    }
+    return null;
   };
 
   // ---- Ruined keeps with graveyards, haunted by the restless dead ---------------
@@ -360,13 +460,8 @@ function generate(seed = 1337) {
     spawners.push({ kind: 'skeleton', count: 7, x: spot.x, y: spot.y, r: 9 });
     // a cave mouth descends into the barrow-deeps
     if (keepIdx < 4) {
-      const entry = carveDungeon(keepIdx++);
-      const mouth = { x: spot.x + 2, y: spot.y + 2 };
-      set(mouth.x, mouth.y, TILE.CAVE);
-      secrets.push({ type: 'portal', x: mouth.x, y: mouth.y, tx: entry.x, ty: entry.y, cave: true });
-      secrets.push({ type: 'portal', x: entry.x, y: entry.y, tx: mouth.x, ty: mouth.y, cave: true });
-      secrets.push({ type: 'whisper', x: mouth.x - 1, y: mouth.y,
-        text: 'Cold air breathes up from a cracked stair descending into the dark.' });
+      openMouth({ x: spot.x + 2, y: spot.y + 2 }, keepIdx++, {},
+        'Cold air breathes up from a cracked stair descending into the dark.');
     }
     if (k === 0) {
       // The Bone Lord holds court in the first keep.
@@ -375,6 +470,28 @@ function generate(seed = 1337) {
     // The dead guard their treasure.
     secrets.push({ type: 'cache', x: spot.x, y: spot.y,
       loot: [['gold', 80, 200], ['heal', 1, 2]] });
+  }
+
+  // ---- Two more dungeons, broken open in the wild biomes -------------------------
+  // The wolfden grotto: a crack in the northern snows where the packs winter.
+  const grottoMouth = findGround([TILE.SNOW], 200, W - 200, 150, 560);
+  if (grottoMouth) {
+    openMouth(grottoMouth, 4, {
+      wander: 0.35, // wide, open chambers
+      keepers: [['wolf', 6, 'mid', 16], ['wolf', 4, 'far', 8], ['skelmage', 2, 'far', 6]],
+      loot: [['gold', 200, 400], ['gems', 2, 3], ['heal', 1, 2]],
+    }, 'Pawprints by the hundred converge on a crack in the ice. A low growl rolls up from below.');
+  }
+  // The sunken warren: goblins tunnelled under the mires and met the serpents.
+  const warrenMouth = findGround([TILE.SWAMP], 200, W - 200, H / 2 - 400, H - 200) ||
+    findGround([TILE.SWAMP], 100, W - 100, 600, H - 100);
+  if (warrenMouth) {
+    openMouth(warrenMouth, 5, {
+      wander: 0.7, // tight crooked tunnels
+      steps: 850,
+      keepers: [['goblin', 8, 'mid', 18], ['snake', 4, 'mid', 14], ['goblin', 5, 'far', 8]],
+      loot: [['gold', 220, 450], ['gems', 1, 3], ['mana', 1, 2]],
+    }, 'A goblin-dug shaft yawns out of the mire, shored with stolen timber. Voices echo below.');
   }
 
   // ---- Wilderness mob camps -----------------------------------------------------
@@ -806,7 +923,7 @@ function generate(seed = 1337) {
     mkBard(BARD_NAMES[1 + i], v.x + 4, v.y - 2); // by the lodge hearth
   });
 
-  return { w: W, h: H, tiles, buildings, vendors, spawners, secrets, spawn, villages, props };
+  return { w: W, h: H, tiles, buildings, vendors, spawners, secrets, spawn, villages, cities, props };
 }
 
 function isWalkable(map, x, y) {
