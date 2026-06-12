@@ -30,6 +30,8 @@ assert(welcome.buildings.length > 10, 'welcome lists buildings for roofs');
 assert(!welcome.map.tiles, 'tiles are not shipped wholesale');
 const p = ws.player;
 assert.strictEqual(p.pots.heal, 1, 'new characters start with one heal potion');
+assert.strictEqual(p.items.length, 1, 'new character has the starter dagger');
+assert.strictEqual(p.weapon, p.items[0].uid, 'starter dagger is equipped');
 
 // Wrong password.
 const ws2 = fakeWs();
@@ -152,8 +154,6 @@ assert(!far, 'state only contains nearby entities');
 
 // -- weapons --------------------------------------------------------------------
 assert(welcome.weapons && welcome.weapons.sword, 'welcome carries the weapon catalog');
-assert.strictEqual(p.items.length, 1, 'new character has the starter dagger');
-assert.strictEqual(p.weapon, p.items[0].uid, 'starter dagger is equipped');
 
 const bren = welcome.vendors.find((v) => v.forge);
 assert(bren, 'the blacksmith exists');
@@ -266,6 +266,29 @@ assert(![...game.drops.values()].some((d) => d.item === 'weapon' && d.w.id === l
 const oreBefore = p.ore;
 game.handleCraft(p, legendId);
 assert.strictEqual(p.ore, oreBefore, 'no forge will make another');
+
+// -- storytellers --------------------------------------------------------------------
+const bards = welcome.vendors.filter((v) => v.stories);
+assert(bards.length >= 3, 'bards live in the world');
+assert(bards.every((b) => b.stories.length >= 4), 'every bard knows tales');
+const allTales = bards.flatMap((b) => b.stories.map((t) => t.join(' ')));
+const villageNames = ['Northhold', 'Saltmere', 'Eastgate', 'Wyrmwick', 'Thornbury',
+  'Duskwell', 'Ferndale', 'Mossgrove', 'Amberford'];
+assert(allTales.some((t) => villageNames.some((v) => t.includes(v))),
+  'tales name real places');
+assert(allTales.some((t) => /rim of the world/.test(t)), 'one tale points at the legend');
+
+const bard = bards[0];
+p.x = bard.x;
+p.y = bard.y + 1;
+p.storyAt = 0;
+ws.sent.length = 0;
+game.handleStory(p, bard.id);
+const firstLine = ws.sent.find((m) => m.t === 'chat' && m.id === bard.id);
+assert(firstLine, 'the bard begins a tale at once');
+ws.sent.length = 0;
+game.handleStory(p, bard.id); // mid-tale: politely ignored
+assert(!ws.sent.some((m) => m.t === 'chat'), 'no interrupting the teller');
 
 console.log('smoke test: all assertions passed');
 process.exit(0);

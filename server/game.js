@@ -371,8 +371,25 @@ class Game {
       case 'equip': return this.handleEquip(p, msg.uid == null ? null : msg.uid | 0);
       case 'sell': return this.handleSell(p, msg.uid | 0);
       case 'craft': return this.handleCraft(p, String(msg.id || ''));
+      case 'story': return this.handleStory(p, msg.id | 0);
       case 'chunks': return this.handleChunks(p, msg.l);
     }
+  }
+
+  // A bard near the hearth tells the next tale in their repertoire, a line
+  // every few seconds. Some tales point at real places; some are nonsense.
+  handleStory(p, id) {
+    const bard = this.vendors.find((v) => v.id === id && v.stories);
+    if (!bard || dist(p, bard) > 4) return;
+    const t = now();
+    if (t < (p.storyAt || 0)) return;
+    const story = bard.stories[(bard.nextStory = (bard.nextStory || 0) + 1) % bard.stories.length];
+    p.storyAt = t + story.length * 3500 + 4000;
+    story.forEach((line, i) => {
+      const speak = () => this.fxNear(bard, { t: 'chat', id: bard.id, name: bard.name, text: line });
+      if (i === 0) speak();
+      else setTimeout(speak, i * 3500);
+    });
   }
 
   handleChunks(p, list) {

@@ -31,29 +31,51 @@
   </div>
 
   <div id="hud" class="hidden">
+    <div id="player-frame">
+      <canvas id="portrait" width="56" height="56" aria-hidden="true"></canvas>
+      <div class="pf-main">
+        <div id="char-name"></div>
+        <div class="bar hp" role="progressbar" aria-label="Health" aria-valuemin="0" aria-valuemax="100">
+          <div id="hp-fill"></div><span id="hp-text"></span>
+        </div>
+        <div class="bar mana" role="progressbar" aria-label="Mana" aria-valuemin="0" aria-valuemax="100">
+          <div id="mana-fill"></div><span id="mana-text"></span>
+        </div>
+      </div>
+    </div>
     <div id="char-panel">
-      <div id="char-name"></div>
-      <div class="bar hp"><div id="hp-fill"></div><span id="hp-text"></span></div>
-      <div class="bar mana"><div id="mana-fill"></div><span id="mana-text"></span></div>
       <div id="stats-line"></div>
       <div id="pack-line"></div>
       <div id="weapon-line"></div>
-      <button id="skills-toggle">Skills ▾</button>
+      <button id="skills-toggle" aria-expanded="false">Skills ▾</button>
       <div id="skills-list" class="hidden"></div>
     </div>
 
-    <canvas id="minimap" width="192" height="192"></canvas>
+    <div id="target-frame" class="hidden">
+      <canvas id="target-portrait" width="48" height="48" aria-hidden="true"></canvas>
+      <div class="pf-main">
+        <div id="target-name"></div>
+        <div class="bar hp" role="progressbar" aria-label="Target health" aria-valuemin="0" aria-valuemax="100">
+          <div id="target-fill"></div><span id="target-text"></span>
+        </div>
+      </div>
+    </div>
 
-    <div id="actions">
-      <button data-act="cast:magicarrow" title="1 — Magic Arrow (4 mana)">✦ Arrow</button>
-      <button data-act="cast:fireball" title="2 — Fireball (9 mana, 40 Magery)">☄ Fireball</button>
-      <button data-act="cast:greaterheal" title="3 — Greater Heal (11 mana, 30 Magery)">✚ Heal</button>
-      <button data-act="bandage" title="B — Bandage wounds">⊕ Bandage</button>
-      <button data-act="gather" title="G — Chop trees / mine rock">⛏ Gather</button>
-      <button data-act="drink:heal" title="4 — Drink a heal potion">🧪 Heal <span id="pot-heal-count" class="pot-count">0</span></button>
-      <button data-act="drink:mana" title="5 — Drink a mana potion">🜄 Mana <span id="pot-mana-count" class="pot-count">0</span></button>
-      <button id="inv-toggle" title="I — Inventory" onclick="toggleInventory()">🎒 Inventory</button>
-      <button id="fs-toggle" title="F — Toggle fullscreen" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+    <div id="minimap-wrap">
+      <canvas id="minimap" width="256" height="256"></canvas>
+      <div id="coords" aria-label="Your position"></div>
+    </div>
+
+    <div id="actions" role="toolbar" aria-label="Actions">
+      <button data-act="cast:magicarrow" data-cd="1500" aria-label="Magic Arrow, key 1" title="Magic Arrow (4 mana)"><span class="slot-icon">✦</span><kbd>1</kbd><div class="cd" aria-hidden="true"></div></button>
+      <button data-act="cast:fireball" data-cd="1500" aria-label="Fireball, key 2" title="Fireball (9 mana, 40 Magery)"><span class="slot-icon">☄</span><kbd>2</kbd><div class="cd" aria-hidden="true"></div></button>
+      <button data-act="cast:greaterheal" data-cd="1500" aria-label="Greater Heal spell, key 3" title="Greater Heal (11 mana, 30 Magery)"><span class="slot-icon">✚</span><kbd>3</kbd><div class="cd" aria-hidden="true"></div></button>
+      <button data-act="drink:heal" data-cd="4000" aria-label="Drink heal potion, key 4" title="Drink a heal potion"><span class="slot-icon">🧪</span><kbd>4</kbd><span id="pot-heal-count" class="count">0</span><div class="cd" aria-hidden="true"></div></button>
+      <button data-act="drink:mana" data-cd="4000" aria-label="Drink mana potion, key 5" title="Drink a mana potion"><span class="slot-icon">🜄</span><kbd>5</kbd><span id="pot-mana-count" class="count">0</span><div class="cd" aria-hidden="true"></div></button>
+      <button data-act="bandage" data-cd="8000" aria-label="Bandage wounds, key B" title="Bandage wounds"><span class="slot-icon">⊕</span><kbd>B</kbd><div class="cd" aria-hidden="true"></div></button>
+      <button data-act="gather" data-cd="1200" aria-label="Chop or mine, key G" title="Chop trees / mine rock"><span class="slot-icon">⛏</span><kbd>G</kbd><div class="cd" aria-hidden="true"></div></button>
+      <button id="inv-toggle" aria-label="Inventory, key I" title="Inventory" onclick="toggleInventory()"><span class="slot-icon">🎒</span><kbd>I</kbd></button>
+      <button id="fs-toggle" aria-label="Fullscreen, key F" title="Toggle fullscreen" onclick="toggleFullscreen()"><span class="slot-icon">⛶</span><kbd>F</kbd></button>
     </div>
 
     <div id="inventory" class="hidden">
@@ -66,7 +88,7 @@
     <div id="shop" class="hidden"></div>
 
     <div id="chat">
-      <div id="chat-log"></div>
+      <div id="chat-log" aria-live="polite"></div>
       <input id="chat-input" maxlength="120" placeholder="Press Enter to speak…" />
     </div>
   </div>

@@ -51,6 +51,9 @@ the client in chunks as you explore:
   treasure caches in the far corners of the world, whispering places, a
   hermit with suspiciously cheap potions, and dragon hoards beside the
   three dragon roosts.
+- **Storytellers** hold court by the inn hearths — click them and listen:
+  some of their tales are tavern nonsense, but some point at real treasure,
+  real doors and real dangers, with true directions.
 - A thousand creatures roam: deer herds, wolf packs, livestock, named
   **villagers** who gossip at passers-by, goblin warrens, skeleton barrows,
   orc warbands — and three **named bosses** (Skarg the Goblin King, the Bone
