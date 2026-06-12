@@ -315,6 +315,8 @@ class Game {
       mini: this.miniData,
       buildings: this.map.buildings,
       props: this.map.props,
+      villages: this.map.villages.map((v) => ({ name: v.name, x: v.x, y: v.y })),
+      epoch: Date.now(),
       spells: SPELLS,
       weapons: WEAPONS,
       qualities: QUALITIES,

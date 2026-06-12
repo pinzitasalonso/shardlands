@@ -51,6 +51,7 @@ const state = {
   vendors: [],          // static shopkeepers from the welcome message
   drops: [],            // loot lying on the ground
   props: [],            // furniture inside buildings (client-side dressing)
+  villages: [],         // named settlements, for the world map
   me: null,             // my entry in players
   you: null,            // private stats from the server
   speech: new Map(),    // entity id -> { text, until, magic }
@@ -58,6 +59,8 @@ const state = {
   projectiles: [],      // { x, y, tx, ty, born, color }
   target: 0,            // selected mob id
   walkTarget: null,     // { x, y } click-to-move destination
+  path: null,           // A* steps toward walkTarget
+  pathStuck: 0,         // ticks without progress -> recompute
   myTile: null,         // authoritative tile pos from last state message
   spells: {},
   weapons: {},
@@ -114,6 +117,7 @@ function handleMessage(msg) {
       state.wantedChunks.clear();
       state.buildings = msg.buildings || [];
       state.props = msg.props || [];
+      state.villages = msg.villages || [];
       state.mini = msg.mini;
       buildMinimap();
       document.getElementById('login').classList.add('hidden');
@@ -164,6 +168,10 @@ function handleMessage(msg) {
 
     case 'sys':
       log(esc(msg.text), /risen|increased/.test(msg.text) ? 'gain' : 'sys');
+      if (/risen|increased/.test(msg.text)) Sound.play('gain');
+      else if (/pick up/.test(msg.text)) Sound.play(/gold/.test(msg.text) ? 'gold' : 'pickup');
+      else if (/You drink/.test(msg.text)) Sound.play('drink');
+      else if (/You chop|You dig/.test(msg.text)) Sound.play('chop');
       break;
 
     case 'tile': {
@@ -179,6 +187,95 @@ function handleMessage(msg) {
       handleFx(msg);
       break;
   }
+}
+
+// A* over the loaded chunks, within a window around the player. Returns a
+// list of steps (excluding the start tile), or null if unreachable — the
+// caller falls back to the old greedy stepper. 8-directional, no corner
+// cutting through unwalkable tiles.
+function findPath(sx, sy, tx, ty) {
+  const R = 56;
+  if (Math.abs(tx - sx) > R || Math.abs(ty - sy) > R) return null;
+  if (!WALKABLE.has(tileAt(tx, ty))) return null;
+  const x0 = sx - R;
+  const y0 = sy - R;
+  const W = 2 * R + 1;
+  const N = W * W;
+  const id = (x, y) => (y - y0) * W + (x - x0);
+  const inWin = (x, y) => x >= x0 && y >= y0 && x < x0 + W && y < y0 + W;
+  const g = new Float64Array(N).fill(Infinity);
+  const from = new Int32Array(N).fill(-1);
+  const closed = new Uint8Array(N);
+  // binary heap of [f, nodeId]
+  const heap = [];
+  const push = (f, n) => {
+    heap.push([f, n]);
+    let i = heap.length - 1;
+    while (i > 0) {
+      const par = (i - 1) >> 1;
+      if (heap[par][0] <= heap[i][0]) break;
+      [heap[par], heap[i]] = [heap[i], heap[par]];
+      i = par;
+    }
+  };
+  const pop = () => {
+    const top = heap[0];
+    const last = heap.pop();
+    if (heap.length) {
+      heap[0] = last;
+      let i = 0;
+      for (;;) {
+        const l = 2 * i + 1;
+        const r = l + 1;
+        let m = i;
+        if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+        if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+        if (m === i) break;
+        [heap[m], heap[i]] = [heap[i], heap[m]];
+        i = m;
+      }
+    }
+    return top;
+  };
+  const h = (x, y) => Math.max(Math.abs(tx - x), Math.abs(ty - y));
+  const start = id(sx, sy);
+  g[start] = 0;
+  push(h(sx, sy), start);
+  const goal = id(tx, ty);
+  let expanded = 0;
+  while (heap.length && expanded < 6000) {
+    const [, n] = pop();
+    if (closed[n]) continue;
+    closed[n] = 1;
+    expanded++;
+    if (n === goal) break;
+    const nx = x0 + (n % W);
+    const ny = y0 + ((n / W) | 0);
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        const mx = nx + dx;
+        const my = ny + dy;
+        if (!inWin(mx, my) || !WALKABLE.has(tileAt(mx, my))) continue;
+        // no squeezing diagonally between two blockers
+        if (dx && dy && (!WALKABLE.has(tileAt(nx + dx, ny)) || !WALKABLE.has(tileAt(nx, ny + dy)))) continue;
+        const m = id(mx, my);
+        const cost = g[n] + (dx && dy ? 1.41 : 1);
+        if (cost < g[m]) {
+          g[m] = cost;
+          from[m] = n;
+          push(cost + h(mx, my), m);
+        }
+      }
+    }
+  }
+  if (from[goal] === -1 && goal !== start) return null;
+  const path = [];
+  for (let n = goal; n !== start && n !== -1; n = from[n]) {
+    path.push({ x: x0 + (n % W), y: y0 + ((n / W) | 0) });
+  }
+  path.reverse();
+  return path;
 }
 
 function octant(dx, dy) {
@@ -209,21 +306,27 @@ function handleFx(msg) {
   switch (msg.kind) {
     case 'hit':
       state.floaters.push({ x: msg.x, y: msg.y, text: '-' + msg.amount, color: '#e05848', born: t });
+      Sound.play('hit');
       break;
     case 'miss':
       state.floaters.push({ x: msg.x, y: msg.y, text: 'miss', color: '#8a8a8a', born: t });
+      Sound.play('miss');
       break;
     case 'heal':
       state.floaters.push({ x: msg.x, y: msg.y, text: '+' + msg.amount, color: '#5ac05a', born: t });
+      Sound.play('heal');
       break;
     case 'die':
       state.floaters.push({ x: msg.x, y: msg.y, text: '✝', color: '#c8c8c8', born: t });
+      Sound.play('die');
       break;
     case 'portal':
       state.floaters.push({ x: msg.x, y: msg.y, text: '✦ ✦ ✦', color: '#b08aff', born: t });
+      Sound.play('portal');
       break;
     case 'break':
       state.floaters.push({ x: msg.x, y: msg.y, text: '*crack*', color: '#d8a8a0', born: t });
+      Sound.play('break');
       break;
     case 'magicarrow':
     case 'fireball':
@@ -260,7 +363,12 @@ document.addEventListener('keydown', (ev) => {
 
   switch (ev.key) {
     case 'Enter': chatInput.focus(); ev.preventDefault(); break;
-    case 'Escape': closeShop(); document.getElementById('inventory').classList.add('hidden'); break;
+    case 'Escape':
+      closeShop();
+      document.getElementById('inventory').classList.add('hidden');
+      document.getElementById('worldmap').classList.add('hidden');
+      document.getElementById('settings').classList.add('hidden');
+      break;
     case '1': triggerAction('cast:magicarrow'); break;
     case '2': triggerAction('cast:fireball'); break;
     case '3': triggerAction('cast:greaterheal'); break;
@@ -270,6 +378,8 @@ document.addEventListener('keydown', (ev) => {
     case 'g': case 'G': triggerAction('gather'); break;
     case 'i': case 'I': toggleInventory(); break;
     case 'f': case 'F': toggleFullscreen(); break;
+    case 'm': case 'M': toggleWorldMap(); break;
+    case 'o': case 'O': toggleSettings(); break;
     default: keys.add(ev.key.toLowerCase());
   }
 });
@@ -292,6 +402,7 @@ function triggerAction(act) {
   const btn = document.querySelector(`#actions button[data-act="${act}"]`);
   const ms = btn && (btn.dataset.cd | 0);
   if (ms) cooldowns.set(act, { until: Date.now() + ms, total: ms });
+  Sound.play(act.startsWith('cast:') ? 'spell' : 'click');
 }
 
 function updateCooldowns(time) {
@@ -353,6 +464,62 @@ function updateTargetFrame() {
   }
 }
 
+function toggleWorldMap() {
+  const panel = document.getElementById('worldmap');
+  panel.classList.toggle('hidden');
+  if (panel.classList.contains('hidden') || !state.mini) return;
+  const cv = document.getElementById('worldmap-canvas');
+  const g = cv.getContext('2d');
+  // base terrain from the downsampled overview
+  const off = document.createElement('canvas');
+  off.width = state.mini.w;
+  off.height = state.mini.h;
+  off.getContext('2d').putImageData(state.minimapImage, 0, 0);
+  g.imageSmoothingEnabled = false;
+  g.clearRect(0, 0, cv.width, cv.height);
+  g.drawImage(off, 0, 0, cv.width, cv.height);
+  const k = cv.width / (state.mini.w * state.mini.s);
+  g.font = 'bold 13px Georgia';
+  g.textAlign = 'center';
+  for (const v of state.villages) {
+    g.fillStyle = '#120d08';
+    g.fillText(v.name, v.x * k + 1, v.y * k - 5);
+    g.fillStyle = '#f4e9c8';
+    g.fillText(v.name, v.x * k, v.y * k - 6);
+    g.fillStyle = '#d8b35e';
+    g.fillRect(v.x * k - 2, v.y * k - 2, 4, 4);
+  }
+  if (state.myTile) {
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    g.arc(state.myTile.x * k, state.myTile.y * k, 4, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = '#120d08';
+    g.stroke();
+  }
+  g.textAlign = 'left';
+}
+
+function toggleSettings() {
+  const panel = document.getElementById('settings');
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) {
+    for (const which of ['master', 'sfx', 'amb']) {
+      document.getElementById('vol-' + which).value = Sound.vols[which];
+    }
+  }
+}
+
+document.getElementById('settings').addEventListener('input', (ev) => {
+  if (ev.target.dataset.vol) Sound.setVol(ev.target.dataset.vol, +ev.target.value);
+});
+document.getElementById('settings').addEventListener('click', (ev) => {
+  if (ev.target.classList.contains('shop-close')) document.getElementById('settings').classList.add('hidden');
+});
+document.getElementById('worldmap').addEventListener('click', () => {
+  document.getElementById('worldmap').classList.add('hidden');
+});
+
 function toggleFullscreen() {
   if (document.fullscreenElement) document.exitFullscreen();
   else document.documentElement.requestFullscreen().catch(() => {});
@@ -385,9 +552,24 @@ canvas.addEventListener('mousedown', (ev) => {
     updateTargetFrame();
   } else {
     const w = screenToWorld(ev.clientX, ev.clientY, cam);
-    state.walkTarget = { x: Math.floor(w.x), y: Math.floor(w.y) };
+    setWalkTarget(Math.floor(w.x), Math.floor(w.y));
   }
 });
+
+function setWalkTarget(x, y) {
+  state.walkTarget = { x, y };
+  state.path = state.myTile ? findPath(state.myTile.x, state.myTile.y, x, y) : null;
+  state.pathStuck = 0;
+}
+
+// Touch devices: a tap is a click.
+canvas.addEventListener('touchstart', (ev) => {
+  if (ev.touches.length === 1) {
+    const t = ev.touches[0];
+    canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: t.clientX, clientY: t.clientY }));
+    ev.preventDefault();
+  }
+}, { passive: false });
 
 // Movement intents: held keys win over click-to-move.
 setInterval(() => {
@@ -401,6 +583,7 @@ setInterval(() => {
 
   if (dx || dy) {
     state.walkTarget = null;
+    state.path = null;
     send({ t: 'move', dx, dy });
     return;
   }
@@ -410,12 +593,40 @@ setInterval(() => {
   if (wt && my) {
     if (wt.x === my.x && wt.y === my.y) {
       state.walkTarget = null;
+      state.path = null;
       return;
     }
-    // If chasing a target, keep the destination fresh.
+    // If chasing a target, keep the destination fresh and re-path when it strays.
     if (state.target) {
       const mob = state.mobs.get(state.target);
-      if (mob) { wt.x = mob.x; wt.y = mob.y; }
+      if (mob && (mob.x !== wt.x || mob.y !== wt.y)) {
+        wt.x = mob.x;
+        wt.y = mob.y;
+        state.path = findPath(my.x, my.y, wt.x, wt.y);
+      }
+    }
+
+    // Follow the A* path when we have one.
+    if (state.path && state.path.length) {
+      while (state.path.length && state.path[0].x === my.x && state.path[0].y === my.y) {
+        state.path.shift();
+        state.pathStuck = 0;
+      }
+      const next = state.path[0];
+      if (next) {
+        if (Math.abs(wt.x - my.x) <= 1 && Math.abs(wt.y - my.y) <= 1 && state.target) {
+          state.walkTarget = null;
+          state.path = null;
+          return;
+        }
+        send({ t: 'move', dx: Math.sign(next.x - my.x), dy: Math.sign(next.y - my.y) });
+        if (++state.pathStuck > 22) { // ~1.5s without reaching the node
+          state.path = findPath(my.x, my.y, wt.x, wt.y);
+          state.pathStuck = 0;
+        }
+        return;
+      }
+      state.path = null;
     }
     const sx = Math.sign(wt.x - my.x);
     const sy = Math.sign(wt.y - my.y);
@@ -747,6 +958,49 @@ function fillDiamond(sx, sy, color) {
   ctx.fill();
 }
 
+// 20-minute day. Darkness 0 at noon, ~0.62 at deepest night.
+const DAY_MS = 20 * 60_000;
+function dayDarkness() {
+  const phase = (Date.now() % DAY_MS) / DAY_MS;        // 0..1
+  return Math.max(0, -Math.cos(phase * Math.PI * 2)) * 0.62;
+}
+
+const lightCanvas = document.createElement('canvas');
+
+// Cover the world in night, then punch warm light around fires, windows
+// and the player's own lantern.
+function drawNight(cam, time) {
+  const dark = dayDarkness();
+  if (dark < 0.03) return;
+  lightCanvas.width = canvas.width;
+  lightCanvas.height = canvas.height;
+  const g = lightCanvas.getContext('2d');
+  g.fillStyle = `rgba(8, 10, 30, ${dark})`;
+  g.fillRect(0, 0, canvas.width, canvas.height);
+  g.globalCompositeOperation = 'destination-out';
+  const punch = (x, y, r, a) => {
+    const grad = g.createRadialGradient(x, y, r * 0.15, x, y, r);
+    grad.addColorStop(0, `rgba(0,0,0,${a})`);
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grad;
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.fill();
+  };
+  if (state.me) {
+    const s = worldToScreen(state.me.rx + 0.5, state.me.ry + 0.5, cam);
+    punch(s.x, s.y - 20, 150, 0.85); // the traveller's lantern
+  }
+  for (const pr of state.props) {
+    if (pr.name !== 'fx.campfire') continue;
+    const s = worldToScreen(pr.x + 0.5, pr.y + 0.5, cam);
+    if (s.x < -200 || s.x > canvas.width + 200 || s.y < -200 || s.y > canvas.height + 200) continue;
+    punch(s.x, s.y - 6, 120 + Math.sin(time / 130 + pr.x) * 8, 0.95);
+  }
+  ctx.drawImage(lightCanvas, 0, 0);
+  // a faint warm tint over fires so night feels inhabited
+}
+
 function render() {
   requestAnimationFrame(render);
   ctx.fillStyle = '#0b0d10';
@@ -883,6 +1137,7 @@ function render() {
   }
 
   drawProjectiles(cam, time);
+  drawNight(cam, time);
   drawFloaters(cam, time);
   drawSpeech(cam, time);
   drawMinimap();
