@@ -763,7 +763,7 @@ function updateHud() {
   const y = state.you;
   if (!y) return;
   document.getElementById('char-name').textContent =
-    (state.me ? state.me.name : '') + (y.dead ? '  (ghost)' : '');
+    (state.me ? state.me.name : '') + (y.title ? ' — ' + y.title : '') + (y.dead ? '  (ghost)' : '');
   document.getElementById('hp-fill').style.width = (100 * y.hp / y.maxhp) + '%';
   document.getElementById('hp-text').textContent = `${y.hp} / ${y.maxhp}`;
   document.getElementById('mana-fill').style.width = (100 * y.mana / y.maxmana) + '%';
@@ -773,7 +773,8 @@ function updateHud() {
   document.getElementById('stats-line').textContent = `STR ${y.str}  DEX ${y.dex}  INT ${y.int}`;
   const eq = y.weapon != null && (y.items || []).find((i) => i.uid === y.weapon);
   document.getElementById('pack-line').textContent =
-    `⛀ ${y.gold} gold · ${y.logs} logs · ${y.ore} ore` + (y.gems ? ` · ${y.gems} gems` : '');
+    `⛀ ${y.gold} gold · ${y.logs} logs · ${y.ore} ore` + (y.gems ? ` · ${y.gems} gems` : '') +
+    (y.fish ? ` · ${y.fish} fish` : '') + (y.food ? ` · ${y.food} meals` : '');
   const eqA = y.armor != null && (y.items || []).find((i) => i.uid === y.armor);
   const eqO = y.offhand != null && (y.items || []).find((i) => i.uid === y.offhand);
   document.getElementById('weapon-line').textContent =
@@ -790,6 +791,17 @@ function updateHud() {
     .map(([k, v]) => `<div class="skill-row"><span>${k[0].toUpperCase() + k.slice(1)}</span><span>${Number(v).toFixed(1)}</span></div>`)
     .join('');
 }
+
+document.getElementById('deeds-toggle').addEventListener('click', () => {
+  const list = document.getElementById('deeds-list');
+  list.classList.toggle('hidden');
+  if (!list.classList.contains('hidden') && state.you) {
+    const deeds = Object.keys(state.you.deeds || {});
+    list.innerHTML = deeds.length
+      ? deeds.map((d) => `<div class="skill-row"><span>⚑ ${esc(d)}</span></div>`).join('')
+      : '<div class="skill-row"><span>No deeds yet. The world is waiting.</span></div>';
+  }
+});
 
 document.getElementById('skills-toggle').addEventListener('click', () => {
   const list = document.getElementById('skills-list');
@@ -829,6 +841,7 @@ function renderInventory() {
   }).join('') || '<div class="inv-row"><span class="inv-icon">✊</span><span class="inv-label">Fists only</span><span></span><span></span></div>';
   document.getElementById('inv-weapons').innerHTML = weaponsHtml;
   const pots = y.pots || {};
+  const mats = y.mats || {};
   const rows = [
     ['🪙', 'Gold', y.gold, ''],
     ['🧪', 'Heal potions', pots.heal || 0, 'drink:heal'],
@@ -836,13 +849,20 @@ function renderInventory() {
     ['🪵', 'Logs', y.logs, ''],
     ['🪨', 'Ore', y.ore, ''],
     ['💎', 'Gems', y.gems || 0, ''],
-  ];
+    ['🐟', 'Raw fish', y.fish || 0, 'cook'],
+    ['🍖', 'Raw meat', y.meat || 0, 'cook'],
+    ['🍲', 'Hot meals', y.food || 0, 'eat'],
+    ['❄', 'Frostwood', mats.frostwood || 0, ''],
+    ['☀', 'Sunsteel', mats.sunsteel || 0, ''],
+    ['🌿', 'Ironbark', mats.ironbark || 0, ''],
+  ].filter(([, label, count]) =>
+    count > 0 || ['Gold', 'Heal potions', 'Mana potions', 'Logs', 'Ore'].includes(label));
   document.getElementById('inv-items').innerHTML = rows.map(([icon, label, count, act]) =>
     `<div class="inv-row">
        <span class="inv-icon">${icon}</span>
        <span class="inv-label">${label}</span>
        <span class="inv-count">${count}</span>
-       ${act ? `<button data-act="${act}">use</button>` : '<span></span>'}
+       ${act ? `<button data-act="${act}">${act === 'cook' ? 'cook' : act === 'eat' ? 'eat' : 'use'}</button>` : '<span></span>'}
      </div>`).join('');
 }
 
@@ -850,6 +870,8 @@ document.getElementById('inventory').addEventListener('click', (ev) => {
   if (ev.target.id === 'inv-close') return document.getElementById('inventory').classList.add('hidden');
   const act = ev.target.dataset.act;
   if (act && act.startsWith('drink:')) send({ t: 'drink', kind: act.slice(6) });
+  if (act === 'cook') send({ t: 'cook' });
+  if (act === 'eat') send({ t: 'eat' });
   if (ev.target.dataset.equip !== undefined) {
     const uid = ev.target.dataset.equip | 0;
     send({ t: 'equip', uid: uid || null });

@@ -212,7 +212,7 @@ button { font-family: inherit; cursor: pointer; }
 #stats-line, #pack-line, #weapon-line { margin: 3px 0; color: var(--text-dim); }
 #weapon-line { color: var(--text); }
 
-#skills-toggle {
+#skills-toggle, #deeds-toggle {
   margin-top: 7px;
   width: 100%;
   padding: 5px;
@@ -223,11 +223,11 @@ button { font-family: inherit; cursor: pointer; }
   color: var(--text-dim);
 }
 
-#skills-toggle:hover { border-color: var(--gold); color: var(--text); }
+#skills-toggle:hover, #deeds-toggle:hover { border-color: var(--gold); color: var(--text); }
 
-#skills-list { margin-top: 6px; }
+#skills-list, #deeds-list { margin-top: 6px; }
 
-#skills-list .skill-row {
+#skills-list .skill-row, #deeds-list .skill-row {
   display: flex;
   justify-content: space-between;
   padding: 2px 0;

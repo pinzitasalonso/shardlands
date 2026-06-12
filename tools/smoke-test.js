@@ -406,5 +406,82 @@ game.mobs.delete(dummy2.id);
 game.mobs.delete(bossDummy.id);
 p.target = 0;
 
+// -- batch C: trades, deeds, regional materials -------------------------------------
+// fishing by the shore
+let shore = null;
+outer2:
+for (let y = 900; y < 1150; y++) {
+  for (let x = 900; x < 1150; x++) {
+    if (game.map.tiles[y * 2048 + x] !== TILE.WATER &&
+        [TILE.GRASS, TILE.SAND].includes(game.map.tiles[y * 2048 + x]) &&
+        game.map.tiles[y * 2048 + x + 1] === TILE.WATER) {
+      shore = { x, y };
+      break outer2;
+    }
+  }
+}
+assert(shore, 'found a shoreline');
+p.x = shore.x;
+p.y = shore.y;
+p.skills.fishing = 100;
+p.fish = 0;
+for (let i = 0; i < 10 && !p.fish; i++) { p.swingAt = 0; game.handleGather(p); }
+assert(p.fish > 0, 'caught a fish');
+assert(p.deeds.angler, 'angler deed awarded');
+
+// cooking needs a campfire; eating heals over time
+ws.sent.length = 0;
+game.handleCook(p);
+assert(ws.sent.some((m) => /campfire/.test(m.text)), 'no cooking without a fire');
+const fire = game.map.props.find((pr) => pr.name === 'fx.campfire');
+p.x = fire.x;
+p.y = fire.y;
+p.skills.cooking = 100;
+p.fish = 3;
+p.food = 0;
+for (let i = 0; i < 10 && !p.food; i++) game.handleCook(p);
+assert(p.food > 0, 'cooked a meal');
+game.handleEat(p);
+assert(p.fedUntil > Date.now(), 'well fed');
+
+// blacksmithy governs the forge and earns its deed
+const bren2 = welcome.vendors.find((v) => v.forge);
+p.x = bren2.x;
+p.y = bren2.y - 1;
+p.ore = 30;
+p.logs = 20;
+p.gold = 1000;
+p.items.length = 0;
+delete p.deeds.smith;
+p.skills.blacksmithy = 20;
+game.handleCraft(p, 'dagger');
+assert(p.items.length === 1, 'forged at the anvil');
+assert(p.deeds.smith, 'smith deed awarded');
+
+// regional mats gate the top recipes
+p.mats.frostwood = 0;
+ws.sent.length = 0;
+game.handleCraft(p, 'greatsword');
+assert(ws.sent.some((m) => /frostwood/.test(m.text)), 'greatsword wants frostwood');
+p.mats.frostwood = 2;
+p.ore = 30;
+p.logs = 20;
+game.handleCraft(p, 'greatsword');
+assert(p.items.some((i) => i.id === 'greatsword'), 'frostwood greatsword forged');
+assert.strictEqual(p.mats.frostwood, 0, 'frostwood consumed');
+
+// /forget is a gold sink that resets a skill
+p.gold = 500;
+game.handleSay(p, '/forget cooking');
+assert.strictEqual(p.skills.cooking, 20, 'cooking forgotten');
+assert.strictEqual(p.gold, 400, 'the ritual cost 100 gold');
+
+// grandmaster title rides the wire
+p.skills.fishing = 100;
+ws.sent.length = 0;
+game.sendYou(p);
+const you = ws.sent.find((m) => m.t === 'you');
+assert(/Grandmaster/.test(you.title), 'grandmaster title earned');
+
 console.log('smoke test: all assertions passed');
 process.exit(0);

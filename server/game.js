@@ -21,7 +21,7 @@ const MINI_SCALE = 8;
 const VIEW_RADIUS = 60;          // tiles; entities beyond this aren't sent
 const CACHE_RESPAWN_MS = 15 * 60_000;
 
-const SKILLS = ['swordsmanship', 'tactics', 'magery', 'healing', 'lumberjacking', 'mining'];
+const SKILLS = ['swordsmanship', 'tactics', 'magery', 'healing', 'lumberjacking', 'mining', 'fishing', 'cooking', 'blacksmithy'];
 
 const SPELLS = {
   magicarrow: { name: 'Magic Arrow', mana: 4, minSkill: 0, dmg: [5, 10], words: 'In Por Ylem' },
@@ -107,14 +107,14 @@ const WEAPONS = {
   dagger:     { name: 'Dagger',     dmg: [3, 7],   speedMs: 1100, price: 40,  dur: 90,  sprite: 'dagger',     craft: { ore: 3, logs: 1, gold: 10 } },
   sword:      { name: 'Longsword',  dmg: [5, 12],  speedMs: 1500, price: 120, dur: 110, sprite: 'longsword',  craft: { ore: 8, logs: 3, gold: 30 } },
   mace:       { name: 'Mace',       dmg: [7, 14],  speedMs: 1800, price: 150, dur: 120, sprite: 'mace',       craft: { ore: 10, logs: 4, gold: 40 } },
-  battleaxe:  { name: 'Battle Axe', dmg: [9, 17],  speedMs: 2100, price: 260, dur: 130, minSkill: 40, sprite: 'battle_axe', craft: { ore: 14, logs: 5, gold: 70 } },
-  greatsword: { name: 'Greatsword', dmg: [12, 22], speedMs: 2400, price: 420, dur: 140, minSkill: 60, sprite: 'greatsword', craft: { ore: 20, logs: 6, gold: 120 } },
+  battleaxe:  { name: 'Battle Axe', dmg: [9, 17],  speedMs: 2100, price: 260, dur: 130, minSkill: 40, sprite: 'battle_axe', craft: { ore: 14, logs: 5, gold: 70, sunsteel: 2 } },
+  greatsword: { name: 'Greatsword', dmg: [12, 22], speedMs: 2400, price: 420, dur: 140, minSkill: 60, sprite: 'greatsword', craft: { ore: 20, logs: 6, gold: 120, frostwood: 2 } },
   longbow:    { name: 'Longbow',    dmg: [6, 13],  speedMs: 1700, price: 180, dur: 100, minSkill: 30, sprite: 'longbow', ranged: true, range: 8, craft: { ore: 2, logs: 10, gold: 40 } },
   // Armor and shields share the same item machinery; slot routes the equip.
   leatherarmor: { name: 'Leather Tunic',  slot: 'chest', dr: 2, price: 100, dur: 120, sprite: 'leather', craft: { ore: 2, logs: 6, gold: 25 } },
   chainmail:    { name: 'Chain Cuirass',  slot: 'chest', dr: 4, price: 320, dur: 160, minSkill: 40, sprite: 'chain', craft: { ore: 16, logs: 2, gold: 90 } },
   buckler:      { name: 'Buckler',        slot: 'offhand', block: 10, price: 90,  dur: 100, sprite: 'buckler', craft: { ore: 4, logs: 4, gold: 20 } },
-  kiteshield:   { name: 'Kite Shield',    slot: 'offhand', block: 18, price: 280, dur: 150, minSkill: 35, sprite: 'kite_shield', craft: { ore: 12, logs: 6, gold: 70 } },
+  kiteshield:   { name: 'Kite Shield',    slot: 'offhand', block: 18, price: 280, dur: 150, minSkill: 35, sprite: 'kite_shield', craft: { ore: 12, logs: 6, gold: 70, ironbark: 2 } },
   // There is only one. It is not for sale, and no forge will make another.
   dawnbreaker: { name: 'Dawnbreaker', dmg: [18, 30], speedMs: 2000, price: 2500, dur: 600, sprite: 'greatsword', secret: true },
 };
@@ -154,6 +154,26 @@ function t0Throttle(p) {
   if (t < (p.nagAt || 0)) return false;
   p.nagAt = t + 4000;
   return true;
+}
+
+const DEED_NAMES = {
+  firstblood: 'First Blood',
+  dragonslayer: 'Dragonslayer',
+  kingslayer: 'Slayer of Kings',
+  legend: 'Bearer of the Dawn',
+  angler: 'First Catch',
+  smith: 'At the Anvil',
+  wayfarer: 'Wayfarer',
+  grandmaster: 'Grandmaster',
+};
+
+function titleOf(p) {
+  for (const sk of SKILLS) {
+    if (p.skills[sk] >= 100) {
+      return 'Grandmaster ' + sk.charAt(0).toUpperCase() + sk.slice(1);
+    }
+  }
+  return '';
 }
 
 function hashPassword(password, salt) {
@@ -311,8 +331,11 @@ class Game {
       y: spot.y,
       str: rec.str, dex: rec.dex, int: rec.int,
       hp: Math.min(rec.hp, maxHp(rec)), mana: Math.min(rec.mana, rec.int),
-      skills: { ...rec.skills },
+      skills: { ...Object.fromEntries(SKILLS.map((sk) => [sk, 20])), ...rec.skills },
       gold: rec.gold, logs: rec.logs, ore: rec.ore, gems: rec.gems || 0,
+      fish: rec.fish || 0, meat: rec.meat || 0, food: rec.food || 0,
+      mats: { frostwood: 0, sunsteel: 0, ironbark: 0, ...rec.mats },
+      deeds: { ...rec.deeds },
       pots: { heal: 0, mana: 0, ...rec.pots },
       items: (rec.items || []).map((i) => ({ ...i })),
       weapon: rec.weapon ?? null,
@@ -365,6 +388,9 @@ class Game {
       hp: Math.max(1, p.hp), mana: p.mana,
       skills: { ...p.skills },
       gold: p.gold, logs: p.logs, ore: p.ore, gems: p.gems,
+      fish: p.fish, meat: p.meat, food: p.food,
+      mats: { ...p.mats },
+      deeds: { ...p.deeds },
       pots: { ...p.pots },
       items: p.items.map((i) => ({ ...i })),
       weapon: p.weapon,
@@ -374,6 +400,13 @@ class Game {
       itemUid: p.itemUid,
     });
     this.dirty = true;
+  }
+
+  deed(p, id) {
+    if (p.deeds[id]) return;
+    p.deeds[id] = Date.now();
+    this.sys(p, `⚑ Deed accomplished: ${DEED_NAMES[id] || id}.`);
+    this.sendYou(p);
   }
 
   saveAll() {
@@ -405,6 +438,8 @@ class Game {
       case 'sell': return this.handleSell(p, msg.uid | 0);
       case 'craft': return this.handleCraft(p, String(msg.id || ''));
       case 'story': return this.handleStory(p, msg.id | 0);
+      case 'cook': return this.handleCook(p);
+      case 'eat': return this.handleEat(p);
       case 'chunks': return this.handleChunks(p, msg.l);
     }
   }
@@ -423,6 +458,36 @@ class Game {
       if (i === 0) speak();
       else setTimeout(speak, i * 3500);
     });
+  }
+
+  nearCampfire(p) {
+    return this.map.props.some((pr) =>
+      pr.name === 'fx.campfire' && Math.abs(pr.x - p.x) <= 2 && Math.abs(pr.y - p.y) <= 2);
+  }
+
+  handleCook(p) {
+    if (p.dead) return;
+    if (!this.nearCampfire(p)) return this.sys(p, 'You need a campfire to cook.');
+    if (p.fish <= 0 && p.meat <= 0) return this.sys(p, 'Nothing raw to cook. Fish or hunt first.');
+    if (p.fish > 0) p.fish -= 1;
+    else p.meat -= 1;
+    if (Math.random() * 100 < p.skills.cooking + 35) {
+      p.food += 1;
+      this.sys(p, 'A hot meal, fit for the road.');
+    } else {
+      this.sys(p, 'It burns to a sad black crisp.');
+    }
+    this.gainSkill(p, 'cooking');
+    this.sendYou(p);
+  }
+
+  handleEat(p) {
+    if (p.dead) return;
+    if (p.food <= 0) return this.sys(p, 'Your pack holds no cooked meals.');
+    p.food -= 1;
+    p.fedUntil = now() + 20_000;
+    this.sys(p, 'You eat well. Warmth spreads through you.');
+    this.sendYou(p);
   }
 
   handleChunks(p, list) {
@@ -545,15 +610,21 @@ class Game {
     const vendor = this.vendors.find((v) => v.forge && dist(p, v) <= 3);
     if (!vendor) return this.sys(p, 'You need a blacksmith\'s forge for that.');
     const c = def.craft;
-    if (p.ore < c.ore || p.logs < c.logs || p.gold < c.gold) {
-      return this.sys(p, `Forging a ${def.name} takes ${c.ore} ore, ${c.logs} logs and ${c.gold} gold.`);
+    const matNeeds = ['frostwood', 'sunsteel', 'ironbark'].filter((m) => c[m]);
+    const matsShort = matNeeds.filter((m) => p.mats[m] < c[m]);
+    if (p.ore < c.ore || p.logs < c.logs || p.gold < c.gold || matsShort.length) {
+      const extras = matNeeds.map((m) => `${c[m]} ${m}`).join(', ');
+      return this.sys(p, `Forging a ${def.name} takes ${c.ore} ore, ${c.logs} logs, ${c.gold} gold${extras ? ' and ' + extras : ''}.`);
     }
     if (p.items.length >= ITEM_CAP) return this.sys(p, 'Your pack is full.');
     p.ore -= c.ore;
     p.logs -= c.logs;
     p.gold -= c.gold;
-    // Craftsmanship rises with your gathering skills; masters forge masterworks.
-    const k = ((p.skills.mining + p.skills.lumberjacking) / 2) / 100;
+    for (const m of matNeeds) p.mats[m] -= c[m];
+    this.deed(p, 'smith');
+    this.gainSkill(p, 'blacksmithy');
+    // The smith's own hand decides the quality.
+    const k = p.skills.blacksmithy / 100;
     const r = Math.random();
     const q = r < 0.05 * k ? 4 : r < 0.2 * k ? 3 : r < 0.55 * k ? 2 : r < 0.55 * k + 0.5 ? 1 : 0;
     const item = this.makeItem(p, id, q);
@@ -632,6 +703,17 @@ class Game {
 
   handleCommand(p, text) {
     const cmd = text.slice(1).split(/\s+/)[0].toLowerCase();
+    if (cmd === 'forget') {
+      const sk = (text.split(/\s+/)[1] || '').toLowerCase();
+      if (!SKILLS.includes(sk)) {
+        return this.sys(p, `Forget which art? ${SKILLS.join(', ')}.`);
+      }
+      if (p.gold < 100) return this.sys(p, 'The mind is willing, but the ritual costs 100 gold.');
+      p.gold -= 100;
+      p.skills[sk] = 20;
+      this.sys(p, `You let your ${skillName(sk)} fade back to instinct. (now 20.0)`);
+      return this.sendYou(p);
+    }
     if (cmd === 'teleport' || cmd === 'home' || cmd === 'recall') {
       if (p.dead) return this.sys(p, 'The dead must walk to a shrine.');
       const t = now();
@@ -749,6 +831,13 @@ class Game {
         if (Math.random() * 100 < p.skills.lumberjacking + 40) {
           p.logs += 1;
           this.sys(p, 'You chop some logs.');
+          if (tile === TILE.SNOWTREE && Math.random() < 0.15) {
+            p.mats.frostwood += 1;
+            this.sys(p, 'Beneath the bark: pale frostwood!');
+          } else if (tile === TILE.SWAMPTREE && Math.random() < 0.15) {
+            p.mats.ironbark += 1;
+            this.sys(p, 'This bough is heavy ironbark!');
+          }
           this.consumeResource(p, tx, ty, tile, 'The tree falls.');
         } else {
           this.sys(p, 'You hack at the tree but produce nothing useful.');
@@ -762,6 +851,10 @@ class Game {
         if (Math.random() * 100 < p.skills.mining + 40) {
           p.ore += 1;
           this.sys(p, 'You dig some ore and put it in your pack.');
+          if (tileAt(this.map, p.x, p.y) === TILE.SAND && Math.random() < 0.15) {
+            p.mats.sunsteel += 1;
+            this.sys(p, 'A vein of desert sunsteel glitters in the rubble!');
+          }
           this.consumeResource(p, tx, ty, tile, 'The rock face crumbles to rubble.');
         } else {
           this.sys(p, 'You loosen some rocks but fail to find anything.');
@@ -772,7 +865,22 @@ class Game {
         return;
       }
     }
-    this.sys(p, 'There is nothing here to gather. Stand beside a tree or rock face.');
+    // No tree, no rock — but water means fish.
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      if (tileAt(this.map, p.x + dx, p.y + dy) === TILE.WATER) {
+        if (Math.random() * 100 < p.skills.fishing + 30) {
+          p.fish += 1;
+          this.sys(p, 'You pull a wriggling fish from the water.');
+          this.deed(p, 'angler');
+        } else {
+          this.sys(p, 'The fish are not biting.');
+        }
+        this.gainSkill(p, 'fishing');
+        this.sendYou(p);
+        return;
+      }
+    }
+    this.sys(p, 'There is nothing here to gather. Stand beside a tree, rock face or water.');
   }
 
   // Each tree or rock yields a few harvests, then vanishes and regrows later.
@@ -842,6 +950,9 @@ class Game {
     mob.spawner.alive.delete(mob.id);
     mob.spawner.respawnAt = now() + (mob.spawner.respawnMs || 20_000);
     this.sys(killer, `You have slain ${mob.name || def.name}! You loot ${gold} gold.`);
+    this.deed(killer, 'firstblood');
+    if (mob.kind === 'dragon' || mob.kind === 'vyrmaur') this.deed(killer, 'dragonslayer');
+    if (def.boss && mob.kind !== 'dragon') this.deed(killer, 'kingslayer');
     if (mob.spawner.respawnMs) {
       this.broadcastSys(`${killer.name} has slain ${mob.name || def.name}!`);
     }
@@ -917,6 +1028,7 @@ class Game {
         const item = { uid: p.itemUid++, ...d.w };
         p.items.push(item);
         this.sys(p, `You pick up a ${weaponLabel(item)}.`);
+        if (item.id === 'dawnbreaker') this.deed(p, 'legend');
         this.sendYou(p);
         continue;
       }
@@ -1068,6 +1180,7 @@ class Game {
     if (Math.random() < (SKILL_CAP - cur) / 220 + 0.02) {
       p.skills[skill] = Math.min(SKILL_CAP, Math.round((cur + 0.5) * 10) / 10);
       this.sys(p, `Your ${skillName(skill)} has risen to ${p.skills[skill].toFixed(1)}.`);
+      if (p.skills[skill] >= SKILL_CAP) this.deed(p, 'grandmaster');
       this.sendYou(p);
     }
   }
@@ -1268,11 +1381,20 @@ class Game {
     for (const p of this.players.values()) {
       this.meleeTick(p, t);
       if (!p.dead) this.pickupDrops(p);
+      if (!p.dead && !p.deeds.wayfarer && t % 1000 < TICK_MS) {
+        for (const v of this.map.villages) {
+          if (Math.abs(v.x - p.x) < 12 && Math.abs(v.y - p.y) < 12) {
+            this.deed(p, 'wayfarer');
+            break;
+          }
+        }
+      }
       // Passive regeneration, once a second.
       if (!p.dead && t >= p.regenAt) {
         p.regenAt = t + 1000;
         let changed = false;
         if (p.hp < maxHp(p) && Math.random() < 0.35) { p.hp += 1; changed = true; }
+        if (p.fedUntil > t && p.hp < maxHp(p)) { p.hp = Math.min(maxHp(p), p.hp + 2); changed = true; }
         if (p.mana < p.int) { p.mana = Math.min(p.int, p.mana + 1); changed = true; }
         if (changed) this.sendYou(p);
       }
@@ -1336,6 +1458,10 @@ class Game {
       str: p.str, dex: p.dex, int: p.int,
       skills: p.skills,
       gold: p.gold, logs: p.logs, ore: p.ore, gems: p.gems,
+      fish: p.fish, meat: p.meat, food: p.food,
+      mats: p.mats,
+      deeds: p.deeds,
+      title: titleOf(p),
       pots: p.pots,
       items: p.items,
       weapon: p.weapon,
