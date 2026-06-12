@@ -238,5 +238,34 @@ assert.strictEqual(rec.items.length, p.items.length, 'items persisted');
 assert.strictEqual(rec.weapon, p.weapon, 'equipped weapon persisted');
 assert.strictEqual(rec.itemUid, p.itemUid, 'uid counter persisted');
 
+// -- the legend -------------------------------------------------------------------
+const secretDefs = Object.entries(welcome.weapons).filter(([, d]) => d.secret);
+assert.strictEqual(secretDefs.length, 1, 'exactly one secret weapon exists');
+const legendId = secretDefs[0][0];
+const guard = game.spawners.find((sp) => (sp.respawnMs || 0) >= 30 * 60_000);
+assert(guard, 'its guardian sleeps somewhere');
+assert(Math.hypot(guard.x - game.map.w / 2, guard.y - game.map.h / 2) > 700,
+  'far from civilisation');
+
+p.items.length = 0;
+p.weapon = null;
+game.persistPlayer(p);
+game.rollLoot({ kind: guard.kind, x: p.x, y: p.y });
+const legendDrop = [...game.drops.values()].find((d) => d.item === 'weapon' && d.w.id === legendId);
+assert(legendDrop, 'the guardian yields the legend');
+game.pickupDrops(p);
+assert(p.items.some((i) => i.id === legendId), 'claimed it');
+game.persistPlayer(p);
+
+// while anyone owns it, the guardian guards nothing
+game.rollLoot({ kind: guard.kind, x: p.x + 1, y: p.y });
+assert(![...game.drops.values()].some((d) => d.item === 'weapon' && d.w.id === legendId),
+  'there is only one');
+
+// it cannot be forged
+const oreBefore = p.ore;
+game.handleCraft(p, legendId);
+assert.strictEqual(p.ore, oreBefore, 'no forge will make another');
+
 console.log('smoke test: all assertions passed');
 process.exit(0);
