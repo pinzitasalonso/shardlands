@@ -45,8 +45,9 @@ the client in chunks as you explore:
   and a road back to the capital — all buildings wear proper roofs, which
   fade away when you step inside.
 - **Ruined keeps** crawling with skeletons, watchtowers, deep pine and oak
-  forests, deadwood groves, a vast southeastern desert, and **snowfields**
-  with frosted pines across the far north.
+  forests, deadwood groves, a vast southeastern desert, **snowfields**
+  with frosted pines across the far north, and lowland **mires** where
+  bog serpents, marsh crabs and wild boar hunt among the drowned trees.
 - **Secrets**: twin stone circles that teleport travellers between them,
   treasure caches in the far corners of the world, whispering places, a
   hermit with suspiciously cheap potions, and dragon hoards beside the

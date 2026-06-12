@@ -41,6 +41,10 @@ const MOB_KINDS = {
   sheep: { name: 'a sheep', hp: 10, dmg: [0, 1], skill: 5, gold: 2, speedMs: 700, aggro: 0 },
   pig: { name: 'a pig', hp: 12, dmg: [1, 2], skill: 5, gold: 3, speedMs: 650, aggro: 0 },
   chicken: { name: 'a chicken', hp: 4, dmg: [0, 1], skill: 3, gold: 1, speedMs: 500, aggro: 0 },
+  // Mire dwellers.
+  snake: { name: 'a bog serpent', hp: 22, dmg: [3, 6], skill: 35, gold: 5, speedMs: 380, aggro: 5 },
+  crab: { name: 'a marsh crab', hp: 18, dmg: [2, 5], skill: 22, gold: 4, speedMs: 600, aggro: 3 },
+  boar: { name: 'a wild boar', hp: 30, dmg: [3, 7], skill: 32, gold: 6, speedMs: 420, aggro: 4 },
   // Townsfolk: protected by the crown, prone to small talk.
   villager: { name: 'a villager', hp: 30, dmg: [0, 1], skill: 5, gold: 0, speedMs: 900, aggro: 0, peaceful: true },
   // Crowned terrors. Slain ones return after a long while.
@@ -75,6 +79,9 @@ const LOOT_TABLES = {
   dragon: [[1, 'gold', 150, 400], [0.8, 'heal', 1, 2], [0.6, 'mana', 1, 2], [0.5, 'gems', 1, 2], [0.5, 'weapon', ['greatsword'], 3, 4]],
   wolf: [[0.3, 'gold', 3, 10]],
   deer: [[0.35, 'gold', 2, 6]],
+  snake: [[0.3, 'gold', 3, 9], [0.06, 'mana', 1, 1]],
+  crab: [[0.3, 'gold', 2, 7]],
+  boar: [[0.35, 'gold', 3, 10], [0.08, 'heal', 1, 1]],
   goblinking: [[1, 'gold', 100, 250], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2], [1, 'weapon', ['sword', 'mace'], 2, 3]],
   bonelord: [[1, 'gold', 120, 300], [1, 'gems', 1, 2], [0.6, 'mana', 1, 2], [1, 'weapon', ['battleaxe', 'greatsword'], 2, 4]],
   wolfking: [[1, 'gold', 100, 260], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2], [1, 'weapon', ['sword'], 2, 3]],
@@ -674,7 +681,7 @@ class Game {
       const tx = p.x + dx;
       const ty = p.y + dy;
       const tile = tileAt(this.map, tx, ty);
-      if (tile === TILE.TREE || tile === TILE.SNOWTREE) {
+      if (tile === TILE.TREE || tile === TILE.SNOWTREE || tile === TILE.SWAMPTREE) {
         if (Math.random() * 100 < p.skills.lumberjacking + 40) {
           p.logs += 1;
           this.sys(p, 'You chop some logs.');
@@ -713,7 +720,8 @@ class Game {
       return;
     }
     this.resources.delete(key);
-    this.setTile(x, y, tile === TILE.SNOWTREE ? TILE.SNOW : TILE.GRASS);
+    this.setTile(x, y,
+      tile === TILE.SNOWTREE ? TILE.SNOW : tile === TILE.SWAMPTREE ? TILE.SWAMP : TILE.GRASS);
     this.depleted.set(key, { tile, respawnAt: now() + RESOURCE_RESPAWN_MS });
     this.sys(p, message);
   }

@@ -82,6 +82,9 @@ SOURCES = {
     'sheep.png': f'{OGA}/sheep_walk.png',
     'pig.png': f'{OGA}/pig_walk.png',
     'chicken.png': f'{OGA}/chicken_walk.png',
+    'boar.png': 'https://raw.githubusercontent.com/arianne/stendhal/master/data/sprites/monsters/animal/boar.png',
+    'crab.png': 'https://raw.githubusercontent.com/arianne/stendhal/master/data/sprites/monsters/animal/crab.png',
+    'snake.png': 'https://raw.githubusercontent.com/arianne/stendhal/master/data/sprites/monsters/reptile/snake.png',
 }
 
 # Flare's calcDirection: dir = (round(theta / 45deg) + 5) % 8, theta in tile
@@ -377,9 +380,10 @@ def ground(col, row, img='terrain'):
     return {'img': img, 'x': col * 64, 'y': row * 64 + 32, 'w': 64, 'h': 32, 'ax': 0, 'ay': 0}
 
 
-def trim_object(sheet, box, name, frames, img):
+def trim_object(sheet, box, name, frames, img, scale=None):
     """Crop `box`, trim to alpha bbox, anchor at bottom-center (the tile's
-    bottom diamond corner sits 16px above the anchor in screen space)."""
+    bottom diamond corner sits 16px above the anchor in screen space).
+    scale, if set, shrinks the sprite at draw time."""
     region = sheet.crop(box)
     bbox = region.getbbox()
     if not bbox:
@@ -387,6 +391,8 @@ def trim_object(sheet, box, name, frames, img):
     x0, y0 = box[0] + bbox[0], box[1] + bbox[1]
     w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
     frames[name] = {'img': img, 'x': x0, 'y': y0, 'w': w, 'h': h, 'ax': w // 2, 'ay': h - 16}
+    if scale:
+        frames[name]['scale'] = scale
 
 
 def main():
@@ -409,19 +415,19 @@ def main():
     frames['planks'] = ground(0, 5, 'building')
 
     # Objects: rocks, foliage, walls. Boxes are generous; trimmed to alpha.
-    trim_object(terrain, (0, 320, 64, 384), 'rocks.0', frames, 'terrain')
-    trim_object(terrain, (64, 320, 128, 384), 'rocks.1', frames, 'terrain')
-    trim_object(terrain, (128, 320, 192, 384), 'rocks.2', frames, 'terrain')
+    trim_object(terrain, (0, 320, 64, 384), 'rocks.0', frames, 'terrain', scale=0.85)
+    trim_object(terrain, (64, 320, 128, 384), 'rocks.1', frames, 'terrain', scale=0.85)
+    trim_object(terrain, (128, 320, 192, 384), 'rocks.2', frames, 'terrain', scale=0.85)
     trim_object(terrain, (0, 704, 64, 768), 'tallgrass.0', frames, 'terrain')
     trim_object(terrain, (64, 704, 128, 768), 'tallgrass.1', frames, 'terrain')
     trim_object(terrain, (0, 768, 64, 832), 'bush.0', frames, 'terrain')
     trim_object(terrain, (64, 768, 128, 832), 'bush.1', frames, 'terrain')
-    trim_object(terrain, (128, 768, 192, 896), 'tree.fir0', frames, 'terrain')
-    trim_object(terrain, (192, 768, 256, 896), 'tree.fir1', frames, 'terrain')
+    trim_object(terrain, (128, 768, 192, 896), 'tree.fir0', frames, 'terrain', scale=0.8)
+    trim_object(terrain, (192, 768, 256, 896), 'tree.fir1', frames, 'terrain', scale=0.8)
     for i in range(4):
-        trim_object(terrain, (i * 64, 896, (i + 1) * 64, 1024), f'tree.pine{i}', frames, 'terrain')
-    trim_object(terrain, (256, 832, 448, 1024), 'tree.dead', frames, 'terrain')
-    trim_object(terrain, (448, 832, 640, 1024), 'tree.oak', frames, 'terrain')
+        trim_object(terrain, (i * 64, 896, (i + 1) * 64, 1024), f'tree.pine{i}', frames, 'terrain', scale=0.8)
+    trim_object(terrain, (256, 832, 448, 1024), 'tree.dead', frames, 'terrain', scale=0.7)
+    trim_object(terrain, (448, 832, 640, 1024), 'tree.oak', frames, 'terrain', scale=0.72)
     trim_object(building, (0, 0, 64, 64), 'wall.0', frames, 'building')
     trim_object(building, (64, 0, 128, 64), 'wall.1', frames, 'building')
     trim_object(building, (64, 320, 178, 384), 'prop.table', frames, 'building')
@@ -460,9 +466,37 @@ def main():
             'img': 'snowtrees', 'x': sx, 'y': sheet_h - cell.height,
             'w': cell.width, 'h': cell.height,
             'ax': cell.width // 2, 'ay': cell.height - 16,
+            'scale': frames[name].get('scale', 1),
         }
         sx += cell.width + 2
     snow_sheet.save(os.path.join(OUT, 'snowtrees.png'))
+
+    # Swamp trees: the same silhouettes drowned in bog-green.
+    swamp_sources = ['tree.dead', 'tree.fir0', 'tree.fir1', 'tree.pine3']
+    cells = []
+    for name in swamp_sources:
+        f = frames[name]
+        cells.append(terrain.crop((f['x'], f['y'], f['x'] + f['w'], f['y'] + f['h'])))
+    sw_w = sum(c.width for c in cells) + 2 * len(cells)
+    sw_h = max(c.height for c in cells)
+    swamp_sheet = Image.new('RGBA', (sw_w, sw_h), (0, 0, 0, 0))
+    sx = 0
+    for name, cell in zip(swamp_sources, cells):
+        arr = np.asarray(cell).astype(np.float32)
+        a = arr[..., 3:4]
+        tint = np.array([86, 102, 64], dtype=np.float32)
+        arr[..., :3] = arr[..., :3] * 0.55 + tint * 0.45
+        mossy = Image.fromarray(np.concatenate([arr[..., :3], a], axis=-1).astype(np.uint8), 'RGBA')
+        swamp_sheet.alpha_composite(mossy, (sx, sw_h - cell.height))
+        sname = 'swamp' + name[5:]
+        frames['tree.' + sname] = {
+            'img': 'swamptrees', 'x': sx, 'y': sw_h - cell.height,
+            'w': cell.width, 'h': cell.height,
+            'ax': cell.width // 2, 'ay': cell.height - 16,
+            'scale': 0.72,
+        }
+        sx += cell.width + 2
+    swamp_sheet.save(os.path.join(OUT, 'swamptrees.png'))
 
     # Tile id -> render recipe. Lists are hash-picked variants per tile.
     tiles = {
@@ -487,6 +521,10 @@ def main():
         '8': {'ground': ['floor.1'], 'effect': 'shrine'},
         '9': {'groundProc': 'snow'},
         '11': {'ground': ['planks']},
+        '12': {'groundProc': 'swamp'},
+        '13': {'groundProc': 'swamp',
+               'object': ['tree.swampdead', 'tree.swampdead', 'tree.swampfir0',
+                          'tree.swampfir1', 'tree.swamppine3']},
         '10': {'groundProc': 'snow',
                'object': ['tree.snowpine0', 'tree.snowpine1', 'tree.snowpine2',
                           'tree.snowpine3', 'tree.snowfir0', 'tree.snowfir1', 'tree.snowdead']},
@@ -547,6 +585,9 @@ def main():
     creatures['sheep'] = build_dir4_creature('sheep', 4, 128, 128, scale=0.5)
     creatures['pig'] = build_dir4_creature('pig', 4, 128, 128, scale=0.5)
     creatures['chicken'] = build_dir4_creature('chicken', 4, 32, 32, scale=1.0)
+    creatures['boar'] = build_dir4_creature('boar', 3, 64, 64, scale=1.0)
+    creatures['crab'] = build_dir4_creature('crab', 3, 48, 64, scale=1.0)
+    creatures['snake'] = build_dir4_creature('snake', 3, 32, 32, scale=1.3)
 
     manifest = {
         'tileW': 64, 'tileH': 32,
@@ -554,6 +595,7 @@ def main():
             'terrain': 'terrain.png',
             'building': 'building.png',
             'snowtrees': 'snowtrees.png',
+            'swamptrees': 'swamptrees.png',
             **{c['img']: f"creatures/{c['img']}.png" for c in creatures.values()},
             **{'w_' + k: f'creatures/weapons/{k}.png'
                for k in creatures['player'].get('overlays', {})},

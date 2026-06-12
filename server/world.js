@@ -26,9 +26,11 @@ const TILE = {
   SNOW: 9,
   SNOWTREE: 10,
   PLANKS: 11,
+  SWAMP: 12,
+  SWAMPTREE: 13,
 };
 
-const WALKABLE = new Set([TILE.GRASS, TILE.ROAD, TILE.FLOOR, TILE.SAND, TILE.SHRINE, TILE.SNOW, TILE.PLANKS]);
+const WALKABLE = new Set([TILE.GRASS, TILE.ROAD, TILE.FLOOR, TILE.SAND, TILE.SHRINE, TILE.SNOW, TILE.PLANKS, TILE.SWAMP]);
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -91,17 +93,20 @@ function generate(seed = 1337) {
       let t;
       if (e < 0.34) t = TILE.WATER;
       else if (e < 0.37) t = TILE.SAND;
-      else if (e > 0.72) t = TILE.ROCK;
+      else if (e > 0.74) t = TILE.ROCK;
       else if (cold > 0.12) {
         // The frozen north: snowfields and frosted pines.
-        if (forest(x, y) * 0.55 + forestFine(x, y) * 0.45 > 0.56 && e > 0.42) t = TILE.SNOWTREE;
+        if (forest(x, y) * 0.55 + forestFine(x, y) * 0.45 > 0.58 && e > 0.42) t = TILE.SNOWTREE;
         else t = TILE.SNOW;
+      } else if (e < 0.45 && dry < 0.33) {
+        // Lowland mires: sodden ground and drowned trees.
+        t = forestFine(x, y) > 0.72 ? TILE.SWAMPTREE : TILE.SWAMP;
       } else if (dry > 0.6) {
         // Desert: open sand, scattered rocks, the rare hardy tree.
         if (forestFine(x, y) > 0.85) t = TILE.TREE;
         else if (detail(x * 3 + 7, y * 3) > 0.88) t = TILE.ROCK;
         else t = TILE.SAND;
-      } else if (forest(x, y) * 0.55 + forestFine(x, y) * 0.45 > 0.58 && e > 0.42) t = TILE.TREE;
+      } else if (forest(x, y) * 0.55 + forestFine(x, y) * 0.45 > 0.6 && e > 0.42) t = TILE.TREE;
       else t = TILE.GRASS;
       tiles[y * W + x] = t;
     }
@@ -426,6 +431,38 @@ function generate(seed = 1337) {
   spawners.push({ kind: 'chicken', count: 4, x: CX + 22, y: CY + 16, r: 5 });
   spawners.push({ kind: 'deer', count: 3, x: CX + 28, y: CY - 22, r: 8 });
   spawners.push({ kind: 'goblin', count: 4, x: CX - 38, y: CY - 34, r: 8 });
+
+  // ---- Wandering packs fill the long quiet stretches between landmarks ----------
+  scatter(36, 1850, (sp) => {
+    if (Math.hypot(sp.x - CX, sp.y - CY) < 120) return;
+    const kind = ['wolf', 'goblin', 'skeleton', 'orc', 'deer'][Math.floor(rng() * 5)];
+    spawners.push({ kind, count: 3, x: sp.x, y: sp.y, r: 10 });
+  });
+
+  // Old fire pits dot the wilderness — travellers came this way once.
+  scatter(40, 1850, (sp) => {
+    props.push({ x: sp.x, y: sp.y, name: 'fx.campfire' });
+    if (rng() > 0.7) props.push({ x: sp.x + 1, y: sp.y + 1, name: 'prop.stool' });
+  });
+
+  // ---- The mires breed their own trouble -------------------------------------------
+  const swampKinds = ['snake', 'crab', 'boar'];
+  let swampSpawners = 0;
+  for (let gy = 64; gy < H - 64 && swampSpawners < 16; gy += 96) {
+    for (let gx = 64; gx < W - 64 && swampSpawners < 16; gx += 96) {
+      let wet = 0;
+      for (let dy = -6; dy <= 6; dy += 2) {
+        for (let dx = -6; dx <= 6; dx += 2) {
+          const t = get(gx + dx, gy + dy);
+          if (t === TILE.SWAMP || t === TILE.SWAMPTREE) wet++;
+        }
+      }
+      if (wet >= 20) {
+        spawners.push({ kind: swampKinds[swampSpawners % 3], count: 4, x: gx, y: gy, r: 9 });
+        swampSpawners++;
+      }
+    }
+  }
 
   // ---- Crowned terrors of the wild --------------------------------------------------
   const kingSpot = settle(CX + (rng() - 0.5) * 1400, CY + (rng() - 0.5) * 1400, 200, 9);
