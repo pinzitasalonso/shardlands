@@ -57,6 +57,14 @@ SOURCES = {
     'default_chest.txt': f'{FLARE}/fantasycore/animations/avatar/male/default_chest.txt',
     'default_hands.png': f'{FLARE}/fantasycore/images/avatar/male/default_hands.png',
     'default_hands.txt': f'{FLARE}/fantasycore/animations/avatar/male/default_hands.txt',
+    'head_bald.png': f'{FLARE}/fantasycore/images/avatar/male/head_bald.png',
+    'head_bald.txt': f'{FLARE}/fantasycore/animations/avatar/male/head_bald.txt',
+    'leather_chest.png': f'{FLARE}/fantasycore/images/avatar/male/leather_chest.png',
+    'leather_chest.txt': f'{FLARE}/fantasycore/animations/avatar/male/leather_chest.txt',
+    'leather_pants.png': f'{FLARE}/fantasycore/images/avatar/male/leather_pants.png',
+    'leather_pants.txt': f'{FLARE}/fantasycore/animations/avatar/male/leather_pants.txt',
+    'leather_hood.png': f'{FLARE}/fantasycore/images/avatar/male/leather_hood.png',
+    'leather_hood.txt': f'{FLARE}/fantasycore/animations/avatar/male/leather_hood.txt',
     'w_dagger.png': f'{FLARE}/fantasycore/images/avatar/male/dagger.png',
     'w_dagger.txt': f'{FLARE}/fantasycore/animations/avatar/male/dagger.txt',
     'w_longsword.png': f'{FLARE}/fantasycore/images/avatar/male/longsword.png',
@@ -513,6 +521,25 @@ def main():
         overlays=weapon_overlays)
     creatures['vendor'] = build_creature(
         'vendor', [chest, hands, boots, pants, shirt, hood], scale=0.6, stance_ms=320)
+
+    # Distinct townsfolk models, all from the same layered avatar kit.
+    bald = packed('head_bald')
+    lchest = packed('leather_chest')
+    lpants = packed('leather_pants')
+    lhood = packed('leather_hood')
+    creatures['smith'] = build_creature(
+        'smith', [chest, hands, boots, lpants, lchest, bald], scale=0.6, stance_ms=300)
+    creatures['bard'] = build_creature(
+        'bard', [chest, hands, boots, pants, shirt, head], scale=0.6, stance_ms=280,
+        hue=(0.5, (0.16, 0.45, 0.18)))  # the shirt turns minstrel-purple
+    creatures['hermit'] = build_creature(
+        'hermit', [chest, hands, boots, pants, shirt, lhood], scale=0.6, stance_ms=340,
+        hue=(0.9, (0.16, 0.45, 0.18)))  # faded, road-worn red
+    creatures['villager2'] = build_creature(
+        'villager2', [chest, hands, boots, pants, shirt, bald], scale=0.6, stance_ms=300,
+        hue=(0.75, (0.16, 0.45, 0.18)))  # rust-red work shirt
+    creatures['villager3'] = build_creature(
+        'villager3', [chest, hands, boots, lpants, lchest, head], scale=0.6, stance_ms=300)
 
     # Wildlife and livestock.
     creatures['wolf'] = build_dir4_creature('wolf', 3, 48, 64, scale=1.1)
