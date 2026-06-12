@@ -290,5 +290,28 @@ ws.sent.length = 0;
 game.handleStory(p, bard.id); // mid-tale: politely ignored
 assert(!ws.sent.some((m) => m.t === 'chat'), 'no interrupting the teller');
 
+// -- /teleport ----------------------------------------------------------------------
+p.dead = false;
+p.x = 100;
+p.y = 100;
+p.teleportAt = 0;
+ws.sent.length = 0;
+game.handleSay(p, '/teleport');
+assert.strictEqual(p.x, game.map.spawn.x, 'teleported home (x)');
+assert.strictEqual(p.y, game.map.spawn.y, 'teleported home (y)');
+assert(!ws.sent.some((m) => m.t === 'chat'), 'commands are not broadcast as speech');
+ws.sent.length = 0;
+game.handleSay(p, '/teleport');
+assert(ws.sent.some((m) => m.t === 'sys' && /winds are spent/.test(m.text)), 'teleport cooldown enforced');
+p.dead = true;
+p.teleportAt = 0;
+ws.sent.length = 0;
+game.handleSay(p, '/teleport');
+assert(ws.sent.some((m) => m.t === 'sys' && /dead must walk/.test(m.text)), 'no teleporting while dead');
+p.dead = false;
+ws.sent.length = 0;
+game.handleSay(p, '/dance');
+assert(ws.sent.some((m) => m.t === 'sys' && /Unknown command/.test(m.text)), 'unknown commands answered');
+
 console.log('smoke test: all assertions passed');
 process.exit(0);

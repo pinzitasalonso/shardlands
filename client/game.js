@@ -132,7 +132,13 @@ function handleMessage(msg) {
       syncEntities(state.mobs, msg.mobs);
       state.drops = msg.drops || [];
       state.me = state.players.get(state.myId) || null;
-      if (state.me) state.myTile = { x: state.me.x, y: state.me.y };
+      if (state.me) {
+        const prev = state.myTile;
+        if (prev && Math.hypot(state.me.x - prev.x, state.me.y - prev.y) > 4) {
+          state.walkTarget = null;
+        }
+        state.myTile = { x: state.me.x, y: state.me.y };
+      }
       if (state.target && !state.mobs.has(state.target)) state.target = 0;
       updateTargetFrame();
       if (state.myTile) {
