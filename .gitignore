@@ -1,3 +1,5 @@
 node_modules/
 data/
 tools/asset-src/
+# regenerate with: python3 tools/build-assets.py --export
+art/editable/

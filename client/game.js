@@ -29,6 +29,8 @@ const MOB_STYLE = {
   crab: { color: '#b06a4a', size: 0.4, name: 'a marsh crab' },
   boar: { color: '#6a5240', size: 0.6, name: 'a wild boar' },
   villager: { color: '#b0a890', size: 0.6, name: 'a villager', sprites: ['player', 'villager2', 'villager3'] },
+  guard: { color: '#8a93a5', size: 0.7, name: 'a town guard', sprite: 'player',
+    overlay: ['chain', 'longsword', 'kite_shield'] },
   whitestag: { color: '#f0f0e8', size: 0.7, name: 'the White Stag', sprite: 'deer', spriteScale: 1.3, boss: true },
   goblinking: { color: '#5aa040', size: 0.9, name: 'Skarg, the Goblin King', sprite: 'goblin', spriteScale: 1.5, boss: true },
   bonelord: { color: '#d8d4c8', size: 1.1, name: 'the Bone Lord', sprite: 'skeleton', spriteScale: 1.4, boss: true },
@@ -54,6 +56,7 @@ const state = {
   drops: [],            // loot lying on the ground
   props: [],            // furniture inside buildings (client-side dressing)
   villages: [],         // named settlements, for the world map
+  cities: [],           // walled bastions: safe ground, bindable shrines
   me: null,             // my entry in players
   you: null,            // private stats from the server
   speech: new Map(),    // entity id -> { text, until, magic }
@@ -121,6 +124,7 @@ function handleMessage(msg) {
       state.buildings = msg.buildings || [];
       state.props = msg.props || [];
       state.villages = msg.villages || [];
+      state.cities = msg.cities || [];
       state.mini = msg.mini;
       buildMinimap();
       document.getElementById('login').classList.add('hidden');
@@ -514,6 +518,19 @@ function toggleWorldMap() {
     g.fillStyle = '#d8b35e';
     g.fillRect(v.x * k - 2, v.y * k - 2, 4, 4);
   }
+  // cities get the big letters and a keep icon — they're the safe harbours
+  g.font = 'bold 16px Georgia';
+  for (const c of state.cities) {
+    g.fillStyle = '#120d08';
+    g.fillText(c.name, c.x * k + 1, c.y * k - 8);
+    g.fillStyle = '#ffe9a8';
+    g.fillText(c.name, c.x * k, c.y * k - 9);
+    g.fillStyle = '#e8c25e';
+    g.fillRect(c.x * k - 3, c.y * k - 3, 6, 6);
+    g.strokeStyle = '#120d08';
+    g.strokeRect(c.x * k - 3.5, c.y * k - 3.5, 7, 7);
+  }
+  g.font = 'bold 13px Georgia';
   if (state.myTile) {
     g.fillStyle = '#ffffff';
     g.beginPath();
@@ -934,9 +951,8 @@ function tileAt(x, y) {
 setInterval(() => {
   if (!state.me) return;
   if (state.myTile && state.myTile.y < 64) return Sound.setTrack('deeps');
-  const nearTown = state.villages.some((v) =>
-    Math.abs(v.x - state.me.x) < 26 && Math.abs(v.y - state.me.y) < 26) ||
-    (Math.abs(1024 - state.me.x) < 30 && Math.abs(1024 - state.me.y) < 30);
+  const nearTown = state.villages.concat(state.cities).some((v) =>
+    Math.abs(v.x - state.me.x) < 26 && Math.abs(v.y - state.me.y) < 26);
   Sound.setTrack(nearTown ? 'town' : dayDarkness() > 0.3 ? 'night' : 'overworld');
 }, 3000);
 
@@ -1228,7 +1244,7 @@ function render() {
 
   // Entities join the same depth-sorted pass.
   for (const d of state.drops) drawables.push({ depth: d.x + d.y, kind: 'drop', e: d });
-  for (const v of state.vendors) drawables.push({ depth: v.rx + v.ry, kind: 'vendor', e: v });
+  for (const v of state.vendors) drawables.push({ depth: v.rx + v.ry + 0.005, kind: 'vendor', e: v });
   for (const m of state.mobs.values()) drawables.push({ depth: m.rx + m.ry + 0.01, kind: 'mob', e: m });
   for (const p of state.players.values()) drawables.push({ depth: p.rx + p.ry + 0.01, kind: 'player', e: p });
 
@@ -1591,7 +1607,8 @@ function drawMob(m, cam, time) {
   const c = Assets.state.ok && Assets.creature(spriteKind);
   let labelY;
   if (c) {
-    Assets.drawCreature(ctx, spriteKind, m.heading, entityAnim(m), time + m.id * 137, s.x, s.y, spriteScale);
+    Assets.drawCreature(ctx, spriteKind, m.heading, entityAnim(m), time + m.id * 137, s.x, s.y, spriteScale,
+      style.overlay || null);
     labelY = s.y - c.ay * spriteScale - 8;
   } else {
     const r = 22 * style.size;
@@ -1800,6 +1817,10 @@ function drawMinimap() {
   const mctx = minimap.getContext('2d');
   mctx.putImageData(state.minimapImage, 0, 0);
   const s = state.mini.s;
+  mctx.fillStyle = '#e8c25e';
+  for (const c of state.cities) {
+    mctx.fillRect(Math.round(c.x / s) - 1, Math.round(c.y / s) - 1, 3, 3);
+  }
   for (const p of state.players.values()) {
     mctx.fillStyle = p.id === state.myId ? '#ffffff' : '#ffd040';
     mctx.fillRect(Math.round(p.x / s) - 1, Math.round(p.y / s) - 1, 3, 3);

@@ -5,7 +5,7 @@
 
 const assert = require('assert');
 const { Game } = require('../server/game');
-const { TILE } = require('../server/world');
+const { TILE, nearestWalkable } = require('../server/world');
 
 function fakeWs() {
   return { readyState: 1, sent: [], send(data) { this.sent.push(JSON.parse(data)); } };
@@ -391,7 +391,11 @@ p.mana = 50;
 game.handleCast(p, 'bless', 0);
 assert(p.buffUntil > Date.now(), 'bless active');
 
-// bosses queue a telegraphed slam
+// bosses queue a telegraphed slam (fought outside the walls — cities are
+// sanctuary now, and a boss correctly refuses to target anyone inside one)
+const wildB = nearestWalkable(game.map, 700, 700);
+p.x = wildB.x;
+p.y = wildB.y;
 const bossDummy = { id: 999997, kind: 'bonelord', x: p.x + 3, y: p.y, hp: 500, maxhp: 500,
   target: p.id, moveAt: Infinity, swingAt: Infinity, spawner: { alive: new Set() } };
 game.mobs.set(bossDummy.id, bossDummy);
@@ -570,8 +574,79 @@ assert([...game.drops.values()].some((d) =>
 // tech: SQLite persistence and tick timing for /health
 const persist = require('../server/persist');
 assert.strictEqual(persist.usingSqlite(), true, 'saves go to SQLite');
+// a new character must be on disk the moment it exists: a crash between
+// account and record writes must never strand the account
+assert(persist.load()[p.key], 'fresh character is on disk immediately');
 game.tick();
 assert(game.lastTickMs > 0, 'tick time is measured for /health');
+
+// -- batch E: cities, guards, sanctuary, home binding, more dungeons -----------------
+assert(game.map.cities && game.map.cities.length >= 4, 'walled cities stand');
+assert(game.map.cities.some((c) => c.name === 'Briarhaven'), 'the capital counts among them');
+assert.strictEqual(cavePortals.length, 12, 'six dungeons, each with a mouth and an exit');
+assert(game.spawners.filter((sp) => sp.kind === 'guard').length >= 4, 'guards hold the walls');
+
+// sanctuary: nothing hunts a traveller inside the walls...
+p.dead = false;
+p.hp = 100000;
+p.x = game.map.spawn.x;
+p.y = game.map.spawn.y;
+const prowler = { id: 999996, kind: 'wolf', x: p.x + 1, y: p.y, hp: 26, maxhp: 26,
+  homeX: p.x + 1, homeY: p.y, target: 0, moveAt: Infinity, swingAt: Infinity,
+  spawner: { alive: new Set() } };
+game.mobs.set(prowler.id, prowler);
+game.tick();
+assert.strictEqual(prowler.target, 0, 'sanctuary holds inside the walls');
+// ...but the wilds are another matter (regression: playerGrid must be built)
+const wild = nearestWalkable(game.map, 1024, 1500);
+assert(!game.inCity(wild.x, wild.y), 'found true wilderness');
+p.x = wild.x;
+p.y = wild.y;
+prowler.x = wild.x + 1;
+prowler.y = wild.y;
+prowler.homeX = wild.x + 1;
+prowler.homeY = wild.y;
+game.tick();
+assert.strictEqual(prowler.target, p.id, 'the wilds still hunt you');
+game.mobs.delete(prowler.id);
+p.target = 0;
+
+// guards cut down intruders and leave the spoils
+const post = { x: game.map.spawn.x + 3, y: game.map.spawn.y };
+const sentinel = { id: 999995, kind: 'guard', x: post.x, y: post.y, homeX: post.x, homeY: post.y,
+  hp: 160, maxhp: 160, target: 0, foe: 0, moveAt: 0, swingAt: 0, scanAt: 0, chatAt: Infinity,
+  spawner: { alive: new Set() } };
+const intruder = { id: 999994, kind: 'orc', x: post.x + 1, y: post.y, hp: 48, maxhp: 48,
+  homeX: post.x + 1, homeY: post.y, target: 0, moveAt: Infinity, swingAt: Infinity,
+  spawner: { alive: new Set() } };
+game.mobs.set(sentinel.id, sentinel);
+game.mobs.set(intruder.id, intruder);
+game.mobTick(sentinel, Date.now());
+assert.strictEqual(sentinel.foe, intruder.id, 'the sentinel marks the intruder');
+assert(intruder.hp < 48, 'and strikes');
+intruder.hp = 1;
+sentinel.swingAt = 0;
+game.mobTick(sentinel, Date.now());
+assert(!game.mobs.has(intruder.id), 'the intruder falls');
+game.mobs.delete(sentinel.id);
+
+// touching a city shrine binds /home there
+const city = game.map.cities.find((c) => c.name !== 'Briarhaven');
+p.home = null;
+p.x = city.x;
+p.y = city.y - 1;
+p.moveAt = 0;
+ws.sent.length = 0;
+game.handleMove(p, 0, -1);
+assert(p.home && p.home.x === city.x && p.home.y === city.y - 2, 'the shrine binds home');
+assert(ws.sent.some((m) => m.t === 'sys' && m.text.includes(city.name)), 'and says whose walls these are');
+p.x = 100;
+p.y = 100;
+p.teleportAt = 0;
+game.handleSay(p, '/home');
+assert(p.x === city.x && p.y === city.y - 2, 'recall carries you to your bound city');
+game.persistPlayer(p);
+assert.strictEqual(game.records[p.key].home.x, city.x, 'home survives a save');
 
 console.log('smoke test: all assertions passed');
 process.exit(0);

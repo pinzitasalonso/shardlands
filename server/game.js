@@ -50,6 +50,9 @@ const MOB_KINDS = {
   boar: { name: 'a wild boar', hp: 30, dmg: [3, 7], skill: 32, gold: 6, speedMs: 420, aggro: 4 },
   // Townsfolk: protected by the crown, prone to small talk.
   villager: { name: 'a villager', hp: 30, dmg: [0, 1], skill: 5, gold: 0, speedMs: 900, aggro: 0, peaceful: true },
+  // City guards never trouble travellers, but anything hostile that slips
+  // inside the walls answers to them.
+  guard: { name: 'a town guard', hp: 160, dmg: [10, 18], skill: 85, gold: 0, speedMs: 320, aggro: 0, peaceful: true, guard: true },
   // Crowned terrors. Slain ones return after a long while.
   goblinking: { name: 'Skarg, the Goblin King', hp: 130, dmg: [6, 12], skill: 60, gold: 220, speedMs: 320, aggro: 9, boss: true },
   vyrmaur: { name: 'Vyrmaur the Undying', hp: 900, dmg: [22, 40], skill: 110, gold: 1500, speedMs: 380, aggro: 12, boss: true },
@@ -313,7 +316,11 @@ class Game {
         itemUid: 2,
       };
       persist.saveAccounts(this.accounts);
-      this.dirty = true;
+      // save the record alongside the account, atomically from the player's
+      // point of view — a crash between the two must not strand an account
+      // that points at a character which was never written
+      persist.save(this.records);
+      this.dirty = false;
     }
 
     for (const p of this.players.values()) {
@@ -338,7 +345,10 @@ class Game {
       skills: { ...Object.fromEntries(SKILLS.map((sk) => [sk, 20])), ...rec.skills },
       gold: rec.gold, logs: rec.logs, ore: rec.ore, gems: rec.gems || 0,
       fish: rec.fish || 0, meat: rec.meat || 0, food: rec.food || 0,
-      tmaps: (rec.tmaps || []).slice(),
+      // drop map indices that no longer point at a cache (the world layout
+      // can change between versions; old saves must not crash the dig check)
+      tmaps: (rec.tmaps || []).filter((i) => Number.isInteger(i) &&
+        this.map.secrets[i] && this.map.secrets[i].type === 'cache'),
       mats: { frostwood: 0, sunsteel: 0, ironbark: 0, ...rec.mats },
       deeds: { ...rec.deeds },
       pots: { heal: 0, mana: 0, ...rec.pots },
@@ -347,6 +357,7 @@ class Game {
       armor: rec.armor ?? null,
       offhand: rec.offhand ?? null,
       arrows: rec.arrows || 0,
+      home: rec.home || null,
       buffUntil: 0,
       itemUid: rec.itemUid || 1,
       dead: false,
@@ -365,6 +376,7 @@ class Game {
       buildings: this.map.buildings,
       props: this.map.props,
       villages: this.map.villages.map((v) => ({ name: v.name, x: v.x, y: v.y })),
+      cities: (this.map.cities || []).map((c) => ({ name: c.name, x: c.x, y: c.y, r: c.r })),
       epoch: Date.now(),
       spells: SPELLS,
       weapons: WEAPONS,
@@ -381,6 +393,9 @@ class Game {
     if (!p) return;
     this.players.delete(p.id);
     this.persistPlayer(p);
+    // straight to disk: a crash after a disconnect must not lose the session
+    persist.save(this.records);
+    this.dirty = false;
     this.broadcastSys(`${p.name} has left the world.`);
   }
 
@@ -403,6 +418,7 @@ class Game {
       armor: p.armor,
       offhand: p.offhand,
       arrows: p.arrows,
+      home: p.home ? { ...p.home } : null,
       itemUid: p.itemUid,
     });
     this.dirty = true;
@@ -674,8 +690,27 @@ class Game {
     p.y = ny;
     p.moveAt = t + (dx !== 0 && dy !== 0 ? 165 : 118);
 
-    if (p.dead && tileAt(this.map, p.x, p.y) === TILE.SHRINE) this.resurrect(p);
+    if (tileAt(this.map, p.x, p.y) === TILE.SHRINE) {
+      if (p.dead) this.resurrect(p);
+      // touching any shrine binds your recall there — cities are bases
+      if (!p.home || p.home.x !== p.x || p.home.y !== p.y) {
+        p.home = { x: p.x, y: p.y };
+        const c = this.cityAt(p.x, p.y);
+        this.sys(p, c
+          ? `The shrine of ${c.name} accepts you. /home will carry you back here.`
+          : 'The shrine hums softly. /home will carry you back here.');
+      }
+    }
     if (!p.dead) this.checkSecrets(p, t);
+  }
+
+  cityAt(x, y) {
+    return (this.map.cities || []).find((c) =>
+      Math.abs(c.x - x) <= c.r && Math.abs(c.y - y) <= c.r) || null;
+  }
+
+  inCity(x, y) {
+    return this.cityAt(x, y) !== null;
   }
 
   checkSecrets(p, t) {
@@ -728,12 +763,14 @@ class Game {
       }
       p.teleportAt = t + 60_000;
       this.fxNear(p, { t: 'fx', kind: 'portal', x: p.x, y: p.y });
-      p.x = this.map.spawn.x;
-      p.y = this.map.spawn.y;
+      const home = p.home || this.map.spawn;
+      p.x = home.x;
+      p.y = home.y;
       p.moveAt = t + 600;
       p.target = 0;
       this.fxNear(p, { t: 'fx', kind: 'portal', x: p.x, y: p.y });
-      this.sys(p, 'The winds carry you home to the Briarhaven plaza.');
+      const c = this.cityAt(p.x, p.y);
+      this.sys(p, `The winds carry you home${c ? ' to ' + c.name : ''}.`);
       return;
     }
     this.sys(p, `Unknown command: /${cmd}. Commands: /teleport`);
@@ -979,7 +1016,7 @@ class Game {
       if (q.items.some((i) => i.id === id)) return true;
     }
     for (const d of this.drops.values()) {
-      if (d.item === 'weapon' && d.w.id === id) return true;
+      if (d.item === 'weapon' && d.w && d.w.id === id) return true;
     }
     return false;
   }
@@ -999,6 +1036,7 @@ class Game {
       if (entry[1] === 'tmap') {
         const cacheIdxs = this.map.secrets
           .map((sc, i) => (sc.type === 'cache' ? i : -1)).filter((i) => i >= 0);
+        if (!cacheIdxs.length) continue;
         const m = cacheIdxs[rand(0, cacheIdxs.length - 1)];
         this.drops.set(this.nextId, {
           id: this.nextId++, x: mob.x, y: mob.y,
@@ -1048,6 +1086,11 @@ class Game {
         this.sendYou(p);
         continue;
       }
+      if (d.item === 'tmap' && (p.tmaps || []).length >= 3) {
+        if (t0Throttle(p)) this.sys(p, 'You cannot carry more maps.');
+        continue; // it stays on the ground — deleting and re-adding the key
+                  // mid-iteration would make the iterator visit it forever
+      }
       this.drops.delete(id);
       if (d.cacheIdx !== undefined) {
         this.cacheRespawns.set(d.cacheIdx, now() + CACHE_RESPAWN_MS);
@@ -1080,11 +1123,6 @@ class Game {
           break;
         case 'tmap': {
           p.tmaps = p.tmaps || [];
-          if (p.tmaps.length >= 3) {
-            this.drops.set(id, d); // leave it lying there
-            if (t0Throttle(p)) this.sys(p, 'You cannot carry more maps.');
-            break;
-          }
           p.tmaps.push(d.m);
           this.sys(p, 'A weathered map! Someone marked an X far from here.');
           break;
@@ -1287,9 +1325,52 @@ class Game {
       return;
     }
 
-    // Acquire or validate a target.
+    // Guards hunt whatever hostile thing has strayed nearest their post,
+    // and otherwise behave like (heavily armed) townsfolk.
+    if (def.guard) {
+      let foe = mob.foe ? this.mobs.get(mob.foe) : null;
+      if (foe && (foe.hp <= 0 || dist(mob, foe) > 14)) foe = null;
+      if (!foe && t >= (mob.scanAt || 0)) {
+        mob.scanAt = t + 1500;
+        let best = 12;
+        for (const m of this.mobs.values()) {
+          const mdef = MOB_KINDS[m.kind];
+          if (mdef.peaceful || (mdef.aggro === 0 && !m.aggroBoost)) continue;
+          // never abandon the walls: only foes near the guard's post matter
+          if (Math.abs(m.x - mob.homeX) > 14 || Math.abs(m.y - mob.homeY) > 14) continue;
+          const d = dist(mob, m);
+          if (d < best) { best = d; foe = m; }
+        }
+        mob.foe = foe ? foe.id : 0;
+      }
+      if (foe) {
+        if (dist(mob, foe) <= 1.5) {
+          if (t >= mob.swingAt) {
+            mob.swingAt = t + 1200;
+            mob.swungAt = t;
+            const dmg = rand(def.dmg[0], def.dmg[1]);
+            foe.hp -= dmg;
+            this.fxNear(foe, { t: 'fx', kind: 'hit', x: foe.x, y: foe.y, amount: dmg });
+            if (foe.hp <= 0) {
+              this.fxNear(foe, { t: 'fx', kind: 'die', x: foe.x, y: foe.y });
+              this.rollLoot(foe); // the spoils are left for travellers
+              this.mobs.delete(foe.id);
+              foe.spawner.alive.delete(foe.id);
+              mob.foe = 0;
+            }
+          }
+        } else if (t >= mob.moveAt) {
+          mob.moveAt = t + def.speedMs;
+          this.stepToward(mob, foe.x, foe.y);
+        }
+        return;
+      }
+    }
+
+    // Acquire or validate a target. The walls of a city are sanctuary:
+    // nothing hunts a traveller standing inside them.
     let target = mob.target ? this.players.get(mob.target) : null;
-    if (target && (target.dead || dist(mob, target) > 14)) {
+    if (target && (target.dead || dist(mob, target) > 14 || this.inCity(target.x, target.y))) {
       mob.target = 0;
       target = null;
     }
@@ -1303,7 +1384,7 @@ class Game {
           const cell = this.playerGrid && this.playerGrid.get((gx << 16) | gy);
           if (!cell) continue;
           for (const p of cell) {
-            if (dist(mob, p) <= reach) {
+            if (dist(mob, p) <= reach && !this.inCity(p.x, p.y)) {
               mob.target = p.id;
               target = p;
               break outer;
@@ -1480,6 +1561,18 @@ class Game {
     }
 
     this.tickEvent(t);
+
+    // Bucket players into a coarse grid so each mob's aggro scan only looks
+    // at its own neighbourhood instead of every player online.
+    this.playerGrid = new Map();
+    for (const q of this.players.values()) {
+      if (q.dead) continue;
+      const key = ((q.x >> 5) << 16) | (q.y >> 5);
+      const cell = this.playerGrid.get(key);
+      if (cell) cell.push(q);
+      else this.playerGrid.set(key, [q]);
+    }
+
     for (const mob of this.mobs.values()) this.mobTick(mob, t);
 
     for (const p of this.players.values()) {
