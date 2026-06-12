@@ -57,6 +57,16 @@ SOURCES = {
     'default_chest.txt': f'{FLARE}/fantasycore/animations/avatar/male/default_chest.txt',
     'default_hands.png': f'{FLARE}/fantasycore/images/avatar/male/default_hands.png',
     'default_hands.txt': f'{FLARE}/fantasycore/animations/avatar/male/default_hands.txt',
+    'w_dagger.png': f'{FLARE}/fantasycore/images/avatar/male/dagger.png',
+    'w_dagger.txt': f'{FLARE}/fantasycore/animations/avatar/male/dagger.txt',
+    'w_longsword.png': f'{FLARE}/fantasycore/images/avatar/male/longsword.png',
+    'w_longsword.txt': f'{FLARE}/fantasycore/animations/avatar/male/longsword.txt',
+    'w_mace.png': f'{FLARE}/fantasycore/images/avatar/male/mace.png',
+    'w_mace.txt': f'{FLARE}/fantasycore/animations/avatar/male/mace.txt',
+    'w_battle_axe.png': f'{FLARE}/fantasycore/images/avatar/male/battle_axe.png',
+    'w_battle_axe.txt': f'{FLARE}/fantasycore/animations/avatar/male/battle_axe.txt',
+    'w_greatsword.png': f'{FLARE}/fantasycore/images/avatar/male/greatsword.png',
+    'w_greatsword.txt': f'{FLARE}/fantasycore/animations/avatar/male/greatsword.txt',
     # Animals: Stendhal (GPL 2) and LPC farm animals by Daniel Eddeland
     # (CC-BY-SA 3.0 / GPL 3). 4-direction walk sheets, rows = up/right/down/left.
     'wolf.png': 'https://raw.githubusercontent.com/arianne/stendhal/master/data/sprites/monsters/animal/wolf.png',
@@ -174,61 +184,87 @@ ANIM_STYLE = {
     'melee': {'ms': 110, 'loop': 'loop'},
 }
 
-def build_creature(name, layers, hue=None, scale=1.0, stance_ms=None):
+def build_creature(name, layers, hue=None, scale=1.0, stance_ms=None, overlays=None):
     """layers: list of (sheet Image, anims dict from parse_flare_anims).
     Composites stance/run/melee bands side by side into one atlas with a
-    uniform cell grid and shared anchor; rows ordered by heading."""
-    # Bands available in every layer, in canonical order.
-    bands = [b for b in ('stance', 'run', 'melee') if all(b in anims for _, anims in layers)]
-    counts = {b: min(anims[b][1] for _, anims in layers) for b in bands}
+    uniform cell grid and shared anchor; rows ordered by heading.
 
-    # Cell extents over every used frame of every band and layer.
+    overlays: optional {key: (sheet, anims)} of extra layers (e.g. weapons)
+    rendered as separate, geometry-identical atlases so the client can draw
+    them over the base at runtime."""
+    overlays = overlays or {}
+    all_layer_sets = [layers] + [[ov] for ov in overlays.values()]
+
+    # Bands available in every layer of every set, in canonical order.
+    bands = [b for b in ('stance', 'run', 'melee')
+             if all(b in anims for ls in all_layer_sets for _, anims in ls)]
+    counts = {b: min(anims[b][1] for ls in all_layer_sets for _, anims in ls) for b in bands}
+
+    # Cell extents over every used frame of every band and layer (overlays
+    # included), so base and overlay atlases share one grid and anchor.
     left = top = right = bottom = 0
-    for img, anims in layers:
-        for b in bands:
-            frames = anims[b][0]
-            for (idx, d), (x, y, w, h, ox, oy) in frames.items():
-                if idx >= counts[b]:
-                    continue
-                left = max(left, ox)
-                top = max(top, oy)
-                right = max(right, w - ox)
-                bottom = max(bottom, h - oy)
+    for ls in all_layer_sets:
+        for img, anims in ls:
+            for b in bands:
+                frames = anims[b][0]
+                for (idx, d), (x, y, w, h, ox, oy) in frames.items():
+                    if idx >= counts[b]:
+                        continue
+                    left = max(left, ox)
+                    top = max(top, oy)
+                    right = max(right, w - ox)
+                    bottom = max(bottom, h - oy)
     cw, ch = left + right, top + bottom
     total = sum(counts[b] for b in bands)
-    atlas = Image.new('RGBA', (cw * total, ch * 8), (0, 0, 0, 0))
-    col0 = {}
-    col = 0
-    for b in bands:
-        col0[b] = col
-        for h_ in range(8):
-            d = flare_dir_for_heading(h_)
-            for idx in range(counts[b]):
-                cell = Image.new('RGBA', (cw, ch), (0, 0, 0, 0))
-                for img, anims in layers:
-                    frames = anims[b][0]
-                    if (idx, d) not in frames:
-                        continue
-                    f, ox, oy = crop_frame(img, frames[(idx, d)])
-                    cell.alpha_composite(f, (left - ox, top - oy))
-                atlas.alpha_composite(cell, (cw * (col + idx), ch * h_))
-        col += counts[b]
+
+    def render(layer_set):
+        atlas = Image.new('RGBA', (cw * total, ch * 8), (0, 0, 0, 0))
+        col = 0
+        for b in bands:
+            for h_ in range(8):
+                d = flare_dir_for_heading(h_)
+                for idx in range(counts[b]):
+                    cell = Image.new('RGBA', (cw, ch), (0, 0, 0, 0))
+                    for img, anims in layer_set:
+                        frames = anims[b][0]
+                        if (idx, d) not in frames:
+                            continue
+                        f, ox, oy = crop_frame(img, frames[(idx, d)])
+                        cell.alpha_composite(f, (left - ox, top - oy))
+                    atlas.alpha_composite(cell, (cw * (col + idx), ch * h_))
+            col += counts[b]
+        if scale != 1.0:
+            atlas = atlas.resize((int(atlas.width * scale), int(atlas.height * scale)), Image.LANCZOS)
+        return atlas
+
+    atlas = render(layers)
     if hue:
         atlas = hue_shift(atlas, *hue)
-    if scale != 1.0:
-        atlas = atlas.resize((int(atlas.width * scale), int(atlas.height * scale)), Image.LANCZOS)
-        cw, ch, left, top = (int(v * scale) for v in (cw, ch, left, top))
     atlas.save(os.path.join(OUT, 'creatures', f'{name}.png'))
+
+    overlay_meta = {}
+    if overlays:
+        os.makedirs(os.path.join(OUT, 'creatures', 'weapons'), exist_ok=True)
+        for key, ov in overlays.items():
+            render([ov]).save(os.path.join(OUT, 'creatures', 'weapons', f'{key}.png'))
+            overlay_meta[key] = 'w_' + key
+
+    cw, ch, left, top = (int(v * scale) for v in (cw, ch, left, top))
     anims_meta = {}
+    col = 0
     for b in bands:
         style = dict(ANIM_STYLE[b])
         if b == 'stance' and stance_ms:
             style['ms'] = stance_ms
-        anims_meta[b] = {'start': col0[b], 'frames': counts[b], **style}
-    return {
+        anims_meta[b] = {'start': col, 'frames': counts[b], **style}
+        col += counts[b]
+    meta = {
         'img': name, 'cellW': cw, 'cellH': ch, 'ax': left, 'ay': top,
         'dirs': 8, 'anims': anims_meta,
     }
+    if overlay_meta:
+        meta['overlays'] = overlay_meta
+    return meta
 
 
 def build_minotaur(scale=1.0):
@@ -470,8 +506,11 @@ def main():
     hood = packed('mage_hood')
     chest = packed('default_chest')  # bare skin: torso and arms
     hands = packed('default_hands')
+    weapon_overlays = {k: packed('w_' + k) for k in
+                       ['dagger', 'longsword', 'mace', 'battle_axe', 'greatsword']}
     creatures['player'] = build_creature(
-        'player', [chest, hands, boots, pants, shirt, head], scale=0.6, stance_ms=260)
+        'player', [chest, hands, boots, pants, shirt, head], scale=0.6, stance_ms=260,
+        overlays=weapon_overlays)
     creatures['vendor'] = build_creature(
         'vendor', [chest, hands, boots, pants, shirt, hood], scale=0.6, stance_ms=320)
 
@@ -489,6 +528,8 @@ def main():
             'building': 'building.png',
             'snowtrees': 'snowtrees.png',
             **{c['img']: f"creatures/{c['img']}.png" for c in creatures.values()},
+            **{'w_' + k: f'creatures/weapons/{k}.png'
+               for k in creatures['player'].get('overlays', {})},
         },
         'frames': frames,
         'tiles': tiles,

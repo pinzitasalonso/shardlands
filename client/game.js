@@ -56,8 +56,17 @@ const state = {
   walkTarget: null,     // { x, y } click-to-move destination
   myTile: null,         // authoritative tile pos from last state message
   spells: {},
+  weapons: {},
+  qualities: [],
   minimapImage: null,
 };
+
+const QUALITY_COLORS = ['#9a9a9a', '#e8e2d0', '#6ac06a', '#6a9ae0', '#e0a040'];
+
+function weaponLabel(item) {
+  const q = state.qualities[item.q];
+  return (q && q.name ? q.name + ' ' : '') + (state.weapons[item.id] ? state.weapons[item.id].name : item.id);
+}
 
 Assets.load();
 
@@ -93,6 +102,8 @@ function handleMessage(msg) {
     case 'welcome': {
       state.myId = msg.id;
       state.spells = msg.spells;
+      state.weapons = msg.weapons || {};
+      state.qualities = msg.qualities || [];
       state.vendors = (msg.vendors || []).map((v) => ({ ...v, rx: v.x, ry: v.y, heading: 1 }));
       state.map = { w: msg.map.w, h: msg.map.h, chunk: msg.map.chunk };
       state.chunks.clear();
@@ -196,6 +207,9 @@ function handleFx(msg) {
       break;
     case 'portal':
       state.floaters.push({ x: msg.x, y: msg.y, text: '✦ ✦ ✦', color: '#b08aff', born: t });
+      break;
+    case 'break':
+      state.floaters.push({ x: msg.x, y: msg.y, text: '*crack*', color: '#d8a8a0', born: t });
       break;
     case 'magicarrow':
     case 'fireball':
@@ -347,13 +361,33 @@ document.getElementById('actions').addEventListener('click', (ev) => {
 const shopPanel = document.getElementById('shop');
 
 function openShop(vendor) {
-  const lines = vendor.goods.map((g) =>
-    `<div class="shop-row">
+  const lines = vendor.goods.map((g, idx) => {
+    if (g.type === 'weapon') {
+      const def = state.weapons[g.item] || {};
+      const qual = state.qualities[g.q] || {};
+      const price = Math.round((def.price || 0) * (qual.priceMul || 1));
+      const label = (qual.name ? qual.name + ' ' : '') + def.name;
+      return `<div class="shop-row">
+         <span style="color:${QUALITY_COLORS[g.q]}">${esc(label)}<small>${def.dmg[0]}-${def.dmg[1]} dmg${def.minSkill ? ' · needs ' + def.minSkill + ' swords' : ''}</small></span>
+         <button data-idx="${idx}">${price} gp</button>
+       </div>`;
+    }
+    return `<div class="shop-row">
        <span>${esc(g.name)}<small>${esc(g.desc || '')}</small></span>
-       <button data-item="${esc(g.item)}">${g.price} gp</button>
-     </div>`).join('');
+       <button data-idx="${idx}">${g.price} gp</button>
+     </div>`;
+  }).join('');
+  let forge = '';
+  if (vendor.forge) {
+    forge = '<div class="shop-title" style="margin-top:10px">Forge</div>' +
+      Object.entries(state.weapons).map(([id, def]) =>
+        `<div class="shop-row">
+           <span>${esc(def.name)}<small>${def.craft.ore} ore · ${def.craft.logs} logs · ${def.craft.gold} gp</small></span>
+           <button data-craft="${esc(id)}">Forge</button>
+         </div>`).join('');
+  }
   shopPanel.innerHTML =
-    `<div class="shop-title">${esc(vendor.name)}</div>${lines}
+    `<div class="shop-title">${esc(vendor.name)}</div>${lines}${forge}
      <button class="shop-close">Close</button>`;
   shopPanel.classList.remove('hidden');
   if (state.me && Math.hypot(vendor.x - state.me.x, vendor.y - state.me.y) > 3) {
@@ -367,8 +401,8 @@ function closeShop() {
 
 shopPanel.addEventListener('click', (ev) => {
   if (ev.target.classList.contains('shop-close')) return closeShop();
-  const item = ev.target.dataset.item;
-  if (item) send({ t: 'buy', item });
+  if (ev.target.dataset.idx !== undefined) send({ t: 'buy', idx: ev.target.dataset.idx | 0 });
+  if (ev.target.dataset.craft) send({ t: 'craft', id: ev.target.dataset.craft });
 });
 
 // ---- login --------------------------------------------------------------------
@@ -414,8 +448,11 @@ function updateHud() {
   document.getElementById('mana-fill').style.width = (100 * y.mana / y.maxmana) + '%';
   document.getElementById('mana-text').textContent = `${y.mana} / ${y.maxmana}`;
   document.getElementById('stats-line').textContent = `STR ${y.str}  DEX ${y.dex}  INT ${y.int}`;
+  const eq = y.weapon != null && (y.items || []).find((i) => i.uid === y.weapon);
   document.getElementById('pack-line').textContent =
     `⛀ ${y.gold} gold · ${y.logs} logs · ${y.ore} ore` + (y.gems ? ` · ${y.gems} gems` : '');
+  document.getElementById('weapon-line').textContent =
+    '⚔ ' + (eq ? weaponLabel(eq) : 'Fists');
   const pots = y.pots || {};
   document.getElementById('pot-heal-count').textContent = pots.heal || 0;
   document.getElementById('pot-mana-count').textContent = pots.mana || 0;
@@ -441,6 +478,26 @@ function toggleInventory() {
 function renderInventory() {
   const y = state.you;
   if (!y) return;
+  const weaponsHtml = (y.items || []).map((it) => {
+    const def = state.weapons[it.id] || {};
+    const equipped = y.weapon === it.uid;
+    const durFrac = it.dur / it.maxDur;
+    const durColor = durFrac > 0.5 ? '#48b048' : durFrac > 0.25 ? '#c8a030' : '#c84030';
+    return `<div class="inv-weapon${equipped ? ' equipped' : ''}">
+       <div class="iw-top">
+         <span style="color:${QUALITY_COLORS[it.q]}">${esc(weaponLabel(it))}</span>
+         <span class="iw-dmg">${def.dmg ? def.dmg[0] + '-' + def.dmg[1] : ''}</span>
+       </div>
+       <div class="iw-dur"><div style="width:${Math.round(100 * durFrac)}%;background:${durColor}"></div></div>
+       <div class="iw-actions">
+         ${equipped
+           ? '<button data-equip="0">Unequip</button>'
+           : `<button data-equip="${it.uid}">Equip</button>`}
+         <button data-sell="${it.uid}">Sell</button>
+       </div>
+     </div>`;
+  }).join('') || '<div class="inv-row"><span class="inv-icon">✊</span><span class="inv-label">Fists only</span><span></span><span></span></div>';
+  document.getElementById('inv-weapons').innerHTML = weaponsHtml;
   const pots = y.pots || {};
   const rows = [
     ['🪙', 'Gold', y.gold, ''],
@@ -463,6 +520,11 @@ document.getElementById('inventory').addEventListener('click', (ev) => {
   if (ev.target.id === 'inv-close') return document.getElementById('inventory').classList.add('hidden');
   const act = ev.target.dataset.act;
   if (act && act.startsWith('drink:')) send({ t: 'drink', kind: act.slice(6) });
+  if (ev.target.dataset.equip !== undefined) {
+    const uid = ev.target.dataset.equip | 0;
+    send({ t: 'equip', uid: uid || null });
+  }
+  if (ev.target.dataset.sell !== undefined) send({ t: 'sell', uid: ev.target.dataset.sell | 0 });
 });
 
 const chatLog = document.getElementById('chat-log');
@@ -968,6 +1030,18 @@ function drawDrop(d, cam, time) {
     ctx.fillRect(s.x - 6, s.y - 6 , 12, 7);
     ctx.strokeStyle = dark;
     ctx.strokeRect(s.x - 6.5, s.y - 6.5, 13, 8);
+  } else if (d.item === 'weapon') {
+    // A little sword, tinted by quality.
+    const tint = QUALITY_COLORS[d.q ?? 1];
+    ctx.save();
+    ctx.translate(s.x, s.y - 4 + bob);
+    ctx.rotate(-Math.PI / 4);
+    ctx.fillStyle = tint;
+    ctx.fillRect(-1.5, -10, 3, 14);
+    ctx.fillStyle = '#5a4a30';
+    ctx.fillRect(-5, 3, 10, 2.5);
+    ctx.fillRect(-1.5, 5, 3, 5);
+    ctx.restore();
   } else {
     // A little potion bottle.
     ctx.fillStyle = main;
@@ -1072,7 +1146,9 @@ function drawPlayer(p, cam, time) {
   let labelY;
   if (c) {
     entityShadow(s.x, s.y, 11);
-    Assets.drawCreature(ctx, 'player', p.heading, entityAnim(p), time + p.id * 137, s.x, s.y);
+    const wdef = p.w && state.weapons[p.w];
+    Assets.drawCreature(ctx, 'player', p.heading, entityAnim(p), time + p.id * 137, s.x, s.y,
+      1, wdef ? wdef.sprite : null);
     labelY = s.y - c.ay - 8;
   } else {
     entityShadow(s.x, s.y + 2, 10);

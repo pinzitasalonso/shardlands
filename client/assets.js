@@ -156,16 +156,23 @@ const Assets = (() => {
 
   // (sx, sy) is the creature's feet — the centre of the tile it stands on.
   // anim is 'stance', 'run' or 'melee'; falls back to stance.
-  function drawCreature(ctx, kind, heading, anim, timeMs, sx, sy, scale = 1) {
+  // overlay names a geometry-identical atlas (e.g. an equipped weapon)
+  // drawn over the base with the same frame indices.
+  function drawCreature(ctx, kind, heading, anim, timeMs, sx, sy, scale = 1, overlay = null) {
     const c = state.manifest.creatures[kind];
     if (!c) return false;
     const a = c.anims[anim] || c.anims.stance;
     const row = c.dirs > 1 ? heading : 0;
     const col = a.start + animFrame(a, timeMs);
-    ctx.drawImage(state.images[c.img],
+    const args = [
       col * c.cellW, row * c.cellH, c.cellW, c.cellH,
       Math.round(sx - c.ax * scale), Math.round(sy - c.ay * scale),
-      c.cellW * scale, c.cellH * scale);
+      c.cellW * scale, c.cellH * scale,
+    ];
+    ctx.drawImage(state.images[c.img], ...args);
+    if (overlay && c.overlays && c.overlays[overlay]) {
+      ctx.drawImage(state.images[c.overlays[overlay]], ...args);
+    }
     return true;
   }
 

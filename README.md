@@ -57,6 +57,12 @@ the client in chunks as you explore:
   Lord, Greyfang the Wolf King) that respawn slowly and always drop gems.
 - The wilds are dotted with **farmsteads, campsites (fires still burning),
   quarries, menhirs and hermit huts** — many hide treasure or trouble.
+- **Weapons**: daggers to greatswords in five quality tiers (Shoddy to
+  Masterwork), visible in your character's hand. Buy them from **Bren the
+  Blacksmith** in the capital, loot them from monsters (bosses carry the
+  best), or **forge your own** from ore and logs — your gathering skills
+  decide the quality. Steel wears out: every weapon eventually **shatters**,
+  so keep a spare.
 - Monsters sometimes **drop loot** — gold, potions, materials, even gems —
   walk over it to pick it up. Press **I** for your backpack. Trees and rocks
   **deplete** after a few harvests and regrow.

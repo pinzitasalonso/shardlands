@@ -64,17 +64,18 @@ const VILLAGER_LINES = [
 ];
 
 // What corpses leave behind, beyond the guaranteed gold: [chance, item, min, max].
+// Weapon rows are [chance, 'weapon', pool of ids, qualityMin, qualityMax].
 const LOOT_TABLES = {
-  goblin: [[0.18, 'gold', 4, 10], [0.08, 'mana', 1, 1]],
-  skeleton: [[0.2, 'gold', 8, 20], [0.12, 'heal', 1, 1]],
-  orc: [[0.22, 'gold', 12, 30], [0.12, 'heal', 1, 1], [0.1, 'ore', 1, 2]],
-  ettin: [[0.35, 'gold', 30, 70], [0.2, 'heal', 1, 1], [0.15, 'logs', 2, 4]],
-  dragon: [[1, 'gold', 150, 400], [0.8, 'heal', 1, 2], [0.6, 'mana', 1, 2], [0.5, 'gems', 1, 2]],
+  goblin: [[0.18, 'gold', 4, 10], [0.08, 'mana', 1, 1], [0.04, 'weapon', ['dagger'], 0, 1]],
+  skeleton: [[0.2, 'gold', 8, 20], [0.12, 'heal', 1, 1], [0.1, 'weapon', ['sword'], 0, 2]],
+  orc: [[0.22, 'gold', 12, 30], [0.12, 'heal', 1, 1], [0.1, 'ore', 1, 2], [0.08, 'weapon', ['sword', 'mace'], 0, 1]],
+  ettin: [[0.35, 'gold', 30, 70], [0.2, 'heal', 1, 1], [0.15, 'logs', 2, 4], [0.1, 'weapon', ['battleaxe'], 1, 2]],
+  dragon: [[1, 'gold', 150, 400], [0.8, 'heal', 1, 2], [0.6, 'mana', 1, 2], [0.5, 'gems', 1, 2], [0.5, 'weapon', ['greatsword'], 3, 4]],
   wolf: [[0.3, 'gold', 3, 10]],
   deer: [[0.35, 'gold', 2, 6]],
-  goblinking: [[1, 'gold', 100, 250], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2]],
-  bonelord: [[1, 'gold', 120, 300], [1, 'gems', 1, 2], [0.6, 'mana', 1, 2]],
-  wolfking: [[1, 'gold', 100, 260], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2]],
+  goblinking: [[1, 'gold', 100, 250], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2], [1, 'weapon', ['sword', 'mace'], 2, 3]],
+  bonelord: [[1, 'gold', 120, 300], [1, 'gems', 1, 2], [0.6, 'mana', 1, 2], [1, 'weapon', ['battleaxe', 'greatsword'], 2, 4]],
+  wolfking: [[1, 'gold', 100, 260], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2], [1, 'weapon', ['sword'], 2, 3]],
 };
 
 const DROP_TTL_MS = 60_000;
@@ -85,11 +86,49 @@ const POTIONS = {
   mana: { name: 'Mana Potion', restore: [20, 30] },
 };
 
+// dur is how many durability points a common example has; each landed hit
+// has a 25% chance to spend one. craft lists the forge recipe materials.
+const WEAPONS = {
+  dagger:     { name: 'Dagger',     dmg: [3, 7],   speedMs: 1100, price: 40,  dur: 90,  sprite: 'dagger',     craft: { ore: 3, logs: 1, gold: 10 } },
+  sword:      { name: 'Longsword',  dmg: [5, 12],  speedMs: 1500, price: 120, dur: 110, sprite: 'longsword',  craft: { ore: 8, logs: 3, gold: 30 } },
+  mace:       { name: 'Mace',       dmg: [7, 14],  speedMs: 1800, price: 150, dur: 120, sprite: 'mace',       craft: { ore: 10, logs: 4, gold: 40 } },
+  battleaxe:  { name: 'Battle Axe', dmg: [9, 17],  speedMs: 2100, price: 260, dur: 130, minSkill: 40, sprite: 'battle_axe', craft: { ore: 14, logs: 5, gold: 70 } },
+  greatsword: { name: 'Greatsword', dmg: [12, 22], speedMs: 2400, price: 420, dur: 140, minSkill: 60, sprite: 'greatsword', craft: { ore: 20, logs: 6, gold: 120 } },
+};
+
+const QUALITIES = [
+  { name: 'Shoddy',      dmgMul: 0.85, durMul: 0.6, priceMul: 0.5 },
+  { name: '',            dmgMul: 1.0,  durMul: 1.0, priceMul: 1.0 },
+  { name: 'Fine',        dmgMul: 1.15, durMul: 1.4, priceMul: 2.0 },
+  { name: 'Exceptional', dmgMul: 1.3,  durMul: 1.9, priceMul: 4.0 },
+  { name: 'Masterwork',  dmgMul: 1.45, durMul: 2.5, priceMul: 8.0 },
+];
+
+const ITEM_CAP = 10;
+const UNARMED = { dmg: [1, 4], speedMs: 1300 };
+
+function weaponLabel(item) {
+  const q = QUALITIES[item.q].name;
+  return (q ? q + ' ' : '') + WEAPONS[item.id].name;
+}
+
+function weaponPrice(id, q) {
+  return Math.round(WEAPONS[id].price * QUALITIES[q].priceMul);
+}
+
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 const rand = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const now = () => Date.now();
+
+// Limit "pack is full" spam while standing on a weapon drop.
+function t0Throttle(p) {
+  const t = now();
+  if (t < (p.nagAt || 0)) return false;
+  p.nagAt = t + 4000;
+  return true;
+}
 
 function hashPassword(password, salt) {
   return crypto.scryptSync(password, salt, 64).toString('hex');
@@ -215,6 +254,9 @@ class Game {
         skills: Object.fromEntries(SKILLS.map((s) => [s, 20])),
         gold: 100, logs: 0, ore: 0, gems: 0,
         pots: { heal: 1, mana: 0 },
+        items: [{ uid: 1, id: 'dagger', q: 0, dur: 54, maxDur: 54 }],
+        weapon: 1,
+        itemUid: 2,
       };
       persist.saveAccounts(this.accounts);
       this.dirty = true;
@@ -242,6 +284,9 @@ class Game {
       skills: { ...rec.skills },
       gold: rec.gold, logs: rec.logs, ore: rec.ore, gems: rec.gems || 0,
       pots: { heal: 0, mana: 0, ...rec.pots },
+      items: (rec.items || []).map((i) => ({ ...i })),
+      weapon: rec.weapon ?? null,
+      itemUid: rec.itemUid || 1,
       dead: false,
       target: 0,
       moveAt: 0, swingAt: 0, castAt: 0, bandageAt: 0, regenAt: 0, drinkAt: 0, portalAt: 0,
@@ -258,6 +303,8 @@ class Game {
       buildings: this.map.buildings,
       props: this.map.props,
       spells: SPELLS,
+      weapons: WEAPONS,
+      qualities: QUALITIES,
       vendors: this.vendors,
     });
     this.sendYou(p);
@@ -283,6 +330,9 @@ class Game {
       skills: { ...p.skills },
       gold: p.gold, logs: p.logs, ore: p.ore, gems: p.gems,
       pots: { ...p.pots },
+      items: p.items.map((i) => ({ ...i })),
+      weapon: p.weapon,
+      itemUid: p.itemUid,
     });
     this.dirty = true;
   }
@@ -310,8 +360,11 @@ class Game {
       case 'cast': return this.handleCast(p, msg.spell, msg.id | 0);
       case 'bandage': return this.handleBandage(p);
       case 'gather': return this.handleGather(p);
-      case 'buy': return this.handleBuy(p, String(msg.item || ''));
+      case 'buy': return this.handleBuy(p, msg.idx | 0);
       case 'drink': return this.handleDrink(p, String(msg.kind || ''));
+      case 'equip': return this.handleEquip(p, msg.uid == null ? null : msg.uid | 0);
+      case 'sell': return this.handleSell(p, msg.uid | 0);
+      case 'craft': return this.handleCraft(p, String(msg.id || ''));
       case 'chunks': return this.handleChunks(p, msg.l);
     }
   }
@@ -333,18 +386,100 @@ class Game {
     }
   }
 
-  handleBuy(p, item) {
+  handleBuy(p, idx) {
     if (p.dead) return this.sys(p, 'The dead cannot trade.');
     const vendor = this.vendors.find((v) => dist(p, v) <= 3);
     if (!vendor) return this.sys(p, 'You are too far from a shopkeeper.');
-    const good = vendor.goods.find((g) => g.item === item);
+    const good = vendor.goods[idx];
     if (!good) return;
+
+    if (good.type === 'weapon') {
+      const price = weaponPrice(good.item, good.q);
+      if (p.gold < price) {
+        return this.sys(p, `${vendor.name} says: That is ${price} gold, which thou dost not have.`);
+      }
+      if (p.items.length >= ITEM_CAP) return this.sys(p, 'Your pack is full.');
+      p.gold -= price;
+      const item = this.makeItem(p, good.item, good.q);
+      p.items.push(item);
+      this.sys(p, `You buy a ${weaponLabel(item)} for ${price} gold.`);
+      this.sendYou(p);
+      return;
+    }
+
     if (p.gold < good.price) {
       return this.sys(p, `${vendor.name} says: That is ${good.price} gold, which thou dost not have.`);
     }
     p.gold -= good.price;
-    p.pots[item] = (p.pots[item] || 0) + 1;
+    p.pots[good.item] = (p.pots[good.item] || 0) + 1;
     this.sys(p, `You buy a ${good.name} for ${good.price} gold.`);
+    this.sendYou(p);
+  }
+
+  makeItem(p, id, q) {
+    const maxDur = Math.round(WEAPONS[id].dur * QUALITIES[q].durMul);
+    return { uid: p.itemUid++, id, q, dur: maxDur, maxDur };
+  }
+
+  equippedWeapon(p) {
+    if (p.weapon == null) return null;
+    const item = p.items.find((i) => i.uid === p.weapon);
+    if (!item) p.weapon = null;
+    return item || null;
+  }
+
+  handleEquip(p, uid) {
+    if (uid === null || uid === 0) {
+      p.weapon = null;
+      this.sys(p, 'You put your weapon away.');
+      return this.sendYou(p);
+    }
+    const item = p.items.find((i) => i.uid === uid);
+    if (!item) return;
+    const def = WEAPONS[item.id];
+    if (def.minSkill && p.skills.swordsmanship < def.minSkill) {
+      return this.sys(p, `You need ${def.minSkill} Swordsmanship to wield a ${def.name}.`);
+    }
+    p.weapon = uid;
+    this.sys(p, `You ready your ${weaponLabel(item)}.`);
+    this.sendYou(p);
+  }
+
+  handleSell(p, uid) {
+    if (p.dead) return this.sys(p, 'The dead cannot trade.');
+    const vendor = this.vendors.find((v) => dist(p, v) <= 3);
+    if (!vendor) return this.sys(p, 'You are too far from a shopkeeper.');
+    const item = p.items.find((i) => i.uid === uid);
+    if (!item) return;
+    const price = Math.floor(weaponPrice(item.id, item.q) * 0.4);
+    p.items = p.items.filter((i) => i.uid !== uid);
+    if (p.weapon === uid) p.weapon = null;
+    p.gold += price;
+    this.sys(p, `You sell your ${weaponLabel(item)} for ${price} gold.`);
+    this.sendYou(p);
+  }
+
+  handleCraft(p, id) {
+    if (p.dead) return this.sys(p, 'The dead cannot work a forge.');
+    const def = WEAPONS[id];
+    if (!def) return;
+    const vendor = this.vendors.find((v) => v.forge && dist(p, v) <= 3);
+    if (!vendor) return this.sys(p, 'You need a blacksmith\'s forge for that.');
+    const c = def.craft;
+    if (p.ore < c.ore || p.logs < c.logs || p.gold < c.gold) {
+      return this.sys(p, `Forging a ${def.name} takes ${c.ore} ore, ${c.logs} logs and ${c.gold} gold.`);
+    }
+    if (p.items.length >= ITEM_CAP) return this.sys(p, 'Your pack is full.');
+    p.ore -= c.ore;
+    p.logs -= c.logs;
+    p.gold -= c.gold;
+    // Craftsmanship rises with your gathering skills; masters forge masterworks.
+    const k = ((p.skills.mining + p.skills.lumberjacking) / 2) / 100;
+    const r = Math.random();
+    const q = r < 0.05 * k ? 4 : r < 0.2 * k ? 3 : r < 0.55 * k ? 2 : r < 0.55 * k + 0.5 ? 1 : 0;
+    const item = this.makeItem(p, id, q);
+    p.items.push(item);
+    this.sys(p, `You forge a ${weaponLabel(item)}!`);
     this.sendYou(p);
   }
 
@@ -594,8 +729,22 @@ class Game {
   // The corpse sometimes leaves something on the ground; first to step on
   // the tile claims it.
   rollLoot(mob) {
-    for (const [chance, item, min, max] of LOOT_TABLES[mob.kind] || []) {
-      if (Math.random() > chance) continue;
+    for (const entry of LOOT_TABLES[mob.kind] || []) {
+      if (Math.random() > entry[0]) continue;
+      if (entry[1] === 'weapon') {
+        const [, , pool, qMin, qMax] = entry;
+        const id = pool[rand(0, pool.length - 1)];
+        const q = rand(qMin, qMax);
+        const maxDur = Math.round(WEAPONS[id].dur * QUALITIES[q].durMul);
+        this.drops.set(this.nextId, {
+          id: this.nextId++,
+          x: mob.x, y: mob.y,
+          item: 'weapon', w: { id, q, dur: maxDur, maxDur },
+          despawnAt: now() + DROP_TTL_MS,
+        });
+        continue;
+      }
+      const [, item, min, max] = entry;
       this.drops.set(this.nextId, {
         id: this.nextId++,
         x: mob.x, y: mob.y,
@@ -608,6 +757,21 @@ class Game {
   pickupDrops(p) {
     for (const [id, d] of this.drops) {
       if (d.x !== p.x || d.y !== p.y) continue;
+      if (d.item === 'weapon') {
+        if (p.items.length >= ITEM_CAP) {
+          if (t0Throttle(p)) this.sys(p, 'Your pack is full.');
+          continue; // it stays on the ground
+        }
+        this.drops.delete(id);
+        if (d.cacheIdx !== undefined) {
+          this.cacheRespawns.set(d.cacheIdx, now() + CACHE_RESPAWN_MS);
+        }
+        const item = { uid: p.itemUid++, ...d.w };
+        p.items.push(item);
+        this.sys(p, `You pick up a ${weaponLabel(item)}.`);
+        this.sendYou(p);
+        continue;
+      }
       this.drops.delete(id);
       if (d.cacheIdx !== undefined) {
         this.cacheRespawns.set(d.cacheIdx, now() + CACHE_RESPAWN_MS);
@@ -666,7 +830,9 @@ class Game {
       return;
     }
     if (dist(p, mob) > 1.5 || t < p.swingAt) return;
-    p.swingAt = t + Math.max(900, 2000 - p.dex * 10);
+    const item = this.equippedWeapon(p);
+    const wdef = item ? WEAPONS[item.id] : UNARMED;
+    p.swingAt = t + Math.max(900, wdef.speedMs - p.dex * 10);
     p.swungAt = t;
 
     const hitChance = clamp(50 + (p.skills.swordsmanship - MOB_KINDS[mob.kind].skill) / 2, 10, 95);
@@ -677,9 +843,28 @@ class Game {
     }
     this.gainSkill(p, 'tactics');
     this.gainStat(p, 'str');
-    const base = rand(2, 8) + Math.floor(p.str / 10);
+    const roll = rand(wdef.dmg[0], wdef.dmg[1]);
+    const base = (item ? Math.round(roll * QUALITIES[item.q].dmgMul) : roll) + Math.floor(p.str / 10);
     const dmg = Math.max(1, Math.floor(base * (0.5 + p.skills.tactics / 150)));
     this.damageMob(p, mob, dmg);
+    if (item) this.wearWeapon(p, item);
+  }
+
+  // Steel is mortal too: each landed blow has a chance to wear the blade.
+  wearWeapon(p, item) {
+    if (Math.random() >= 0.25) return;
+    item.dur -= 1;
+    if (item.dur <= 0) {
+      p.items = p.items.filter((i) => i.uid !== item.uid);
+      if (p.weapon === item.uid) p.weapon = null;
+      this.sys(p, `Your ${weaponLabel(item)} shatters!`);
+      this.fxNear(p, { t: 'fx', kind: 'break', x: p.x, y: p.y });
+    } else if (item.dur === Math.ceil(item.maxDur * 0.25)) {
+      this.sys(p, `Your ${weaponLabel(item)} is badly worn.`);
+    } else if (item.dur === Math.ceil(item.maxDur * 0.1)) {
+      this.sys(p, `Your ${weaponLabel(item)} is about to break!`);
+    }
+    this.sendYou(p);
   }
 
   // ---- skills & stats ---------------------------------------------------------
@@ -868,17 +1053,21 @@ class Game {
       const near = (e) => Math.abs(e.x - p.x) <= VIEW_RADIUS && Math.abs(e.y - p.y) <= VIEW_RADIUS;
       this.send(p.ws, {
         t: 'state',
-        players: players.filter(near).map((q) => ({
-          id: q.id, name: q.name, x: q.x, y: q.y,
-          hp: q.hp, maxhp: maxHp(q), dead: q.dead,
-          a: t - (q.swungAt || 0) < 600 ? 1 : 0,
-        })),
+        players: players.filter(near).map((q) => {
+          const wi = q.weapon != null && q.items.find((i) => i.uid === q.weapon);
+          return {
+            id: q.id, name: q.name, x: q.x, y: q.y,
+            hp: q.hp, maxhp: maxHp(q), dead: q.dead,
+            a: t - (q.swungAt || 0) < 600 ? 1 : 0,
+            w: wi ? wi.id : 0,
+          };
+        }),
         mobs: mobs.filter(near).map((m) => ({
           id: m.id, kind: m.kind, x: m.x, y: m.y, hp: m.hp, maxhp: m.maxhp,
           a: t - (m.swungAt || 0) < 700 ? 1 : 0,
           name: m.name,
         })),
-        drops: drops.filter(near).map((d) => ({ id: d.id, x: d.x, y: d.y, item: d.item })),
+        drops: drops.filter(near).map((d) => ({ id: d.id, x: d.x, y: d.y, item: d.item, q: d.w ? d.w.q : undefined })),
       });
     }
   }
@@ -893,6 +1082,8 @@ class Game {
       skills: p.skills,
       gold: p.gold, logs: p.logs, ore: p.ore, gems: p.gems,
       pots: p.pots,
+      items: p.items,
+      weapon: p.weapon,
       dead: p.dead,
     });
   }
