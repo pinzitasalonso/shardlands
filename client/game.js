@@ -134,6 +134,10 @@ function handleMessage(msg) {
       state.me = state.players.get(state.myId) || null;
       if (state.me) state.myTile = { x: state.me.x, y: state.me.y };
       if (state.target && !state.mobs.has(state.target)) state.target = 0;
+      updateTargetFrame();
+      if (state.myTile) {
+        document.getElementById('coords').textContent = `${state.myTile.x} · ${state.myTile.y}`;
+      }
       break;
     }
 
@@ -248,13 +252,13 @@ document.addEventListener('keydown', (ev) => {
   switch (ev.key) {
     case 'Enter': chatInput.focus(); ev.preventDefault(); break;
     case 'Escape': closeShop(); document.getElementById('inventory').classList.add('hidden'); break;
-    case '1': castSpell('magicarrow'); break;
-    case '2': castSpell('fireball'); break;
-    case '3': castSpell('greaterheal'); break;
-    case '4': send({ t: 'drink', kind: 'heal' }); break;
-    case '5': send({ t: 'drink', kind: 'mana' }); break;
-    case 'b': case 'B': send({ t: 'bandage' }); break;
-    case 'g': case 'G': send({ t: 'gather' }); break;
+    case '1': triggerAction('cast:magicarrow'); break;
+    case '2': triggerAction('cast:fireball'); break;
+    case '3': triggerAction('cast:greaterheal'); break;
+    case '4': triggerAction('drink:heal'); break;
+    case '5': triggerAction('drink:mana'); break;
+    case 'b': case 'B': triggerAction('bandage'); break;
+    case 'g': case 'G': triggerAction('gather'); break;
     case 'i': case 'I': toggleInventory(); break;
     case 'f': case 'F': toggleFullscreen(); break;
     default: keys.add(ev.key.toLowerCase());
@@ -266,6 +270,75 @@ window.addEventListener('blur', () => keys.clear());
 
 function castSpell(id) {
   send({ t: 'cast', spell: id, id: state.target });
+}
+
+// Visual cooldown sweeps on the hotbar. The server stays authoritative;
+// these only mirror the known cooldowns for feedback.
+const cooldowns = new Map(); // act -> { until, total }
+
+function triggerAction(act) {
+  if (act.startsWith('cast:')) castSpell(act.slice(5));
+  else if (act.startsWith('drink:')) send({ t: 'drink', kind: act.slice(6) });
+  else send({ t: act });
+  const btn = document.querySelector(`#actions button[data-act="${act}"]`);
+  const ms = btn && (btn.dataset.cd | 0);
+  if (ms) cooldowns.set(act, { until: Date.now() + ms, total: ms });
+}
+
+function updateCooldowns(time) {
+  for (const [act, cd] of cooldowns) {
+    const el = document.querySelector(`#actions button[data-act="${act}"] .cd`);
+    if (!el) { cooldowns.delete(act); continue; }
+    const left = cd.until - time;
+    if (left <= 0) {
+      el.style.height = '0';
+      cooldowns.delete(act);
+    } else {
+      el.style.height = Math.round(100 * left / cd.total) + '%';
+    }
+  }
+}
+
+// Mini portraits for the unit frames, drawn from the creature atlases.
+function drawPortrait(canvasId, kind, scaleHint) {
+  const cv = document.getElementById(canvasId);
+  const g = cv.getContext('2d');
+  g.clearRect(0, 0, cv.width, cv.height);
+  g.fillStyle = '#11141a';
+  g.fillRect(0, 0, cv.width, cv.height);
+  if (!Assets.state.ok) return false;
+  const c = Assets.creature(kind);
+  if (!c) return false;
+  const fit = Math.min(cv.width / c.cellW, cv.height / c.cellH) * (scaleHint || 1.7);
+  Assets.drawCreature(g, kind, 1, 'stance', 0, cv.width / 2, cv.height * 0.97, fit);
+  return true;
+}
+
+let portraitDrawn = false;
+let targetPortraitKind = null;
+
+function updateTargetFrame() {
+  const tf = document.getElementById('target-frame');
+  const mob = state.target ? state.mobs.get(state.target) : null;
+  if (!mob) {
+    tf.classList.add('hidden');
+    targetPortraitKind = null;
+    return;
+  }
+  const style = MOB_STYLE[mob.kind] || {};
+  tf.classList.remove('hidden');
+  tf.classList.toggle('boss', !!style.boss);
+  document.getElementById('target-name').textContent = mob.name || style.name || mob.kind;
+  const frac = Math.max(0, Math.min(1, mob.hp / mob.maxhp));
+  document.getElementById('target-fill').style.width = (100 * frac) + '%';
+  document.getElementById('target-text').textContent = `${Math.max(0, mob.hp)} / ${mob.maxhp}`;
+  const bar = tf.querySelector('.bar');
+  bar.setAttribute('aria-valuenow', Math.round(100 * frac));
+  if (targetPortraitKind !== mob.kind) {
+    if (drawPortrait('target-portrait', style.sprite || mob.kind, style.spriteScale ? 1.2 : 1.7)) {
+      targetPortraitKind = mob.kind;
+    }
+  }
 }
 
 function toggleFullscreen() {
@@ -289,13 +362,15 @@ canvas.addEventListener('mousedown', (ev) => {
     if (d < bestD) { best = c; bestD = d; }
   }
   if (best && best.kind === 'vendor') {
-    openShop(best.e);
+    if (best.e.stories) send({ t: 'story', id: best.e.id });
+    else openShop(best.e);
     return;
   }
   if (best) {
     state.target = best.e.id;
     send({ t: 'attack', id: best.e.id });
     state.walkTarget = { x: best.e.x, y: best.e.y };
+    updateTargetFrame();
   } else {
     const w = screenToWorld(ev.clientX, ev.clientY, cam);
     state.walkTarget = { x: Math.floor(w.x), y: Math.floor(w.y) };
@@ -350,11 +425,9 @@ setInterval(() => {
 }, 65);
 
 document.getElementById('actions').addEventListener('click', (ev) => {
-  const act = ev.target.dataset.act;
-  if (!act) return;
-  if (act.startsWith('cast:')) castSpell(act.slice(5));
-  else if (act.startsWith('drink:')) send({ t: 'drink', kind: act.slice(6) });
-  else send({ t: act });
+  const btn = ev.target.closest('button');
+  if (!btn || !btn.dataset.act) return;
+  triggerAction(btn.dataset.act);
 });
 
 // ---- shop ----------------------------------------------------------------------
@@ -448,6 +521,8 @@ function updateHud() {
   document.getElementById('hp-text').textContent = `${y.hp} / ${y.maxhp}`;
   document.getElementById('mana-fill').style.width = (100 * y.mana / y.maxmana) + '%';
   document.getElementById('mana-text').textContent = `${y.mana} / ${y.maxmana}`;
+  document.querySelector('#player-frame .bar.hp').setAttribute('aria-valuenow', Math.round(100 * y.hp / y.maxhp));
+  document.querySelector('#player-frame .bar.mana').setAttribute('aria-valuenow', Math.round(100 * y.mana / y.maxmana));
   document.getElementById('stats-line').textContent = `STR ${y.str}  DEX ${y.dex}  INT ${y.int}`;
   const eq = y.weapon != null && (y.items || []).find((i) => i.uid === y.weapon);
   document.getElementById('pack-line').textContent =
@@ -465,7 +540,9 @@ function updateHud() {
 }
 
 document.getElementById('skills-toggle').addEventListener('click', () => {
-  document.getElementById('skills-list').classList.toggle('hidden');
+  const list = document.getElementById('skills-list');
+  list.classList.toggle('hidden');
+  document.getElementById('skills-toggle').setAttribute('aria-expanded', String(!list.classList.contains('hidden')));
 });
 
 // ---- inventory --------------------------------------------------------------
@@ -793,6 +870,8 @@ function render() {
   drawFloaters(cam, time);
   drawSpeech(cam, time);
   drawMinimap();
+  updateCooldowns(time);
+  if (!portraitDrawn) portraitDrawn = drawPortrait('portrait', 'player');
 
   if (state.you && state.you.dead) {
     ctx.fillStyle = 'rgba(40, 50, 70, 0.45)';
@@ -1199,7 +1278,7 @@ function drawVendor(v, cam, time) {
     ctx.fill();
     labelY = s.y - 38;
   }
-  ctx.fillStyle = '#88e0a0';
+  ctx.fillStyle = v.stories ? '#c8a8e8' : '#88e0a0';
   ctx.font = '12px Georgia';
   ctx.textAlign = 'center';
   ctx.fillText(v.name, s.x, labelY);

@@ -503,6 +503,7 @@ function generate(seed = 1337) {
 
   // Hermits: lone huts deep in the wilds with suspiciously cheap potions.
   const HERMIT_NAMES = ['Old Wendel', 'Mother Issel', 'Cranky Tobben'];
+  const hermitSpots = [];
   for (let hermits = 0; hermits < 3; hermits++) {
   const hermitSpot = settle(CX + (rng() - 0.5) * (1200 + hermits * 300), CY + (rng() - 0.5) * (1200 + hermits * 300), 150, 8);
   if (hermitSpot) {
@@ -517,6 +518,7 @@ function generate(seed = 1337) {
     });
     secrets.push({ type: 'whisper', x: hermitSpot.x, y: hermitSpot.y + 2,
       text: 'A trail of crushed herbs leads to a crooked hut. Someone lives out here.' });
+    hermitSpots.push(hermitSpot);
   }
   }
 
@@ -559,6 +561,102 @@ function generate(seed = 1337) {
       for (let x = tx - 1; x <= tx + 1; x++) set(x, y, TILE.WALL);
     }
   }
+
+  // ---- Storytellers: their tales are drawn from the world itself ---------------
+  // Some stories are true. Some are tavern nonsense. The teller won't say which.
+  const compass = (fx, fy, tx, ty) => {
+    const o = ((Math.round(Math.atan2(ty - fy, tx - fx) / (Math.PI / 4)) % 8) + 8) % 8;
+    return ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'][o];
+  };
+  const travel = (d) => d < 150 ? 'a short walk' : d < 400 ? "a day's march"
+    : d < 800 ? "many days' travel" : 'at the very rim of the world';
+  const nearestVillage = (x, y) => villages.reduce((b, v) =>
+    Math.hypot(v.x - x, v.y - y) < Math.hypot(b.x - x, b.y - y) ? v : b, villages[0]);
+
+  const stories = [];
+  const cacheSecrets = secrets.filter((sc) => sc.type === 'cache');
+  for (let i = 0; i < 4 && cacheSecrets.length; i++) {
+    const c = cacheSecrets[Math.floor(rng() * cacheSecrets.length)];
+    const v = nearestVillage(c.x, c.y);
+    stories.push([
+      'A paymaster fled the old war with a chest he never came back for.',
+      `They say he buried it ${travel(Math.hypot(c.x - v.x, c.y - v.y))} to the ${compass(v.x, v.y, c.x, c.y)} of ${v.name}.`,
+      'Dig where the ground whispers, and tell no one I told you.',
+    ]);
+  }
+  const portalSecrets = secrets.filter((sc) => sc.type === 'portal');
+  for (let i = 0; i + 1 < portalSecrets.length && i < 4; i += 2) {
+    const a = portalSecrets[i];
+    const va = nearestVillage(a.x, a.y);
+    const vb = nearestVillage(a.tx, a.ty);
+    stories.push([
+      'The standing stones are doors, traveller. Paired, like lovers.',
+      `Step into the circle that lies ${travel(Math.hypot(a.x - va.x, a.y - va.y))} ${compass(va.x, va.y, a.x, a.y)} of ${va.name},`,
+      `and you will draw your next breath near ${vb.name}, half a world away.`,
+    ]);
+  }
+  for (const sp of spawners.filter((q) => q.kind === 'dragon').slice(0, 2)) {
+    stories.push([
+      'I watched a dragon blot out the sun once. I do not wish that on you.',
+      `It roosts ${travel(Math.hypot(sp.x - CX, sp.y - CY))} to the ${compass(CX, CY, sp.x, sp.y)} of Briarhaven,`,
+      'sleeping on more gold than this town will see in a century.',
+    ]);
+  }
+  for (const h of hermitSpots.slice(0, 2)) {
+    const v = nearestVillage(h.x, h.y);
+    stories.push([
+      `There is a crooked hut ${travel(Math.hypot(h.x - v.x, h.y - v.y))} ${compass(v.x, v.y, h.x, h.y)} of ${v.name}.`,
+      'The one who lives there sells potions cheaper than any guild dares.',
+      'Do not ask where they come from.',
+    ]);
+  }
+  if (typeof kingSpot !== 'undefined' && kingSpot) {
+    stories.push([
+      'The goblins crowned themselves a king, if you can believe it.',
+      `Skarg holds his filthy court ${travel(Math.hypot(kingSpot.x - CX, kingSpot.y - CY))} to the ${compass(CX, CY, kingSpot.x, kingSpot.y)}.`,
+      'His crown is paid for in stolen gems. Someone should collect.',
+    ]);
+  }
+  if (typeof wolfSpot !== 'undefined' && wolfSpot) {
+    stories.push([
+      `Shepherds up north speak of Greyfang — a wolf the size of an ox.`,
+      `Follow the snow ${compass(CX, CY, wolfSpot.x, wolfSpot.y)} and you will hear the howling before you see him.`,
+    ]);
+  }
+  if (rim) {
+    stories.push([
+      "My grandmother swore the sailors' charts end where the fear begins.",
+      `Far to the ${compass(CX, CY, rim.x, rim.y)}, at the very rim of the world, the air burns.`,
+      'She called the thing that sleeps there Vyrmaur. Pray she was lying.',
+    ]);
+  }
+  // And some tales that are only tales. Probably.
+  stories.push([
+    'They say the first king of Briarhaven was a chicken farmer.',
+    'The crown still smells faintly of feathers. So I am told.',
+  ]);
+  stories.push([
+    'A fish in Saltmere once swallowed a wedding ring and a marriage with it.',
+    'The fish is said to live there still, smug as anything.',
+  ]);
+  stories.push([
+    'Never whistle in a stone circle at midnight.',
+    'No reason. Just never do it.',
+  ]);
+
+  const BARD_NAMES = ['Loremaster Edda', 'Finch the Wanderer', 'Old Maren', 'Quill'];
+  const mkBard = (name, x, y) => {
+    const pool = stories.slice();
+    const own = [];
+    while (own.length < Math.min(6, pool.length)) {
+      own.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+    }
+    vendors.push({ name, x, y, goods: [], stories: own });
+  };
+  mkBard(BARD_NAMES[0], CX + 6, CY - 8); // holds court in the capital inn
+  villages.filter((v, i) => i % 3 === 0).slice(0, 3).forEach((v, i) => {
+    mkBard(BARD_NAMES[1 + i], v.x + 4, v.y - 2); // by the lodge hearth
+  });
 
   return { w: W, h: H, tiles, buildings, vendors, spawners, secrets, spawn, villages, props };
 }

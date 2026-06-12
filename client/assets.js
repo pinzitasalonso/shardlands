@@ -117,6 +117,7 @@ const Assets = (() => {
   }
 
   function drawFrame(ctx, name, sx, sy) {
+    if (!state.ok) return;
     const f = state.manifest.frames[name];
     if (!f) return;
     ctx.drawImage(state.images[f.img], f.x, f.y, f.w, f.h,
