@@ -51,6 +51,12 @@ the client in chunks as you explore:
   treasure caches in the far corners of the world, whispering places, a
   hermit with suspiciously cheap potions, and dragon hoards beside the
   three dragon roosts.
+- A thousand creatures roam: deer herds, wolf packs, livestock, named
+  **villagers** who gossip at passers-by, goblin warrens, skeleton barrows,
+  orc warbands — and three **named bosses** (Skarg the Goblin King, the Bone
+  Lord, Greyfang the Wolf King) that respawn slowly and always drop gems.
+- The wilds are dotted with **farmsteads, campsites (fires still burning),
+  quarries, menhirs and hermit huts** — many hide treasure or trouble.
 - Monsters sometimes **drop loot** — gold, potions, materials, even gems —
   walk over it to pick it up. Press **I** for your backpack. Trees and rocks
   **deplete** after a few harvests and regrow.
