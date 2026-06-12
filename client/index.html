@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>Shardlands — an MMO in the spirit of Ultima Online</title>
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -79,6 +79,7 @@
       <button data-act="drink:mana" data-cd="4000" aria-label="Drink mana potion, key 5" title="Drink a mana potion"><span class="slot-icon">🜄</span><kbd>5</kbd><span id="pot-mana-count" class="count">0</span><div class="cd" aria-hidden="true"></div></button>
       <button data-act="bandage" data-cd="8000" aria-label="Bandage wounds, key B" title="Bandage wounds"><span class="slot-icon">⊕</span><kbd>B</kbd><div class="cd" aria-hidden="true"></div></button>
       <button data-act="gather" data-cd="1200" aria-label="Chop or mine, key G" title="Chop trees / mine rock"><span class="slot-icon">⛏</span><kbd>G</kbd><div class="cd" aria-hidden="true"></div></button>
+      <button id="char-toggle" aria-label="Character sheet, key C" title="Character sheet" onclick="toggleCharPanel()"><span class="slot-icon">⚔</span><kbd>C</kbd></button>
       <button id="inv-toggle" aria-label="Inventory, key I" title="Inventory" onclick="toggleInventory()"><span class="slot-icon">🎒</span><kbd>I</kbd></button>
       <button id="map-toggle" aria-label="World map, key M" title="World map" onclick="toggleWorldMap()"><span class="slot-icon">🗺</span><kbd>M</kbd></button>
       <button id="settings-toggle" aria-label="Settings, key O" title="Settings" onclick="toggleSettings()"><span class="slot-icon">⚙</span><kbd>O</kbd></button>

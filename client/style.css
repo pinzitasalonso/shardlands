@@ -40,7 +40,14 @@ html, body {
   color: var(--text);
 }
 
-#game { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; }
+#game {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh; /* mobile browsers: don't hide the bottom behind the URL bar */
+  image-rendering: pixelated;
+  touch-action: none; /* taps move/attack; never scroll or pinch the page */
+}
 
 .hidden { display: none !important; }
 
@@ -557,3 +564,67 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 .set-row input[type="range"] { width: 130px; accent-color: var(--gold); }
+
+/* ---- desktop: the character sheet can be tucked away (key C) ---- */
+
+#char-panel.collapsed { display: none; }
+
+/* ---- small screens: a compact HUD so the world stays visible ----
+   Phones get: tiny corner frames, a hidden-by-default character sheet
+   (the ⚔ button / key C opens it), a small minimap, a two-row hotbar
+   hugging the bottom edge, and a slim chat above it. */
+
+@media (max-width: 700px) {
+  #player-frame { top: 8px; left: 8px; min-width: 0; width: 180px; padding: 4px 8px 4px 4px; }
+  #portrait { width: 40px; height: 40px; }
+  #char-name { font-size: 12.5px; margin-bottom: 2px; }
+  .bar { height: 13px; margin-bottom: 3px; }
+  .bar span { font-size: 9.5px; line-height: 13px; }
+
+  /* target frame tucks under the player frame instead of mid-screen */
+  #target-frame { top: 66px; left: 8px; transform: none; min-width: 0; width: 180px; padding: 4px 8px 4px 4px; }
+  #target-portrait { width: 36px; height: 36px; }
+  #target-name { font-size: 12.5px; margin-bottom: 2px; }
+
+  /* the character sheet waits behind the ⚔ button */
+  #char-panel { display: none; top: 112px; left: 8px; width: 210px; font-size: 12px; }
+  #char-panel.open { display: block; }
+
+  #minimap-wrap { top: 8px; right: 8px; padding: 3px; }
+  #minimap { width: 92px; height: 92px; }
+  #coords { font-size: 9.5px; margin-top: 2px; letter-spacing: 0.5px; }
+
+  /* hotbar: two wrapped rows pinned to the bottom edge */
+  #actions {
+    left: 50%;
+    bottom: calc(6px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    flex-wrap: wrap;
+    justify-content: center;
+    width: min(100vw - 8px, 388px);
+    gap: 5px;
+    padding: 5px;
+  }
+  #actions button { width: 40px; height: 40px; }
+  .slot-icon { font-size: 17px; line-height: 38px; }
+  #actions kbd { display: none; } /* no keyboard on a phone */
+
+  /* chat: slim strip above the hotbar */
+  #chat {
+    left: 8px;
+    bottom: calc(112px + env(safe-area-inset-bottom));
+    width: min(72vw, 300px);
+    min-width: 0;
+  }
+  #chat-log { max-height: 66px; font-size: 12px; padding: 5px 8px; }
+  #chat-input { padding: 6px 8px; font-size: 16px; } /* 16px stops iOS focus-zoom */
+
+  /* dialogs fit the screen */
+  #shop, #inventory, #settings { width: min(330px, calc(100vw - 16px)); max-height: 72vh; }
+  #worldmap-canvas { width: min(92vw, 80vh); height: min(92vw, 80vh); }
+
+  /* login card */
+  .login-box { padding: 22px 18px; margin: 0 10px; }
+  .login-box h1 { font-size: 30px; letter-spacing: 4px; }
+  .help { display: none; } /* keyboard hints mean nothing to a thumb */
+}
