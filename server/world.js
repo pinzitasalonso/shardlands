@@ -25,9 +25,10 @@ const TILE = {
   SHRINE: 8,
   SNOW: 9,
   SNOWTREE: 10,
+  PLANKS: 11,
 };
 
-const WALKABLE = new Set([TILE.GRASS, TILE.ROAD, TILE.FLOOR, TILE.SAND, TILE.SHRINE, TILE.SNOW]);
+const WALKABLE = new Set([TILE.GRASS, TILE.ROAD, TILE.FLOOR, TILE.SAND, TILE.SHRINE, TILE.SNOW, TILE.PLANKS]);
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -154,14 +155,16 @@ function generate(seed = 1337) {
   const spawners = [];
   const secrets = [];
 
+  const props = []; // decorative furniture, rendered by the client
+
   const building = (x0, y0, w, h, doorX, doorY) => {
     for (let y = y0; y < y0 + h; y++) {
       for (let x = x0; x < x0 + w; x++) {
         const isEdge = x === x0 || y === y0 || x === x0 + w - 1 || y === y0 + h - 1;
-        set(x, y, isEdge ? TILE.WALL : TILE.FLOOR);
+        set(x, y, isEdge ? TILE.WALL : TILE.PLANKS);
       }
     }
-    set(doorX, doorY, TILE.FLOOR);
+    set(doorX, doorY, TILE.PLANKS);
     buildings.push({ x: x0, y: y0, w, h });
   };
 
@@ -201,6 +204,12 @@ function generate(seed = 1337) {
   building(CX - 9, CY + 5, 6, 5, CX - 6, CY + 5);                     // healer
   building(CX + 4, CY + 5, 6, 5, CX + 6, CY + 5);                     // mage tower
   set(CX, CY - 6, TILE.SHRINE);
+  props.push({ x: CX + 5, y: CY - 2, name: 'prop.well' });
+  props.push({ x: CX - 5, y: CY + 2, name: 'prop.table' });  // market stall
+  props.push({ x: CX - 4, y: CY + 3, name: 'prop.stool' });
+  props.push({ x: CX - 7, y: CY - 7, name: 'prop.table' });  // smithy workbench
+  props.push({ x: CX + 6, y: CY - 7, name: 'prop.table' });  // the inn's common table
+  props.push({ x: CX + 7, y: CY - 6, name: 'prop.stool' });
   vendors.push({
     name: 'Mira the Alchemist', x: CX - 6, y: CY + 7,
     goods: [
@@ -232,9 +241,22 @@ function generate(seed = 1337) {
     for (let y = v.y - 5; y <= v.y + 5; y++) {
       for (let x = v.x - 6; x <= v.x + 6; x++) set(x, y, TILE.FLOOR);
     }
-    building(v.x - 5, v.y - 4, 6, 5, v.x - 2, v.y);     // the village shop
-    building(v.x + 1, v.y - 4, 5, 6, v.x + 3, v.y + 1); // the lodge
+    // Every village is built a little differently.
+    const w1 = 6 + Math.floor(rng() * 2);
+    const h1 = 4 + Math.floor(rng() * 3);
+    building(v.x - 6, v.y - 4, w1, h1, v.x - 6 + (w1 >> 1), v.y - 4 + h1 - 1); // shop
+    const w2 = 4 + Math.floor(rng() * 3);
+    const h2 = 5 + Math.floor(rng() * 2);
+    building(v.x + 1, v.y - 4, w2, h2, v.x + 1 + (w2 >> 1), v.y - 4 + h2 - 1); // lodge
+    if (rng() > 0.45) {
+      building(v.x - 5, v.y + 1, 4, 4, v.x - 3, v.y + 1); // a humble hut
+    }
     set(v.x, v.y + 3, TILE.SHRINE);
+    props.push({ x: v.x + 2, y: v.y + 4, name: 'prop.table' }); // market stall
+    props.push({ x: v.x + 3, y: v.y + 4, name: 'prop.stool' });
+    const lcx = v.x + 1 + (w2 >> 1);
+    const lcy = v.y - 4 + (h2 >> 1);
+    if (lcy < v.y - 4 + h2 - 1) props.push({ x: lcx, y: lcy, name: 'prop.table' });
     const jitter = Math.floor(rng() * 11) - 5;
     vendors.push({
       name: `${['Aldric', 'Bryn', 'Cedany', 'Doran', 'Elspeth', 'Fenwick', 'Gilda', 'Hamon', 'Isolde'][vendors.length % 9]} of ${v.name}`,
@@ -381,7 +403,7 @@ function generate(seed = 1337) {
     }
   }
 
-  return { w: W, h: H, tiles, buildings, vendors, spawners, secrets, spawn, villages };
+  return { w: W, h: H, tiles, buildings, vendors, spawners, secrets, spawn, villages, props };
 }
 
 function isWalkable(map, x, y) {

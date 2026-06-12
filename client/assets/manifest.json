@@ -302,6 +302,15 @@
    "ax": 13,
    "ay": 6
   },
+  "prop.well": {
+   "img": "building",
+   "x": 576,
+   "y": 316,
+   "w": 64,
+   "h": 68,
+   "ax": 32,
+   "ay": 52
+  },
   "tree.snowpine0": {
    "img": "snowtrees",
    "x": 0,
@@ -475,6 +484,11 @@
   },
   "9": {
    "groundProc": "snow"
+  },
+  "11": {
+   "ground": [
+    "planks"
+   ]
   },
   "10": {
    "groundProc": "snow",

@@ -225,6 +225,7 @@ class Game {
       map: { w: this.map.w, h: this.map.h, chunk: CHUNK },
       mini: this.miniData,
       buildings: this.map.buildings,
+      props: this.map.props,
       spells: SPELLS,
       vendors: this.vendors,
     });
