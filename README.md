@@ -17,6 +17,22 @@ npm start          # listens on :8080 (override with PORT=...)
 Open http://localhost:8080 in as many browser tabs (or machines) as you like —
 each tab is a player in the same world.
 
+## Deploying to Railway
+
+The repo is Railway-ready (`railway.json` + the `PORT` env var are honoured):
+
+```bash
+npm i -g @railway/cli
+railway login
+railway init     # create a project from this directory
+railway up       # build & deploy
+railway domain   # mint a public https URL
+```
+
+Player accounts and characters live in `data/`. Containers are ephemeral, so
+attach a volume (Railway dashboard → service → Volumes) mounted at `/app/data`
+to keep accounts across deploys.
+
 ## The world
 
 A 2048×2048 island, generated deterministically from a seed and streamed to

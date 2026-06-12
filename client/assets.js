@@ -45,6 +45,8 @@ const Assets = (() => {
     sand: ['#c8b478', '#c0ac70', '#d0bc84', '#bca868'],
     dirt: ['#9a7a52', '#8f714b', '#a5845a', '#856844'],
     snow: ['#e9eef3', '#dfe6ee', '#f2f6f9', '#d6dfe9'],
+    grass: ['#76883e', '#6d7f38', '#7f9244', '#687a36'],
+    water: ['#5b87c8', '#5583c4', '#618fd0', '#5f8bcc'],
   };
 
   function buildProcGrounds() {
@@ -69,6 +71,49 @@ const Assets = (() => {
         state.proc[name].push(c);
       }
     }
+  }
+
+  // Fringe canvases keyed by palette + edge (0 = upper-left, 1 = upper-right,
+  // 2 = lower-right, 3 = lower-left), built lazily.
+  const fringes = new Map();
+
+  function fringeCanvas(pal, edge) {
+    const key = pal + ':' + edge;
+    let c = fringes.get(key);
+    if (c) return c;
+    const palette = PROC_PALETTES[pal];
+    c = document.createElement('canvas');
+    c.width = 64;
+    c.height = 32;
+    const g = c.getContext('2d');
+    let seed = edge * 31337 + pal.length * 7919 + 17;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let y = 0; y < 32; y++) {
+      const dy = y < 16 ? y : 31 - y;
+      const x0 = 32 - 2 * (dy + 1);
+      const x1 = 32 + 2 * (dy + 1);
+      for (let x = x0; x < x1; x += 2) {
+        // Distance (in px) from this block to each diamond edge.
+        const d = [
+          x / 2 + y - 16,              // upper-left
+          (64 - x) / 2 + y - 16,       // upper-right
+          (64 - x) / 2 + (32 - y) - 16, // lower-right
+          x / 2 + (32 - y) - 16,       // lower-left
+        ][edge];
+        const a = 1 - d / 9;
+        if (a <= 0 || rnd() > a * 0.95) continue;
+        g.fillStyle = palette[Math.floor(rnd() * palette.length)];
+        g.fillRect(x, y, 2, 1);
+      }
+    }
+    fringes.set(key, c);
+    return c;
+  }
+
+  // Overlay the fringe of a neighbouring terrain along one diamond edge.
+  function drawFringe(ctx, pal, edge, sx, sy) {
+    if (!PROC_PALETTES[pal]) return;
+    ctx.drawImage(fringeCanvas(pal, edge), Math.round(sx), Math.round(sy));
   }
 
   function drawFrame(ctx, name, sx, sy) {
@@ -123,5 +168,5 @@ const Assets = (() => {
     return true;
   }
 
-  return { state, load, tile, creature, drawFrame, drawGround, drawCreature };
+  return { state, load, tile, creature, drawFrame, drawGround, drawCreature, drawFringe };
 })();
