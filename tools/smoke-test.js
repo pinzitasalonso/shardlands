@@ -194,7 +194,7 @@ assert.strictEqual(p.gold, goldBeforeCraft - 30, 'craft consumed gold');
 assert.strictEqual(p.items.length, itemsBefore + 1, 'craft yielded a weapon');
 
 // durability: wear it down against a sturdy chicken and watch it shatter
-game.handleEquip(p, sword.uid);
+if (p.weapon !== sword.uid) game.handleEquip(p, sword.uid);
 sword.dur = 1;
 p.skills.swordsmanship = 100;
 const dummy = { id: 999999, kind: 'chicken', x: p.x + 1, y: p.y, hp: 99999, maxhp: 99999,
@@ -321,6 +321,90 @@ p.dead = false;
 ws.sent.length = 0;
 game.handleSay(p, '/dance');
 assert(ws.sent.some((m) => m.t === 'sys' && /Unknown command/.test(m.text)), 'unknown commands answered');
+
+// -- batch B: gear slots, ranged, spells, bosses ----------------------------------
+p.dead = false;
+p.gold = 5000;
+p.items.length = 0;
+p.weapon = null;
+const tunic = game.makeItem(p, 'leatherarmor', 1);
+const shield = game.makeItem(p, 'kiteshield', 1);
+p.items.push(tunic, shield);
+p.skills.swordsmanship = 60;
+game.handleEquip(p, tunic.uid);
+assert.strictEqual(p.armor, tunic.uid, 'tunic equips to the chest slot');
+game.handleEquip(p, shield.uid);
+assert.strictEqual(p.offhand, shield.uid, 'shield equips offhand');
+
+// armor blunts; shield can block (force both branches)
+p.hp = 60;
+const r = Math.random;
+Math.random = () => 0.99; // no block, no wear
+game.hitPlayer(p, 10, 'a test');
+assert.strictEqual(p.hp, 60 - (10 - 2), 'leather DR applied');
+Math.random = () => 0.01; // guaranteed block
+p.hp = 60;
+game.hitPlayer(p, 10, 'a test');
+assert.strictEqual(p.hp, 60, 'shield blocked the blow');
+Math.random = r;
+
+// ranged: a longbow without arrows refuses, with arrows it fires
+const bow = game.makeItem(p, 'longbow', 1);
+p.items.push(bow);
+game.handleEquip(p, bow.uid);
+assert.strictEqual(p.weapon, bow.uid, 'longbow equipped');
+const dummy2 = { id: 999998, kind: 'chicken', x: p.x + 5, y: p.y, hp: 9999, maxhp: 9999,
+  target: 0, moveAt: 0, swingAt: 0, spawner: { alive: new Set() } };
+game.mobs.set(dummy2.id, dummy2);
+p.target = dummy2.id;
+p.arrows = 0;
+p.swingAt = 0;
+p.nagAt = 0;
+ws.sent.length = 0;
+game.meleeTick(p, Date.now());
+assert(ws.sent.some((m) => m.t === 'sys' && /out of arrows/.test(m.text)), 'no arrows, no shot');
+p.arrows = 3;
+p.swingAt = 0;
+const hpBefore = dummy2.hp;
+for (let i = 0; i < 20 && dummy2.hp === hpBefore; i++) { p.swingAt = 0; game.meleeTick(p, Date.now()); }
+assert(dummy2.hp < hpBefore, 'arrow found its mark');
+assert(p.arrows < 3, 'arrows are consumed');
+
+// poison dot ticks a mob down
+p.skills.magery = 60;
+p.mana = 50;
+p.castAt = 0;
+game.handleCast(p, 'poison', dummy2.id);
+assert(dummy2.poison, 'poison applied');
+dummy2.poison.nextAt = 0;
+const hpBeforeDot = dummy2.hp;
+game.mobTick(dummy2, Date.now());
+assert(dummy2.hp < hpBeforeDot, 'poison ticked');
+
+// bless raises damage output
+p.castAt = 0;
+p.mana = 50;
+game.handleCast(p, 'bless', 0);
+assert(p.buffUntil > Date.now(), 'bless active');
+
+// bosses queue a telegraphed slam
+const bossDummy = { id: 999997, kind: 'bonelord', x: p.x + 3, y: p.y, hp: 500, maxhp: 500,
+  target: p.id, moveAt: Infinity, swingAt: Infinity, spawner: { alive: new Set() } };
+game.mobs.set(bossDummy.id, bossDummy);
+game.pendingAoes.length = 0;
+game.mobTick(bossDummy, Date.now());
+assert(game.pendingAoes.length === 1, 'boss telegraphed a slam');
+game.pendingAoes[0].at = 0;
+p.hp = 80;
+p.x = game.pendingAoes[0].x;
+p.y = game.pendingAoes[0].y;
+Math.random = () => 0.99;
+game.tick();
+Math.random = r;
+assert(p.hp < 80, 'standing in the telegraph hurts');
+game.mobs.delete(dummy2.id);
+game.mobs.delete(bossDummy.id);
+p.target = 0;
 
 console.log('smoke test: all assertions passed');
 process.exit(0);

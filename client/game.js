@@ -16,6 +16,7 @@ const WALKABLE = new Set([T.GRASS, T.ROAD, T.FLOOR, T.SAND, T.SHRINE, T.SNOW, T.
 const MOB_STYLE = {
   goblin: { color: '#5aa040', size: 0.5, name: 'a goblin' },
   skeleton: { color: '#d8d4c8', size: 0.7, name: 'a skeleton' },
+  skelmage: { color: '#b8a8d8', size: 0.7, name: 'a skeleton mage' },
   orc: { color: '#5a8a3a', size: 0.8, name: 'an orc' },
   ettin: { color: '#a07040', size: 1.0, name: 'an ettin' },
   dragon: { color: '#c03828', size: 1.3, name: 'a dragon' },
@@ -57,6 +58,7 @@ const state = {
   speech: new Map(),    // entity id -> { text, until, magic }
   floaters: [],         // { x, y, text, color, born }
   projectiles: [],      // { x, y, tx, ty, born, color }
+  telegraphs: [],       // boss slam warnings: { x, y, born }
   target: 0,            // selected mob id
   walkTarget: null,     // { x, y } click-to-move destination
   path: null,           // A* steps toward walkTarget
@@ -328,6 +330,25 @@ function handleFx(msg) {
       state.floaters.push({ x: msg.x, y: msg.y, text: '*crack*', color: '#d8a8a0', born: t });
       Sound.play('break');
       break;
+    case 'arrow':
+      state.projectiles.push({ x: msg.x, y: msg.y, tx: msg.tx, ty: msg.ty, born: t, color: '#d8c8a0' });
+      Sound.play('swing');
+      break;
+    case 'mbolt':
+      state.projectiles.push({ x: msg.x, y: msg.y, tx: msg.tx, ty: msg.ty, born: t, color: '#b06aff' });
+      Sound.play('spell');
+      break;
+    case 'poison':
+      state.floaters.push({ x: msg.x, y: msg.y, text: '☠', color: '#7ac05a', born: t });
+      break;
+    case 'telegraph':
+      state.telegraphs.push({ x: msg.x, y: msg.y, born: t });
+      Sound.play('bell');
+      break;
+    case 'slam':
+      state.floaters.push({ x: msg.x, y: msg.y, text: '💥', color: '#ffaa44', born: t });
+      Sound.play('hit');
+      break;
     case 'magicarrow':
     case 'fireball':
       state.projectiles.push({
@@ -372,6 +393,9 @@ document.addEventListener('keydown', (ev) => {
     case '1': triggerAction('cast:magicarrow'); break;
     case '2': triggerAction('cast:fireball'); break;
     case '3': triggerAction('cast:greaterheal'); break;
+    case '6': triggerAction('cast:bless'); break;
+    case '7': triggerAction('cast:poison'); break;
+    case '8': triggerAction('cast:energybolt'); break;
     case '4': triggerAction('drink:heal'); break;
     case '5': triggerAction('drink:mana'); break;
     case 'b': case 'B': triggerAction('bandage'); break;
@@ -750,8 +774,13 @@ function updateHud() {
   const eq = y.weapon != null && (y.items || []).find((i) => i.uid === y.weapon);
   document.getElementById('pack-line').textContent =
     `⛀ ${y.gold} gold · ${y.logs} logs · ${y.ore} ore` + (y.gems ? ` · ${y.gems} gems` : '');
+  const eqA = y.armor != null && (y.items || []).find((i) => i.uid === y.armor);
+  const eqO = y.offhand != null && (y.items || []).find((i) => i.uid === y.offhand);
   document.getElementById('weapon-line').textContent =
-    '⚔ ' + (eq ? weaponLabel(eq) : 'Fists');
+    '⚔ ' + (eq ? weaponLabel(eq) : 'Fists') +
+    (eqA ? ' · 🛡 ' + weaponLabel(eqA) : '') +
+    (eqO ? ' · ' + weaponLabel(eqO) : '') +
+    (y.arrows ? ' · ➶ ' + y.arrows : '');
   const pots = y.pots || {};
   document.getElementById('pot-heal-count').textContent = pots.heal || 0;
   document.getElementById('pot-mana-count').textContent = pots.mana || 0;
@@ -781,13 +810,13 @@ function renderInventory() {
   if (!y) return;
   const weaponsHtml = (y.items || []).map((it) => {
     const def = state.weapons[it.id] || {};
-    const equipped = y.weapon === it.uid;
+    const equipped = y.weapon === it.uid || y.armor === it.uid || y.offhand === it.uid;
     const durFrac = it.dur / it.maxDur;
     const durColor = durFrac > 0.5 ? '#48b048' : durFrac > 0.25 ? '#c8a030' : '#c84030';
     return `<div class="inv-weapon${equipped ? ' equipped' : ''}">
        <div class="iw-top">
          <span style="color:${QUALITY_COLORS[it.q]}">${esc(weaponLabel(it))}</span>
-         <span class="iw-dmg">${def.dmg ? def.dmg[0] + '-' + def.dmg[1] : ''}</span>
+         <span class="iw-dmg">${def.dmg ? def.dmg[0] + '-' + def.dmg[1] + ' dmg' : def.dr ? '-' + def.dr + ' dmg taken' : def.block ? def.block + '% block' : ''}</span>
        </div>
        <div class="iw-dur"><div style="width:${Math.round(100 * durFrac)}%;background:${durColor}"></div></div>
        <div class="iw-actions">
@@ -1146,6 +1175,7 @@ function render() {
     }
   }
 
+  drawTelegraphs(cam, time);
   drawProjectiles(cam, time);
   drawNight(cam, time);
   drawFloaters(cam, time);
@@ -1509,9 +1539,11 @@ function drawPlayer(p, cam, time) {
   let labelY;
   if (c) {
     entityShadow(s.x, s.y, 11);
-    const wdef = p.w && state.weapons[p.w];
+    const overlays = [p.ar, p.oh, p.w]
+      .map((id) => id && state.weapons[id] && state.weapons[id].sprite)
+      .filter(Boolean);
     Assets.drawCreature(ctx, 'player', p.heading, entityAnim(p), time + p.id * 137, s.x, s.y,
-      1, wdef ? wdef.sprite : null);
+      1, overlays);
     labelY = s.y - c.ay - 8;
   } else {
     entityShadow(s.x, s.y + 2, 10);
@@ -1575,6 +1607,27 @@ function drawHpBar(sx, sy, hp, maxhp) {
   ctx.fillRect(sx - w / 2, sy, w, 4);
   ctx.fillStyle = hp / maxhp > 0.4 ? '#48b048' : '#c84030';
   ctx.fillRect(sx - w / 2, sy, w * Math.max(0, hp / maxhp), 4);
+}
+
+function drawTelegraphs(cam, time) {
+  state.telegraphs = state.telegraphs.filter((a) => time - a.born < 1600);
+  for (const a of state.telegraphs) {
+    const k = (time - a.born) / 1600;
+    const pulse = 0.35 + 0.3 * Math.sin(time / 90);
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const s = worldToScreen(a.x + dx, a.y + dy, cam);
+        ctx.fillStyle = `rgba(255, ${60 + 80 * k}, 40, ${pulse * (0.5 + k * 0.5)})`;
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(s.x + HW, s.y + HH);
+        ctx.lineTo(s.x, s.y + 2 * HH);
+        ctx.lineTo(s.x - HW, s.y + HH);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
 }
 
 function drawProjectiles(cam, time) {

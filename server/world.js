@@ -225,6 +225,12 @@ function generate(seed = 1337) {
       { type: 'weapon', item: 'mace', q: 1 },
       { type: 'weapon', item: 'battleaxe', q: 1 },
       { type: 'weapon', item: 'greatsword', q: 1 },
+      { type: 'weapon', item: 'longbow', q: 1 },
+      { type: 'weapon', item: 'leatherarmor', q: 1 },
+      { type: 'weapon', item: 'chainmail', q: 1 },
+      { type: 'weapon', item: 'buckler', q: 1 },
+      { type: 'weapon', item: 'kiteshield', q: 1 },
+      { item: 'arrow', name: 'Bundle of Arrows (20)', price: 15, desc: 'For the longbow.' },
     ],
   });
   vendors.push({
@@ -290,6 +296,8 @@ function generate(seed = 1337) {
         { item: 'mana', name: 'Mana Potion', price: 35 + jitter, desc: 'Restores 20-30 mana.' },
         { type: 'weapon', item: 'dagger', q: 1 },
         { type: 'weapon', item: 'sword', q: 1 },
+        { type: 'weapon', item: 'leatherarmor', q: 1 },
+        { item: 'arrow', name: 'Bundle of Arrows (20)', price: 15, desc: 'For the longbow.' },
       ],
     });
     road(v.x, v.y + 5, CX, CY + 11);

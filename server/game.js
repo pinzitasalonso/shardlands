@@ -27,6 +27,9 @@ const SPELLS = {
   magicarrow: { name: 'Magic Arrow', mana: 4, minSkill: 0, dmg: [5, 10], words: 'In Por Ylem' },
   fireball: { name: 'Fireball', mana: 9, minSkill: 40, dmg: [12, 22], words: 'Vas Flam' },
   greaterheal: { name: 'Greater Heal', mana: 11, minSkill: 30, heal: [15, 25], words: 'In Vas Mani' },
+  bless: { name: 'Bless', mana: 8, minSkill: 25, buff: 8, buffMs: 60_000, words: 'Rel Sanct' },
+  poison: { name: 'Poison', mana: 6, minSkill: 20, dot: [3, 5], words: 'In Nox' },
+  energybolt: { name: 'Energy Bolt', mana: 14, minSkill: 55, dmg: [20, 30], words: 'Corp Por' },
 };
 
 const MOB_KINDS = {
@@ -34,7 +37,7 @@ const MOB_KINDS = {
   skeleton: { name: 'a skeleton', hp: 32, dmg: [3, 7], skill: 45, gold: 18, speedMs: 500, aggro: 7 },
   orc: { name: 'an orc', hp: 48, dmg: [4, 9], skill: 55, gold: 30, speedMs: 450, aggro: 7 },
   ettin: { name: 'an ettin', hp: 95, dmg: [8, 16], skill: 65, gold: 70, speedMs: 600, aggro: 8 },
-  dragon: { name: 'a dragon', hp: 320, dmg: [16, 30], skill: 95, gold: 600, speedMs: 400, aggro: 10 },
+  dragon: { name: 'a dragon', hp: 320, dmg: [16, 30], skill: 95, gold: 600, speedMs: 400, aggro: 10, boss: true },
   // Wildlife and livestock. aggro 0 means they never start a fight.
   wolf: { name: 'a wolf', hp: 26, dmg: [3, 6], skill: 35, gold: 8, speedMs: 380, aggro: 5 },
   deer: { name: 'a deer', hp: 14, dmg: [1, 2], skill: 8, gold: 3, speedMs: 350, aggro: 0 },
@@ -48,10 +51,11 @@ const MOB_KINDS = {
   // Townsfolk: protected by the crown, prone to small talk.
   villager: { name: 'a villager', hp: 30, dmg: [0, 1], skill: 5, gold: 0, speedMs: 900, aggro: 0, peaceful: true },
   // Crowned terrors. Slain ones return after a long while.
-  goblinking: { name: 'Skarg, the Goblin King', hp: 130, dmg: [6, 12], skill: 60, gold: 220, speedMs: 320, aggro: 9 },
-  vyrmaur: { name: 'Vyrmaur the Undying', hp: 900, dmg: [22, 40], skill: 110, gold: 1500, speedMs: 380, aggro: 12 },
-  bonelord: { name: 'the Bone Lord', hp: 170, dmg: [8, 14], skill: 75, gold: 280, speedMs: 450, aggro: 9 },
-  wolfking: { name: 'Greyfang, the Wolf King', hp: 150, dmg: [7, 13], skill: 70, gold: 240, speedMs: 330, aggro: 9 },
+  goblinking: { name: 'Skarg, the Goblin King', hp: 130, dmg: [6, 12], skill: 60, gold: 220, speedMs: 320, aggro: 9, boss: true },
+  vyrmaur: { name: 'Vyrmaur the Undying', hp: 900, dmg: [22, 40], skill: 110, gold: 1500, speedMs: 380, aggro: 12, boss: true },
+  bonelord: { name: 'the Bone Lord', hp: 170, dmg: [8, 14], skill: 75, gold: 280, speedMs: 450, aggro: 9, boss: true },
+  wolfking: { name: 'Greyfang, the Wolf King', hp: 150, dmg: [7, 13], skill: 70, gold: 240, speedMs: 330, aggro: 9, boss: true },
+  skelmage: { name: 'a skeleton mage', hp: 26, dmg: [2, 4], skill: 50, gold: 24, speedMs: 550, aggro: 8, caster: { range: 7, dmg: [6, 12], cdMs: 2600 } },
 };
 
 const VILLAGER_NAMES = ['Tomlin', 'Berta', 'Old Casso', 'Wilmot', 'Ysolde', 'Pell',
@@ -74,6 +78,7 @@ const VILLAGER_LINES = [
 const LOOT_TABLES = {
   goblin: [[0.18, 'gold', 4, 10], [0.08, 'mana', 1, 1], [0.04, 'weapon', ['dagger'], 0, 1]],
   skeleton: [[0.2, 'gold', 8, 20], [0.12, 'heal', 1, 1], [0.1, 'weapon', ['sword'], 0, 2]],
+  skelmage: [[0.4, 'gold', 10, 26], [0.2, 'mana', 1, 2]],
   orc: [[0.22, 'gold', 12, 30], [0.12, 'heal', 1, 1], [0.1, 'ore', 1, 2], [0.08, 'weapon', ['sword', 'mace'], 0, 1]],
   ettin: [[0.35, 'gold', 30, 70], [0.2, 'heal', 1, 1], [0.15, 'logs', 2, 4], [0.1, 'weapon', ['battleaxe'], 1, 2]],
   dragon: [[1, 'gold', 150, 400], [0.8, 'heal', 1, 2], [0.6, 'mana', 1, 2], [0.5, 'gems', 1, 2], [0.5, 'weapon', ['greatsword'], 3, 4]],
@@ -104,9 +109,17 @@ const WEAPONS = {
   mace:       { name: 'Mace',       dmg: [7, 14],  speedMs: 1800, price: 150, dur: 120, sprite: 'mace',       craft: { ore: 10, logs: 4, gold: 40 } },
   battleaxe:  { name: 'Battle Axe', dmg: [9, 17],  speedMs: 2100, price: 260, dur: 130, minSkill: 40, sprite: 'battle_axe', craft: { ore: 14, logs: 5, gold: 70 } },
   greatsword: { name: 'Greatsword', dmg: [12, 22], speedMs: 2400, price: 420, dur: 140, minSkill: 60, sprite: 'greatsword', craft: { ore: 20, logs: 6, gold: 120 } },
+  longbow:    { name: 'Longbow',    dmg: [6, 13],  speedMs: 1700, price: 180, dur: 100, minSkill: 30, sprite: 'longbow', ranged: true, range: 8, craft: { ore: 2, logs: 10, gold: 40 } },
+  // Armor and shields share the same item machinery; slot routes the equip.
+  leatherarmor: { name: 'Leather Tunic',  slot: 'chest', dr: 2, price: 100, dur: 120, sprite: 'leather', craft: { ore: 2, logs: 6, gold: 25 } },
+  chainmail:    { name: 'Chain Cuirass',  slot: 'chest', dr: 4, price: 320, dur: 160, minSkill: 40, sprite: 'chain', craft: { ore: 16, logs: 2, gold: 90 } },
+  buckler:      { name: 'Buckler',        slot: 'offhand', block: 10, price: 90,  dur: 100, sprite: 'buckler', craft: { ore: 4, logs: 4, gold: 20 } },
+  kiteshield:   { name: 'Kite Shield',    slot: 'offhand', block: 18, price: 280, dur: 150, minSkill: 35, sprite: 'kite_shield', craft: { ore: 12, logs: 6, gold: 70 } },
   // There is only one. It is not for sale, and no forge will make another.
   dawnbreaker: { name: 'Dawnbreaker', dmg: [18, 30], speedMs: 2000, price: 2500, dur: 600, sprite: 'greatsword', secret: true },
 };
+
+const ARROW_BUNDLE = 20;
 
 const QUALITIES = [
   { name: 'Shoddy',      dmgMul: 0.85, durMul: 0.6, priceMul: 0.5 },
@@ -159,6 +172,7 @@ class Game {
     this.resources = new Map(); // "x,y" -> gathers left before depletion
     this.depleted = new Map();  // "x,y" -> { tile, respawnAt }
     this.drops = new Map();     // id -> { id, x, y, item, amount, despawnAt, cacheIdx? }
+    this.pendingAoes = [];      // telegraphed boss slams awaiting impact
     this.cacheRespawns = new Map(); // secret index -> respawn time
 
     // Vendors come from worldgen; negative ids keep them clear of mob ids.
@@ -269,6 +283,9 @@ class Game {
         pots: { heal: 1, mana: 0 },
         items: [{ uid: 1, id: 'dagger', q: 0, dur: 54, maxDur: 54 }],
         weapon: 1,
+        armor: null,
+        offhand: null,
+        arrows: 0,
         itemUid: 2,
       };
       persist.saveAccounts(this.accounts);
@@ -299,6 +316,10 @@ class Game {
       pots: { heal: 0, mana: 0, ...rec.pots },
       items: (rec.items || []).map((i) => ({ ...i })),
       weapon: rec.weapon ?? null,
+      armor: rec.armor ?? null,
+      offhand: rec.offhand ?? null,
+      arrows: rec.arrows || 0,
+      buffUntil: 0,
       itemUid: rec.itemUid || 1,
       dead: false,
       target: 0,
@@ -347,6 +368,9 @@ class Game {
       pots: { ...p.pots },
       items: p.items.map((i) => ({ ...i })),
       weapon: p.weapon,
+      armor: p.armor,
+      offhand: p.offhand,
+      arrows: p.arrows,
       itemUid: p.itemUid,
     });
     this.dirty = true;
@@ -443,8 +467,13 @@ class Game {
       return this.sys(p, `${vendor.name} says: That is ${good.price} gold, which thou dost not have.`);
     }
     p.gold -= good.price;
-    p.pots[good.item] = (p.pots[good.item] || 0) + 1;
-    this.sys(p, `You buy a ${good.name} for ${good.price} gold.`);
+    if (good.item === 'arrow') {
+      p.arrows += ARROW_BUNDLE;
+      this.sys(p, `You buy ${ARROW_BUNDLE} arrows for ${good.price} gold.`);
+    } else {
+      p.pots[good.item] = (p.pots[good.item] || 0) + 1;
+      this.sys(p, `You buy a ${good.name} for ${good.price} gold.`);
+    }
     this.sendYou(p);
   }
 
@@ -460,6 +489,11 @@ class Game {
     return item || null;
   }
 
+  slotOf(def) {
+    if (def.slot === 'chest') return 'armor';
+    return def.slot || 'weapon';
+  }
+
   handleEquip(p, uid) {
     if (uid === null || uid === 0) {
       p.weapon = null;
@@ -469,12 +503,25 @@ class Game {
     const item = p.items.find((i) => i.uid === uid);
     if (!item) return;
     const def = WEAPONS[item.id];
+    const slot = this.slotOf(def);
     if (def.minSkill && p.skills.swordsmanship < def.minSkill) {
-      return this.sys(p, `You need ${def.minSkill} Swordsmanship to wield a ${def.name}.`);
+      return this.sys(p, `You need ${def.minSkill} Swordsmanship to use a ${def.name}.`);
     }
-    p.weapon = uid;
-    this.sys(p, `You ready your ${weaponLabel(item)}.`);
+    if (p[slot] === uid) {
+      p[slot] = null;
+      this.sys(p, `You remove your ${weaponLabel(item)}.`);
+    } else {
+      p[slot] = uid;
+      this.sys(p, `You ready your ${weaponLabel(item)}.`);
+    }
     this.sendYou(p);
+  }
+
+  equippedIn(p, slot) {
+    if (p[slot] == null) return null;
+    const item = p.items.find((i) => i.uid === p[slot]);
+    if (!item) p[slot] = null;
+    return item || null;
   }
 
   handleSell(p, uid) {
@@ -485,7 +532,7 @@ class Game {
     if (!item) return;
     const price = Math.floor(weaponPrice(item.id, item.q) * 0.4);
     p.items = p.items.filter((i) => i.uid !== uid);
-    if (p.weapon === uid) p.weapon = null;
+    for (const slot of ['weapon', 'armor', 'offhand']) if (p[slot] === uid) p[slot] = null;
     p.gold += price;
     this.sys(p, `You sell your ${weaponLabel(item)} for ${price} gold.`);
     this.sendYou(p);
@@ -642,6 +689,21 @@ class Game {
       const amount = rand(spell.heal[0], spell.heal[1]);
       p.hp = Math.min(maxHp(p), p.hp + amount);
       this.fxNear(p, { t: 'fx', kind: 'heal', x: p.x, y: p.y, amount });
+    } else if (spell.buff) {
+      p.buffUntil = t + spell.buffMs;
+      this.fxNear(p, { t: 'fx', kind: 'heal', x: p.x, y: p.y, amount: 0 });
+      this.sys(p, 'Your arm feels surer. (+damage for a minute)');
+    } else if (spell.dot) {
+      const mob = this.mobs.get(targetId || p.target);
+      if (!mob || dist(p, mob) > 10) {
+        this.sys(p, 'No target in range.');
+      } else if (MOB_KINDS[mob.kind].peaceful) {
+        this.sys(p, 'The townsfolk are under the crown\'s protection.');
+      } else {
+        mob.poison = { left: 5, dmg: rand(spell.dot[0], spell.dot[1]), nextAt: t + 2000, by: p.id };
+        this.fxNear(mob, { t: 'fx', kind: 'poison', x: mob.x, y: mob.y });
+        this.sys(p, `${mob.name || MOB_KINDS[mob.kind].name} turns a sickly green.`);
+      }
     } else {
       const mob = this.mobs.get(targetId || p.target);
       if (!mob || dist(p, mob) > 10) {
@@ -649,8 +711,8 @@ class Game {
       } else if (MOB_KINDS[mob.kind].peaceful) {
         this.sys(p, 'The townsfolk are under the crown\'s protection.');
       } else {
-        const dmg = rand(spell.dmg[0], spell.dmg[1]) + Math.floor(p.skills.magery / 12);
-        this.fxNear(p, { t: 'fx', kind: spellId, x: p.x, y: p.y, tx: mob.x, ty: mob.y, amount: dmg });
+        const dmg = rand(spell.dmg[0], spell.dmg[1]) + Math.floor(p.skills.magery / (spellId === 'energybolt' ? 8 : 12));
+        this.fxNear(p, { t: 'fx', kind: spellId === 'energybolt' ? 'fireball' : spellId, x: p.x, y: p.y, tx: mob.x, ty: mob.y, amount: dmg });
         this.damageMob(p, mob, dmg);
         this.gainStat(p, 'int');
       }
@@ -760,7 +822,14 @@ class Game {
 
   damageMob(attacker, mob, dmg) {
     mob.hp -= dmg;
-    mob.target = attacker.id; // fighting back
+    const def = MOB_KINDS[mob.kind];
+    if (def.aggro === 0 && !def.peaceful) {
+      // Prey bolts rather than bites.
+      mob.fleeUntil = now() + 6000;
+      mob.fleeFrom = { x: attacker.x, y: attacker.y };
+    } else {
+      mob.target = attacker.id; // fighting back
+    }
     this.fxNear(mob, { t: 'fx', kind: 'hit', x: mob.x, y: mob.y, amount: dmg });
     if (mob.hp <= 0) this.killMob(attacker, mob);
   }
@@ -882,6 +951,40 @@ class Game {
     }
   }
 
+  // A blow lands on a player: shields may turn it, armor blunts it,
+  // and worn gear wears further.
+  hitPlayer(p, raw, byName) {
+    const shield = this.equippedIn(p, 'offhand');
+    if (shield && Math.random() * 100 < WEAPONS[shield.id].block) {
+      this.fxNear(p, { t: 'fx', kind: 'miss', x: p.x, y: p.y });
+      this.sys(p, 'You catch the blow on your shield.');
+      this.wearGear(p, shield);
+      return;
+    }
+    const armor = this.equippedIn(p, 'armor');
+    let dmg = raw;
+    if (armor) {
+      dmg = Math.max(1, raw - WEAPONS[armor.id].dr);
+      this.wearGear(p, armor);
+    }
+    p.hp -= dmg;
+    this.fxNear(p, { t: 'fx', kind: 'hit', x: p.x, y: p.y, amount: dmg });
+    if (p.hp <= 0) this.killPlayer(p, byName);
+    else this.sendYou(p);
+  }
+
+  wearGear(p, item) {
+    if (Math.random() >= 0.15) return;
+    item.dur -= 1;
+    if (item.dur <= 0) {
+      p.items = p.items.filter((i) => i.uid !== item.uid);
+      for (const slot of ['weapon', 'armor', 'offhand']) if (p[slot] === item.uid) p[slot] = null;
+      this.sys(p, `Your ${weaponLabel(item)} falls apart!`);
+      this.fxNear(p, { t: 'fx', kind: 'break', x: p.x, y: p.y });
+    }
+    this.sendYou(p);
+  }
+
   killPlayer(p, byName) {
     p.dead = true;
     p.hp = 0;
@@ -908,9 +1011,18 @@ class Game {
       p.target = 0;
       return;
     }
-    if (dist(p, mob) > 1.5 || t < p.swingAt) return;
     const item = this.equippedWeapon(p);
     const wdef = item ? WEAPONS[item.id] : UNARMED;
+    const reach = wdef.ranged ? wdef.range : 1.5;
+    if (dist(p, mob) > reach || t < p.swingAt) return;
+    if (wdef.ranged) {
+      if (p.arrows <= 0) {
+        if (t0Throttle(p)) this.sys(p, 'You are out of arrows. The fletchers sell bundles.');
+        return;
+      }
+      p.arrows -= 1;
+      this.fxNear(p, { t: 'fx', kind: 'arrow', x: p.x, y: p.y, tx: mob.x, ty: mob.y });
+    }
     p.swingAt = t + Math.max(900, wdef.speedMs - p.dex * 10);
     p.swungAt = t;
 
@@ -923,7 +1035,8 @@ class Game {
     this.gainSkill(p, 'tactics');
     this.gainStat(p, 'str');
     const roll = rand(wdef.dmg[0], wdef.dmg[1]);
-    const base = (item ? Math.round(roll * QUALITIES[item.q].dmgMul) : roll) + Math.floor(p.str / 10);
+    const blessBonus = p.buffUntil > t ? 3 : 0;
+    const base = (item ? Math.round(roll * QUALITIES[item.q].dmgMul) : roll) + Math.floor(p.str / 10) + blessBonus;
     const dmg = Math.max(1, Math.floor(base * (0.5 + p.skills.tactics / 150)));
     this.damageMob(p, mob, dmg);
     if (item) this.wearWeapon(p, item);
@@ -935,7 +1048,7 @@ class Game {
     item.dur -= 1;
     if (item.dur <= 0) {
       p.items = p.items.filter((i) => i.uid !== item.uid);
-      if (p.weapon === item.uid) p.weapon = null;
+      for (const slot of ['weapon', 'armor', 'offhand']) if (p[slot] === item.uid) p[slot] = null;
       this.sys(p, `Your ${weaponLabel(item)} shatters!`);
       this.fxNear(p, { t: 'fx', kind: 'break', x: p.x, y: p.y });
     } else if (item.dur === Math.ceil(item.maxDur * 0.25)) {
@@ -989,6 +1102,11 @@ class Game {
       if (spawner.kind === 'villager') {
         mob.name = VILLAGER_NAMES[mob.id % VILLAGER_NAMES.length];
       }
+      // Every barrow raises the occasional necromancer.
+      if (spawner.kind === 'skeleton' && Math.random() < 0.18) {
+        mob.kind = 'skelmage';
+        mob.hp = mob.maxhp = MOB_KINDS.skelmage.hp;
+      }
       this.mobs.set(mob.id, mob);
       spawner.alive.add(mob.id);
       return;
@@ -997,6 +1115,33 @@ class Game {
 
   mobTick(mob, t) {
     const def = MOB_KINDS[mob.kind];
+
+    // Poison eats at the afflicted.
+    if (mob.poison && t >= mob.poison.nextAt) {
+      mob.poison.nextAt = t + 2000;
+      mob.poison.left -= 1;
+      const killer = this.players.get(mob.poison.by);
+      mob.hp -= mob.poison.dmg;
+      this.fxNear(mob, { t: 'fx', kind: 'hit', x: mob.x, y: mob.y, amount: mob.poison.dmg });
+      if (mob.poison.left <= 0) mob.poison = null;
+      if (mob.hp <= 0) {
+        if (killer) this.killMob(killer, mob);
+        else {
+          this.mobs.delete(mob.id);
+          mob.spawner.alive.delete(mob.id);
+        }
+        return;
+      }
+    }
+
+    // The frightened run first and think later.
+    if (mob.fleeUntil && t < mob.fleeUntil) {
+      if (t >= mob.moveAt) {
+        mob.moveAt = t + def.speedMs;
+        this.stepToward(mob, 2 * mob.x - mob.fleeFrom.x, 2 * mob.y - mob.fleeFrom.y);
+      }
+      return;
+    }
 
     // Acquire or validate a target.
     let target = mob.target ? this.players.get(mob.target) : null;
@@ -1016,17 +1161,31 @@ class Game {
 
     if (target) {
       const d = dist(mob, target);
+
+      // Bosses telegraph a ground slam: stand clear or suffer.
+      if (def.boss && d <= 8 && t >= (mob.aoeAt || 0)) {
+        mob.aoeAt = t + 9000;
+        const ax = target.x;
+        const ay = target.y;
+        this.fxNear(mob, { t: 'fx', kind: 'telegraph', x: ax, y: ay });
+        this.pendingAoes.push({ x: ax, y: ay, at: t + 1600, dmg: Math.round(def.dmg[1] * 1.4), by: mob.name || def.name });
+      }
+
+      // Casters bombard from range.
+      if (def.caster && d <= def.caster.range && d > 1.5 && t >= (mob.castAt || 0)) {
+        mob.castAt = t + def.caster.cdMs;
+        this.fxNear(mob, { t: 'fx', kind: 'mbolt', x: mob.x, y: mob.y, tx: target.x, ty: target.y });
+        this.hitPlayer(target, rand(def.caster.dmg[0], def.caster.dmg[1]), mob.name || def.name);
+        return;
+      }
+
       if (d <= 1.5) {
         if (t >= mob.swingAt) {
           mob.swingAt = t + 1600;
           mob.swungAt = t;
           const hitChance = clamp(50 + (def.skill - target.skills.swordsmanship) / 2, 10, 95);
           if (Math.random() * 100 <= hitChance) {
-            const dmg = rand(def.dmg[0], def.dmg[1]);
-            target.hp -= dmg;
-            this.fxNear(target, { t: 'fx', kind: 'hit', x: target.x, y: target.y, amount: dmg });
-            if (target.hp <= 0) this.killPlayer(target, def.name);
-            else this.sendYou(target);
+            this.hitPlayer(target, rand(def.dmg[0], def.dmg[1]), mob.name || def.name);
           } else {
             this.fxNear(target, { t: 'fx', kind: 'miss', x: target.x, y: target.y });
           }
@@ -1090,6 +1249,20 @@ class Game {
   tick() {
     const t = now();
 
+    // Telegraphed slams land.
+    if (this.pendingAoes.length) {
+      const due = this.pendingAoes.filter((a) => t >= a.at);
+      this.pendingAoes = this.pendingAoes.filter((a) => t < a.at);
+      for (const a of due) {
+        this.fxNear(a, { t: 'fx', kind: 'slam', x: a.x, y: a.y });
+        for (const q of this.players.values()) {
+          if (!q.dead && Math.abs(q.x - a.x) <= 1 && Math.abs(q.y - a.y) <= 1) {
+            this.hitPlayer(q, a.dmg, a.by);
+          }
+        }
+      }
+    }
+
     for (const mob of this.mobs.values()) this.mobTick(mob, t);
 
     for (const p of this.players.values()) {
@@ -1133,12 +1306,15 @@ class Game {
       this.send(p.ws, {
         t: 'state',
         players: players.filter(near).map((q) => {
-          const wi = q.weapon != null && q.items.find((i) => i.uid === q.weapon);
+          const gear = (slot) => {
+            const it = q[slot] != null && q.items.find((i) => i.uid === q[slot]);
+            return it ? it.id : 0;
+          };
           return {
             id: q.id, name: q.name, x: q.x, y: q.y,
             hp: q.hp, maxhp: maxHp(q), dead: q.dead,
             a: t - (q.swungAt || 0) < 600 ? 1 : 0,
-            w: wi ? wi.id : 0,
+            w: gear('weapon'), ar: gear('armor'), oh: gear('offhand'),
           };
         }),
         mobs: mobs.filter(near).map((m) => ({
@@ -1163,6 +1339,10 @@ class Game {
       pots: p.pots,
       items: p.items,
       weapon: p.weapon,
+      armor: p.armor,
+      offhand: p.offhand,
+      arrows: p.arrows,
+      blessed: p.buffUntil > now() ? 1 : 0,
       dead: p.dead,
     });
   }

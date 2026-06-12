@@ -173,8 +173,10 @@ const Assets = (() => {
       c.cellW * scale, c.cellH * scale,
     ];
     ctx.drawImage(state.images[c.img], ...args);
-    if (overlay && c.overlays && c.overlays[overlay]) {
-      ctx.drawImage(state.images[c.overlays[overlay]], ...args);
+    if (overlay && c.overlays) {
+      for (const name of Array.isArray(overlay) ? overlay : [overlay]) {
+        if (c.overlays[name]) ctx.drawImage(state.images[c.overlays[name]], ...args);
+      }
     }
     return true;
   }

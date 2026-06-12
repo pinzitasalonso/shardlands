@@ -75,6 +75,18 @@ SOURCES = {
     'w_battle_axe.txt': f'{FLARE}/fantasycore/animations/avatar/male/battle_axe.txt',
     'w_greatsword.png': f'{FLARE}/fantasycore/images/avatar/male/greatsword.png',
     'w_greatsword.txt': f'{FLARE}/fantasycore/animations/avatar/male/greatsword.txt',
+    'w_longbow.png': f'{FLARE}/fantasycore/images/avatar/male/longbow.png',
+    'w_longbow.txt': f'{FLARE}/fantasycore/animations/avatar/male/longbow.txt',
+    'a_leather.png': f'{FLARE}/fantasycore/images/avatar/male/leather_chest.png',
+    'a_leather.txt': f'{FLARE}/fantasycore/animations/avatar/male/leather_chest.txt',
+    'a_chain.png': f'{FLARE}/fantasycore/images/avatar/male/chain_cuirass.png',
+    'a_chain.txt': f'{FLARE}/fantasycore/animations/avatar/male/chain_cuirass.txt',
+    'a_buckler.png': f'{FLARE}/fantasycore/images/avatar/male/buckler.png',
+    'a_buckler.txt': f'{FLARE}/fantasycore/animations/avatar/male/buckler.txt',
+    'a_kite_shield.png': f'{FLARE}/fantasycore/images/avatar/male/kite_shield.png',
+    'a_kite_shield.txt': f'{FLARE}/fantasycore/animations/avatar/male/kite_shield.txt',
+    'skeleton_mage.png': f'{FLARE}/fantasycore/images/enemies/skeleton_mage.png',
+    'skeleton_mage.txt': f'{FLARE}/fantasycore/animations/enemies/skeleton_mage.txt',
     # Animals: Stendhal (GPL 2) and LPC farm animals by Daniel Eddeland
     # (CC-BY-SA 3.0 / GPL 3). 4-direction walk sheets, rows = up/right/down/left.
     'wolf.png': 'https://raw.githubusercontent.com/arianne/stendhal/master/data/sprites/monsters/animal/wolf.png',
@@ -541,6 +553,7 @@ def main():
     creatures = {}
     creatures['goblin'] = build_creature('goblin', [packed('goblin')], scale=0.78)
     creatures['skeleton'] = build_creature('skeleton', [packed('skeleton')], scale=0.6)
+    creatures['skelmage'] = build_creature('skelmage', [packed('skeleton_mage')], scale=0.6)
     creatures['orc'] = build_creature('orc', [packed('hobgoblin')], scale=0.95)
     creatures['ettin'] = build_minotaur(scale=1.0)
     creatures['dragon'] = build_dragon(scale=0.8)
@@ -553,7 +566,9 @@ def main():
     chest = packed('default_chest')  # bare skin: torso and arms
     hands = packed('default_hands')
     weapon_overlays = {k: packed('w_' + k) for k in
-                       ['dagger', 'longsword', 'mace', 'battle_axe', 'greatsword']}
+                       ['dagger', 'longsword', 'mace', 'battle_axe', 'greatsword', 'longbow']}
+    for k in ['leather', 'chain', 'buckler', 'kite_shield']:
+        weapon_overlays[k] = packed('a_' + k)
     creatures['player'] = build_creature(
         'player', [chest, hands, boots, pants, shirt, head], scale=0.6, stance_ms=260,
         overlays=weapon_overlays)
