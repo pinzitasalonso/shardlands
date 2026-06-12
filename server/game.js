@@ -56,6 +56,7 @@ const MOB_KINDS = {
   bonelord: { name: 'the Bone Lord', hp: 170, dmg: [8, 14], skill: 75, gold: 280, speedMs: 450, aggro: 9, boss: true },
   wolfking: { name: 'Greyfang, the Wolf King', hp: 150, dmg: [7, 13], skill: 70, gold: 240, speedMs: 330, aggro: 9, boss: true },
   skelmage: { name: 'a skeleton mage', hp: 26, dmg: [2, 4], skill: 50, gold: 24, speedMs: 550, aggro: 8, caster: { range: 7, dmg: [6, 12], cdMs: 2600 } },
+  whitestag: { name: 'the White Stag', hp: 60, dmg: [1, 2], skill: 30, gold: 50, speedMs: 260, aggro: 0 },
 };
 
 const VILLAGER_NAMES = ['Tomlin', 'Berta', 'Old Casso', 'Wilmot', 'Ysolde', 'Pell',
@@ -79,15 +80,16 @@ const LOOT_TABLES = {
   goblin: [[0.18, 'gold', 4, 10], [0.08, 'mana', 1, 1], [0.04, 'weapon', ['dagger'], 0, 1]],
   skeleton: [[0.2, 'gold', 8, 20], [0.12, 'heal', 1, 1], [0.1, 'weapon', ['sword'], 0, 2]],
   skelmage: [[0.4, 'gold', 10, 26], [0.2, 'mana', 1, 2]],
-  orc: [[0.22, 'gold', 12, 30], [0.12, 'heal', 1, 1], [0.1, 'ore', 1, 2], [0.08, 'weapon', ['sword', 'mace'], 0, 1]],
-  ettin: [[0.35, 'gold', 30, 70], [0.2, 'heal', 1, 1], [0.15, 'logs', 2, 4], [0.1, 'weapon', ['battleaxe'], 1, 2]],
+  orc: [[0.22, 'gold', 12, 30], [0.12, 'heal', 1, 1], [0.1, 'ore', 1, 2], [0.08, 'weapon', ['sword', 'mace'], 0, 1], [0.04, 'tmap']],
+  ettin: [[0.35, 'gold', 30, 70], [0.2, 'heal', 1, 1], [0.15, 'logs', 2, 4], [0.1, 'weapon', ['battleaxe'], 1, 2], [0.06, 'tmap']],
   dragon: [[1, 'gold', 150, 400], [0.8, 'heal', 1, 2], [0.6, 'mana', 1, 2], [0.5, 'gems', 1, 2], [0.5, 'weapon', ['greatsword'], 3, 4]],
   wolf: [[0.3, 'gold', 3, 10]],
-  deer: [[0.35, 'gold', 2, 6]],
+  deer: [[0.35, 'gold', 2, 6], [0.5, 'meat', 1, 1]],
   snake: [[0.3, 'gold', 3, 9], [0.06, 'mana', 1, 1]],
   crab: [[0.3, 'gold', 2, 7]],
-  boar: [[0.35, 'gold', 3, 10], [0.08, 'heal', 1, 1]],
-  goblinking: [[1, 'gold', 100, 250], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2], [1, 'weapon', ['sword', 'mace'], 2, 3]],
+  boar: [[0.35, 'gold', 3, 10], [0.08, 'heal', 1, 1], [0.6, 'meat', 1, 2]],
+  whitestag: [[1, 'gold', 40, 90], [1, 'gems', 2, 4]],
+  goblinking: [[1, 'gold', 100, 250], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2], [1, 'weapon', ['sword', 'mace'], 2, 3], [0.5, 'tmap']],
   bonelord: [[1, 'gold', 120, 300], [1, 'gems', 1, 2], [0.6, 'mana', 1, 2], [1, 'weapon', ['battleaxe', 'greatsword'], 2, 4]],
   wolfking: [[1, 'gold', 100, 260], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2], [1, 'weapon', ['sword'], 2, 3]],
   vyrmaur: [[1, 'gold', 800, 1500], [1, 'gems', 3, 6], [1, 'heal', 2, 3]],
@@ -210,6 +212,8 @@ class Game {
     });
 
     this.miniData = this.buildMini();
+    this.event = null;
+    setInterval(() => this.maybeStartEvent(), 60_000);
 
     setInterval(() => this.tick(), TICK_MS);
     setInterval(() => this.saveAll(), SAVE_INTERVAL_MS);
@@ -334,6 +338,7 @@ class Game {
       skills: { ...Object.fromEntries(SKILLS.map((sk) => [sk, 20])), ...rec.skills },
       gold: rec.gold, logs: rec.logs, ore: rec.ore, gems: rec.gems || 0,
       fish: rec.fish || 0, meat: rec.meat || 0, food: rec.food || 0,
+      tmaps: (rec.tmaps || []).slice(),
       mats: { frostwood: 0, sunsteel: 0, ironbark: 0, ...rec.mats },
       deeds: { ...rec.deeds },
       pots: { heal: 0, mana: 0, ...rec.pots },
@@ -389,6 +394,7 @@ class Game {
       skills: { ...p.skills },
       gold: p.gold, logs: p.logs, ore: p.ore, gems: p.gems,
       fish: p.fish, meat: p.meat, food: p.food,
+      tmaps: (p.tmaps || []).slice(),
       mats: { ...p.mats },
       deeds: { ...p.deeds },
       pots: { ...p.pots },
@@ -990,6 +996,16 @@ class Game {
     }
     for (const entry of LOOT_TABLES[mob.kind] || []) {
       if (Math.random() > entry[0]) continue;
+      if (entry[1] === 'tmap') {
+        const cacheIdxs = this.map.secrets
+          .map((sc, i) => (sc.type === 'cache' ? i : -1)).filter((i) => i >= 0);
+        const m = cacheIdxs[rand(0, cacheIdxs.length - 1)];
+        this.drops.set(this.nextId, {
+          id: this.nextId++, x: mob.x, y: mob.y,
+          item: 'tmap', m, despawnAt: now() + DROP_TTL_MS,
+        });
+        continue;
+      }
       if (entry[1] === 'weapon') {
         const [, , pool, qMin, qMax] = entry;
         const id = pool[rand(0, pool.length - 1)];
@@ -1058,6 +1074,21 @@ class Game {
           p.gems += d.amount;
           this.sys(p, `You pick up ${d.amount > 1 ? d.amount + ' sparkling gems' : 'a sparkling gem'}!`);
           break;
+        case 'meat':
+          p.meat += d.amount;
+          this.sys(p, `You take ${d.amount > 1 ? d.amount + ' cuts' : 'a cut'} of meat.`);
+          break;
+        case 'tmap': {
+          p.tmaps = p.tmaps || [];
+          if (p.tmaps.length >= 3) {
+            this.drops.set(id, d); // leave it lying there
+            if (t0Throttle(p)) this.sys(p, 'You cannot carry more maps.');
+            break;
+          }
+          p.tmaps.push(d.m);
+          this.sys(p, 'A weathered map! Someone marked an X far from here.');
+          break;
+        }
       }
       this.sendYou(p);
     }
@@ -1262,12 +1293,22 @@ class Game {
       mob.target = 0;
       target = null;
     }
-    if (!target && def.aggro > 0) {
-      for (const p of this.players.values()) {
-        if (!p.dead && dist(mob, p) <= def.aggro) {
-          mob.target = p.id;
-          target = p;
-          break;
+    if (!target && (def.aggro > 0 || mob.aggroBoost)) {
+      const reach = (def.aggro || 0) + (mob.aggroBoost || 0);
+      const cx = mob.x >> 5;
+      const cy = mob.y >> 5;
+      outer:
+      for (let gy = cy - 1; gy <= cy + 1; gy++) {
+        for (let gx = cx - 1; gx <= cx + 1; gx++) {
+          const cell = this.playerGrid && this.playerGrid.get((gx << 16) | gy);
+          if (!cell) continue;
+          for (const p of cell) {
+            if (dist(mob, p) <= reach) {
+              mob.target = p.id;
+              target = p;
+              break outer;
+            }
+          }
         }
       }
     }
@@ -1324,6 +1365,16 @@ class Game {
       }
     }
 
+    // Raiders march on their objective before all else.
+    if (mob.dest) {
+      if (dist(mob, mob.dest) <= 2) mob.dest = null;
+      else if (t >= mob.moveAt) {
+        mob.moveAt = t + def.speedMs;
+        this.stepToward(mob, mob.dest.x, mob.dest.y);
+      }
+      return;
+    }
+
     // No target: leash home if wandered far, otherwise amble around.
     if (t >= mob.moveAt && Math.random() < 0.25) {
       mob.moveAt = t + def.speedMs * 2;
@@ -1357,9 +1408,61 @@ class Game {
     }
   }
 
+  // ---- world events: every so often, raiders march on a village -------------------
+
+  maybeStartEvent() {
+    if (this.event || this.players.size === 0 || Math.random() > 0.22) return;
+    const v = this.map.villages[rand(0, this.map.villages.length - 1)];
+    const kind = Math.random() > 0.5 ? 'orc' : 'goblin';
+    const stub = { alive: new Set(), x: v.x + 18, y: v.y + 18, r: 4, kind, respawnMs: Infinity };
+    const ids = new Set();
+    for (let i = 0; i < 8; i++) {
+      this.spawnMob(stub);
+    }
+    for (const id of stub.alive) {
+      const m = this.mobs.get(id);
+      if (m) {
+        m.dest = { x: v.x + rand(-3, 3), y: v.y + rand(-3, 3) };
+        m.aggroBoost = 12; // raiders look for trouble
+        ids.add(id);
+      }
+    }
+    this.event = { village: v, ids, until: now() + 6 * 60_000, kind };
+    this.broadcastSys(`⚔ ${kind === 'orc' ? 'An orc warband' : 'A goblin mob'} is raiding ${v.name}! Defenders needed!`);
+  }
+
+  tickEvent(t) {
+    if (!this.event) return;
+    for (const id of this.event.ids) {
+      if (!this.mobs.has(id)) this.event.ids.delete(id);
+    }
+    if (this.event.ids.size === 0) {
+      const v = this.event.village;
+      this.broadcastSys(`🏆 The raid on ${v.name} is broken! The grateful villagers leave a reward.`);
+      for (const [item, min, max] of [['gold', 80, 160], ['heal', 1, 2], ['mana', 1, 2]]) {
+        this.drops.set(this.nextId, {
+          id: this.nextId++, x: v.x + rand(-1, 1), y: v.y + rand(-1, 1),
+          item, amount: rand(min, max), despawnAt: t + 3 * 60_000,
+        });
+      }
+      this.event = null;
+    } else if (t > this.event.until) {
+      for (const id of this.event.ids) {
+        const m = this.mobs.get(id);
+        if (m) {
+          this.mobs.delete(id);
+          m.spawner.alive.delete(id);
+        }
+      }
+      this.broadcastSys(`The raiders have taken what they could from ${this.event.village.name} and slunk away.`);
+      this.event = null;
+    }
+  }
+
   // ---- main loop ----------------------------------------------------------------
 
   tick() {
+    const tickStart = process.hrtime.bigint();
     const t = now();
 
     // Telegraphed slams land.
@@ -1376,11 +1479,27 @@ class Game {
       }
     }
 
+    this.tickEvent(t);
     for (const mob of this.mobs.values()) this.mobTick(mob, t);
 
     for (const p of this.players.values()) {
       this.meleeTick(p, t);
       if (!p.dead) this.pickupDrops(p);
+      if (!p.dead && p.tmaps && p.tmaps.length) {
+        for (const i of p.tmaps.slice()) {
+          const sc = this.map.secrets[i];
+          if (Math.abs(sc.x - p.x) <= 2 && Math.abs(sc.y - p.y) <= 2) {
+            p.tmaps = p.tmaps.filter((m) => m !== i);
+            const stocked = [...this.drops.values()].some((d) => d.cacheIdx === i);
+            if (!stocked) {
+              this.cacheRespawns.delete(i);
+              this.stockCache(sc, i);
+            }
+            this.sys(p, 'This is the place. X marks the spot — and the ground gives easily.');
+            this.sendYou(p);
+          }
+        }
+      }
       if (!p.dead && !p.deeds.wayfarer && t % 1000 < TICK_MS) {
         for (const v of this.map.villages) {
           if (Math.abs(v.x - p.x) < 12 && Math.abs(v.y - p.y) < 12) {
@@ -1447,6 +1566,8 @@ class Game {
         drops: drops.filter(near).map((d) => ({ id: d.id, x: d.x, y: d.y, item: d.item, q: d.w ? d.w.q : undefined })),
       });
     }
+
+    this.lastTickMs = Number(process.hrtime.bigint() - tickStart) / 1e6;
   }
 
   // ---- plumbing -------------------------------------------------------------------
@@ -1459,6 +1580,10 @@ class Game {
       skills: p.skills,
       gold: p.gold, logs: p.logs, ore: p.ore, gems: p.gems,
       fish: p.fish, meat: p.meat, food: p.food,
+      tmaps: (p.tmaps || []).map((i) => {
+        const sc = this.map.secrets[i];
+        return { i, x: sc.x, y: sc.y };
+      }),
       mats: p.mats,
       deeds: p.deeds,
       title: titleOf(p),

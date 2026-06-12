@@ -576,6 +576,9 @@
   "12": {
    "groundProc": "swamp"
   },
+  "14": {
+   "groundProc": "cave"
+  },
   "13": {
    "groundProc": "swamp",
    "object": [

@@ -133,7 +133,11 @@ p.portalAt = 0;
 game.handleMove(p, -1, 0);
 assert(p.x === portal.tx && p.y === portal.ty, 'stone circle teleports the player to its twin');
 
-const whisper = game.map.secrets.find((s) => s.type === 'whisper');
+// pick a whisper with no portal nearby (cave-mouth whispers sit on top of one,
+// and the portal would whisk the listener away first)
+const whisper = game.map.secrets.find((s) => s.type === 'whisper' &&
+  !game.map.secrets.some((o) => o.type === 'portal' &&
+    Math.abs(o.x - s.x) <= 2 && Math.abs(o.y - s.y) <= 2));
 assert(whisper, 'whisper spots exist');
 ws.sent.length = 0;
 p.x = whisper.x + 1;
@@ -482,6 +486,92 @@ ws.sent.length = 0;
 game.sendYou(p);
 const you = ws.sent.find((m) => m.t === 'you');
 assert(/Grandmaster/.test(you.title), 'grandmaster title earned');
+
+// -- batch D: dungeons, raids, treasure maps, rare spawns, tech ----------------------
+// the barrow-deeps: cave mouths at the keeps descend into carved caverns
+let caveTiles = 0;
+for (let i = 0; i < game.map.tiles.length; i++) {
+  if (game.map.tiles[i] === TILE.CAVE) caveTiles++;
+}
+assert(caveTiles >= 500, 'the barrow-deeps are carved (' + caveTiles + ' cave tiles)');
+const cavePortals = game.map.secrets.filter((s) => s.type === 'portal' && s.cave);
+assert(cavePortals.length >= 8, 'cave mouths and exits exist in pairs');
+const mouth = cavePortals.find((cp) =>
+  game.map.tiles[cp.ty * game.map.w + cp.tx] === TILE.CAVE && cp.ty < 64);
+assert(mouth, 'a cave mouth leads underground');
+p.dead = false;
+p.x = mouth.x;
+p.y = mouth.y;
+p.portalAt = 0;
+game.checkSecrets(p, Date.now());
+assert(p.x === mouth.tx && p.y === mouth.ty, 'stepped through the cave mouth');
+assert.strictEqual(game.map.tiles[p.y * game.map.w + p.x], TILE.CAVE, 'and stands underground');
+assert(game.spawners.some((sp) => sp.kind === 'skeleton' && sp.y < 64),
+  'the dead walk the deeps');
+
+// the white stag wanders
+assert(game.spawners.filter((sp) => sp.kind === 'whitestag').length >= 3,
+  'white stags wander the wild');
+
+// treasure maps: loot -> carry -> stand on the X -> the cache gives way
+const r2 = Math.random;
+Math.random = () => 0; // every loot row fires; rand() picks minimums
+p.x = game.map.spawn.x;
+p.y = game.map.spawn.y;
+p.tmaps = [];
+p.items.length = 0;
+game.rollLoot({ kind: 'orc', x: p.x, y: p.y });
+Math.random = r2;
+assert([...game.drops.values()].some((d) => d.item === 'tmap'), 'the orc carried a map');
+game.pickupDrops(p);
+assert.strictEqual(p.tmaps.length, 1, 'the map is in the pack');
+const digIdx = p.tmaps[0];
+const digSpot = game.map.secrets[digIdx];
+assert.strictEqual(digSpot.type, 'cache', 'the X marks a cache');
+for (const [id, d] of [...game.drops]) {
+  if (d.cacheIdx === digIdx) game.drops.delete(id); // someone got here first
+}
+p.x = digSpot.x;
+p.y = digSpot.y;
+p.hp = 100000; // whatever guards the spot must not interrupt the dig
+ws.sent.length = 0;
+game.tick();
+assert.strictEqual(p.tmaps.length, 0, 'the map is spent at the X');
+assert(ws.sent.some((m) => m.t === 'sys' && /X marks the spot/.test(m.text)), 'the dig speaks');
+assert([...game.drops.values()].some((d) => d.cacheIdx === digIdx), 'the cache restocked');
+
+// world events: a raid marches on a village, breaks, and pays out
+game.event = null;
+const r3 = Math.random;
+Math.random = () => 0.1;
+game.maybeStartEvent();
+Math.random = r3;
+assert(game.event, 'a raid begins');
+assert(game.event.ids.size >= 4, 'a warband marches');
+for (const id of game.event.ids) {
+  const m = game.mobs.get(id);
+  assert(m.dest, 'raiders march with purpose');
+  assert.strictEqual(m.aggroBoost, 12, 'raiders look for trouble');
+}
+const raidVillage = game.event.village;
+for (const id of [...game.event.ids]) {
+  const m = game.mobs.get(id);
+  game.mobs.delete(id);
+  m.spawner.alive.delete(id);
+}
+ws.sent.length = 0;
+game.tickEvent(Date.now());
+assert.strictEqual(game.event, null, 'the raid is broken');
+assert(ws.sent.some((m) => m.t === 'sys' && /raid on .* is broken/.test(m.text)), 'victory rings out');
+assert([...game.drops.values()].some((d) =>
+  Math.abs(d.x - raidVillage.x) <= 1 && Math.abs(d.y - raidVillage.y) <= 1),
+  'the villagers leave a reward');
+
+// tech: SQLite persistence and tick timing for /health
+const persist = require('../server/persist');
+assert.strictEqual(persist.usingSqlite(), true, 'saves go to SQLite');
+game.tick();
+assert(game.lastTickMs > 0, 'tick time is measured for /health');
 
 console.log('smoke test: all assertions passed');
 process.exit(0);

@@ -10,8 +10,8 @@
 
 const HW = 32; // half tile width on screen
 const HH = 16; // half tile height on screen
-const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SAND: 7, SHRINE: 8, SNOW: 9, SNOWTREE: 10, PLANKS: 11, SWAMP: 12, SWAMPTREE: 13 };
-const WALKABLE = new Set([T.GRASS, T.ROAD, T.FLOOR, T.SAND, T.SHRINE, T.SNOW, T.PLANKS, T.SWAMP]);
+const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SAND: 7, SHRINE: 8, SNOW: 9, SNOWTREE: 10, PLANKS: 11, SWAMP: 12, SWAMPTREE: 13, CAVE: 14 };
+const WALKABLE = new Set([T.GRASS, T.ROAD, T.FLOOR, T.SAND, T.SHRINE, T.SNOW, T.PLANKS, T.SWAMP, T.CAVE]);
 
 const MOB_STYLE = {
   goblin: { color: '#5aa040', size: 0.5, name: 'a goblin' },
@@ -29,6 +29,7 @@ const MOB_STYLE = {
   crab: { color: '#b06a4a', size: 0.4, name: 'a marsh crab' },
   boar: { color: '#6a5240', size: 0.6, name: 'a wild boar' },
   villager: { color: '#b0a890', size: 0.6, name: 'a villager', sprites: ['player', 'villager2', 'villager3'] },
+  whitestag: { color: '#f0f0e8', size: 0.7, name: 'the White Stag', sprite: 'deer', spriteScale: 1.3, boss: true },
   goblinking: { color: '#5aa040', size: 0.9, name: 'Skarg, the Goblin King', sprite: 'goblin', spriteScale: 1.5, boss: true },
   bonelord: { color: '#d8d4c8', size: 1.1, name: 'the Bone Lord', sprite: 'skeleton', spriteScale: 1.4, boss: true },
   wolfking: { color: '#6a625a', size: 0.9, name: 'Greyfang, the Wolf King', sprite: 'wolf', spriteScale: 1.6, boss: true },
@@ -855,14 +856,16 @@ function renderInventory() {
     ['❄', 'Frostwood', mats.frostwood || 0, ''],
     ['☀', 'Sunsteel', mats.sunsteel || 0, ''],
     ['🌿', 'Ironbark', mats.ironbark || 0, ''],
-  ].filter(([, label, count]) =>
+  ].concat((y.tmaps || []).map((m, i) =>
+    ['🗺', 'Weathered map #' + (i + 1), 1, 'readmap:' + m.x + ',' + m.y])
+  ).filter(([, label, count]) =>
     count > 0 || ['Gold', 'Heal potions', 'Mana potions', 'Logs', 'Ore'].includes(label));
   document.getElementById('inv-items').innerHTML = rows.map(([icon, label, count, act]) =>
     `<div class="inv-row">
        <span class="inv-icon">${icon}</span>
        <span class="inv-label">${label}</span>
        <span class="inv-count">${count}</span>
-       ${act ? `<button data-act="${act}">${act === 'cook' ? 'cook' : act === 'eat' ? 'eat' : 'use'}</button>` : '<span></span>'}
+       ${act ? `<button data-act="${act}">${act === 'cook' ? 'cook' : act === 'eat' ? 'eat' : act.startsWith('readmap') ? 'read' : 'use'}</button>` : '<span></span>'}
      </div>`).join('');
 }
 
@@ -872,6 +875,21 @@ document.getElementById('inventory').addEventListener('click', (ev) => {
   if (act && act.startsWith('drink:')) send({ t: 'drink', kind: act.slice(6) });
   if (act === 'cook') send({ t: 'cook' });
   if (act === 'eat') send({ t: 'eat' });
+  if (act && act.startsWith('readmap:')) {
+    const [x, y] = act.slice(8).split(',').map(Number);
+    document.getElementById('inventory').classList.add('hidden');
+    toggleWorldMap();
+    const cv = document.getElementById('worldmap-canvas');
+    const g = cv.getContext('2d');
+    const k = cv.width / (state.mini.w * state.mini.s);
+    g.strokeStyle = '#ff4030';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(x * k - 7, y * k - 7); g.lineTo(x * k + 7, y * k + 7);
+    g.moveTo(x * k + 7, y * k - 7); g.lineTo(x * k - 7, y * k + 7);
+    g.stroke();
+    g.lineWidth = 1;
+  }
   if (ev.target.dataset.equip !== undefined) {
     const uid = ev.target.dataset.equip | 0;
     send({ t: 'equip', uid: uid || null });
@@ -911,10 +929,11 @@ function tileAt(x, y) {
   return c[(y % m.chunk) * m.chunk + (x % m.chunk)];
 }
 
-// The minstrel follows you: town tune near a settlement, a night air after
-// dark, the road-song otherwise.
+// The minstrel follows you: a dirge in the barrow-deeps, town tune near a
+// settlement, a night air after dark, the road-song otherwise.
 setInterval(() => {
   if (!state.me) return;
+  if (state.myTile && state.myTile.y < 64) return Sound.setTrack('deeps');
   const nearTown = state.villages.some((v) =>
     Math.abs(v.x - state.me.x) < 26 && Math.abs(v.y - state.me.y) < 26) ||
     (Math.abs(1024 - state.me.x) < 30 && Math.abs(1024 - state.me.y) < 30);
@@ -985,6 +1004,7 @@ const TILE_COLORS = {
   [T.PLANKS]: ['#946e48', '#8a6642'],
   [T.SWAMP]: ['#5a6b42', '#52613c'],
   [T.SWAMPTREE]: ['#4c5c3a', '#46553a'],
+  [T.CAVE]: ['#4a443c', '#423d36'],
 };
 
 function camera() {
@@ -1022,6 +1042,7 @@ function fillDiamond(sx, sy, color) {
 // 20-minute day. Darkness 0 at noon, ~0.62 at deepest night.
 const DAY_MS = 20 * 60_000;
 function dayDarkness() {
+  if (state.myTile && state.myTile.y < 64) return 0.78; // the barrow-deeps
   const phase = (Date.now() % DAY_MS) / DAY_MS;        // 0..1
   return Math.max(0, -Math.cos(phase * Math.PI * 2)) * 0.62;
 }
@@ -1030,6 +1051,44 @@ const lightCanvas = document.createElement('canvas');
 
 // Cover the world in night, then punch warm light around fires, windows
 // and the player's own lantern.
+const weather = { drops: [], mode: null };
+
+function drawWeather(cam, time) {
+  if (!state.myTile) return;
+  const here = tileAt(state.myTile.x, state.myTile.y);
+  const snowy = here === T.SNOW || here === T.SNOWTREE;
+  // rain comes in episodes keyed to the clock
+  const episode = Math.floor(time / 300000) % 4 === 1;
+  const mode = snowy ? 'snow' : episode && [T.GRASS, T.TREE, T.SWAMP, T.SWAMPTREE].includes(here) ? 'rain' : null;
+  if (mode !== weather.mode) {
+    weather.mode = mode;
+    weather.drops.length = 0;
+  }
+  if (!mode) return;
+  while (weather.drops.length < (mode === 'snow' ? 90 : 130)) {
+    weather.drops.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, v: 1 + Math.random() });
+  }
+  ctx.strokeStyle = mode === 'snow' ? 'rgba(240, 245, 250, 0.7)' : 'rgba(170, 190, 220, 0.45)';
+  ctx.lineWidth = mode === 'snow' ? 1.6 : 1;
+  ctx.beginPath();
+  for (const d of weather.drops) {
+    if (mode === 'snow') {
+      d.y += d.v * 1.1;
+      d.x += Math.sin(time / 600 + d.y / 40) * 0.6;
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x + 1, d.y + 1);
+    } else {
+      d.y += d.v * 9;
+      d.x -= d.v * 2;
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x - 2, d.y + 9);
+    }
+    if (d.y > canvas.height) { d.y = -5; d.x = Math.random() * canvas.width; }
+  }
+  ctx.stroke();
+  ctx.lineWidth = 1;
+}
+
 function drawNight(cam, time) {
   const dark = dayDarkness();
   if (dark < 0.03) return;
@@ -1199,6 +1258,7 @@ function render() {
 
   drawTelegraphs(cam, time);
   drawProjectiles(cam, time);
+  drawWeather(cam, time);
   drawNight(cam, time);
   drawFloaters(cam, time);
   drawSpeech(cam, time);
@@ -1715,7 +1775,7 @@ const MINI_COLORS = {
   [T.ROCK]: [110, 106, 96], [T.ROAD]: [154, 138, 100], [T.FLOOR]: [138, 128, 120],
   [T.WALL]: [70, 66, 60], [T.SAND]: [192, 174, 124], [T.SHRINE]: [240, 210, 110],
   [T.SNOW]: [228, 234, 240], [T.SNOWTREE]: [196, 210, 218], [T.PLANKS]: [148, 110, 72],
-  [T.SWAMP]: [90, 107, 66], [T.SWAMPTREE]: [70, 86, 56],
+  [T.SWAMP]: [90, 107, 66], [T.SWAMPTREE]: [70, 86, 56], [T.CAVE]: [50, 46, 40],
 };
 
 function buildMinimap() {

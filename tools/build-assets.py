@@ -534,6 +534,7 @@ def main():
         '9': {'groundProc': 'snow'},
         '11': {'ground': ['planks']},
         '12': {'groundProc': 'swamp'},
+        '14': {'groundProc': 'cave'},
         '13': {'groundProc': 'swamp',
                'object': ['tree.swampdead', 'tree.swampdead', 'tree.swampfir0',
                           'tree.swampfir1', 'tree.swamppine3']},

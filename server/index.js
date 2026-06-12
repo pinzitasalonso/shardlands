@@ -23,6 +23,16 @@ const MIME = {
 
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0];
+  if (url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({
+      ok: true,
+      players: game.players.size,
+      mobs: game.mobs.size,
+      tickMs: game.lastTickMs || 0,
+      uptime: Math.round(process.uptime()),
+    }));
+  }
   const rel = url === '/' ? 'index.html' : url.slice(1);
   const file = path.join(CLIENT_DIR, path.normalize(rel));
   if (!file.startsWith(CLIENT_DIR)) {
@@ -40,10 +50,18 @@ const server = http.createServer((req, res) => {
 });
 
 const game = new Game();
-const wss = new WebSocketServer({ server, path: '/ws' });
+const wss = new WebSocketServer({ server, path: '/ws', perMessageDeflate: true });
 
 wss.on('connection', (ws) => {
+  // Token-bucket rate limit: 40 intents/second sustained, bursts to 80.
+  ws.bucket = 80;
+  ws.lastRefill = Date.now();
   ws.on('message', (data) => {
+    const t = Date.now();
+    ws.bucket = Math.min(80, ws.bucket + (t - ws.lastRefill) * 0.04);
+    ws.lastRefill = t;
+    if (ws.bucket < 1) return;
+    ws.bucket -= 1;
     let msg;
     try {
       msg = JSON.parse(data);
