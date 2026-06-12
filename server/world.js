@@ -23,9 +23,11 @@ const TILE = {
   WALL: 6,
   SAND: 7,
   SHRINE: 8,
+  SNOW: 9,
+  SNOWTREE: 10,
 };
 
-const WALKABLE = new Set([TILE.GRASS, TILE.ROAD, TILE.FLOOR, TILE.SAND, TILE.SHRINE]);
+const WALKABLE = new Set([TILE.GRASS, TILE.ROAD, TILE.FLOOR, TILE.SAND, TILE.SHRINE, TILE.SNOW]);
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -80,14 +82,20 @@ function generate(seed = 1337) {
       const e = continent(x, y) * 0.5 + hills(x, y) * 0.3 + detail(x, y) * 0.2 +
         dome - Math.pow(edge, 3) * 0.65;
 
-      // The southeast bakes under the sun; the rest of the island is green.
+      // The southeast bakes under the sun, the far north lies under snow,
+      // and the rest of the island is green.
       const dry = dryness(x, y) * 0.6 + Math.max(0, (dx + dy) / 2) * 0.5;
+      const cold = -dy * 0.75 + dryness(y, x) * 0.3 - 0.45;
 
       let t;
       if (e < 0.34) t = TILE.WATER;
       else if (e < 0.37) t = TILE.SAND;
       else if (e > 0.72) t = TILE.ROCK;
-      else if (dry > 0.6) {
+      else if (cold > 0.12) {
+        // The frozen north: snowfields and frosted pines.
+        if (forest(x, y) * 0.55 + forestFine(x, y) * 0.45 > 0.56 && e > 0.42) t = TILE.SNOWTREE;
+        else t = TILE.SNOW;
+      } else if (dry > 0.6) {
         // Desert: open sand, scattered rocks, the rare hardy tree.
         if (forestFine(x, y) > 0.85) t = TILE.TREE;
         else if (detail(x * 3 + 7, y * 3) > 0.88) t = TILE.ROCK;

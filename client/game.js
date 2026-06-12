@@ -10,8 +10,8 @@
 
 const HW = 32; // half tile width on screen
 const HH = 16; // half tile height on screen
-const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SAND: 7, SHRINE: 8 };
-const WALKABLE = new Set([T.GRASS, T.ROAD, T.FLOOR, T.SAND, T.SHRINE]);
+const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SAND: 7, SHRINE: 8, SNOW: 9, SNOWTREE: 10 };
+const WALKABLE = new Set([T.GRASS, T.ROAD, T.FLOOR, T.SAND, T.SHRINE, T.SNOW]);
 
 const MOB_STYLE = {
   goblin: { color: '#5aa040', size: 0.5, name: 'a goblin' },
@@ -156,7 +156,10 @@ function syncEntities(map, list) {
     const prev = map.get(e.id);
     if (prev) {
       // Keep render position for interpolation; adopt new authoritative pos.
-      if (e.x !== prev.x || e.y !== prev.y) prev.heading = octant(e.x - prev.x, e.y - prev.y);
+      if (e.x !== prev.x || e.y !== prev.y) {
+        prev.heading = octant(e.x - prev.x, e.y - prev.y);
+        prev.movedAt = Date.now();
+      }
       Object.assign(prev, e);
     } else {
       map.set(e.id, { ...e, rx: e.x, ry: e.y, heading: 1 });
@@ -517,6 +520,8 @@ const TILE_COLORS = {
   [T.WALL]: ['#4a4640', '#403c36'],
   [T.SAND]: ['#c0ae7c', '#b8a674'],
   [T.SHRINE]: ['#8a8078', '#8a8078'],
+  [T.SNOW]: ['#e6ebf0', '#dde4ec'],
+  [T.SNOWTREE]: ['#e6ebf0', '#dde4ec'],
 };
 
 function camera() {
@@ -603,7 +608,8 @@ function render() {
           drawables.push({ depth: tx + ty, kind: 'sprite', name, x: top.x, y: top.y + HH });
         } else if (recipe.object) {
           const name = recipe.object[Math.floor(hash(tx * 5 + 1, ty) * recipe.object.length)];
-          drawables.push({ depth: tx + ty, kind: 'sprite', name, x: top.x, y: top.y + HH });
+          drawables.push({ depth: tx + ty, kind: 'sprite', name, x: top.x, y: top.y + HH,
+            stack: recipe.stack || 1 });
         } else if (recipe.decor && hash(tx, ty * 3 + 1) < recipe.decor.chance) {
           const name = recipe.decor.objects[Math.floor(h * recipe.decor.objects.length)];
           drawables.push({ depth: tx + ty, kind: 'sprite', name, x: top.x, y: top.y + HH });
@@ -640,7 +646,15 @@ function render() {
   drawables.sort((a, b) => a.depth - b.depth);
   for (const d of drawables) {
     switch (d.kind) {
-      case 'sprite': Assets.drawFrame(ctx, d.name, d.x, d.y); break;
+      case 'sprite':
+        if (d.stack > 1) {
+          // Stacked wall cubes: plain blocks below, the variant on top.
+          for (let i = 0; i < d.stack - 1; i++) Assets.drawFrame(ctx, 'wall.0', d.x, d.y - 32 * i);
+          Assets.drawFrame(ctx, d.name, d.x, d.y - 32 * (d.stack - 1));
+        } else {
+          Assets.drawFrame(ctx, d.name, d.x, d.y);
+        }
+        break;
       case 'block': drawFallbackBlock(d); break;
       case 'shrine': drawShrine(d.x, d.y, time); break;
       case 'drop': drawDrop(d.e, cam, time); break;
@@ -740,8 +754,8 @@ function drawRoof(b, cam) {
   const y0 = b.y - e;
   const x1 = b.x + b.w - 1 + 1 + e; // walls occupy [x, x+w-1]
   const y1 = b.y + b.h - 1 + 1 + e;
-  const lift = 30;       // top of the walls, in screen px
-  const ridgeLift = 54;
+  const lift = 62;       // top of the (two-cube) walls, in screen px
+  const ridgeLift = 92;
   const P = (wx, wy, dz) => {
     const s = worldToScreen(wx, wy, cam);
     return [s.x, s.y - dz];
@@ -837,6 +851,12 @@ function drawDrop(d, cam, time) {
   }
 }
 
+function entityAnim(e) {
+  if (e.a) return 'melee';
+  if (Date.now() - (e.movedAt || 0) < 350) return 'run';
+  return 'stance';
+}
+
 function entityShadow(sx, sy, r) {
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.beginPath();
@@ -860,7 +880,7 @@ function drawMob(m, cam, time) {
   const c = Assets.state.ok && Assets.creature(m.kind);
   let labelY;
   if (c) {
-    Assets.drawCreature(ctx, m.kind, m.heading, time + m.id * 137, s.x, s.y);
+    Assets.drawCreature(ctx, m.kind, m.heading, entityAnim(m), time + m.id * 137, s.x, s.y);
     labelY = s.y - c.ay - 8;
   } else {
     const r = 22 * style.size;
@@ -890,7 +910,7 @@ function drawPlayer(p, cam, time) {
   let labelY;
   if (c) {
     entityShadow(s.x, s.y, 11);
-    Assets.drawCreature(ctx, 'player', p.heading, time + p.id * 137, s.x, s.y);
+    Assets.drawCreature(ctx, 'player', p.heading, entityAnim(p), time + p.id * 137, s.x, s.y);
     labelY = s.y - c.ay - 8;
   } else {
     entityShadow(s.x, s.y + 2, 10);
@@ -923,7 +943,7 @@ function drawVendor(v, cam, time) {
   let labelY;
   if (c) {
     entityShadow(s.x, s.y, 11);
-    Assets.drawCreature(ctx, 'vendor', v.heading, time, s.x, s.y);
+    Assets.drawCreature(ctx, 'vendor', v.heading, 'stance', time, s.x, s.y);
     labelY = s.y - c.ay - 8;
   } else {
     entityShadow(s.x, s.y + 2, 10);
@@ -1017,6 +1037,7 @@ const MINI_COLORS = {
   [T.WATER]: [26, 70, 100], [T.GRASS]: [74, 122, 56], [T.TREE]: [40, 80, 32],
   [T.ROCK]: [110, 106, 96], [T.ROAD]: [154, 138, 100], [T.FLOOR]: [138, 128, 120],
   [T.WALL]: [70, 66, 60], [T.SAND]: [192, 174, 124], [T.SHRINE]: [240, 210, 110],
+  [T.SNOW]: [228, 234, 240], [T.SNOWTREE]: [196, 210, 218],
 };
 
 function buildMinimap() {

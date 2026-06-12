@@ -457,7 +457,7 @@ class Game {
       const tx = p.x + dx;
       const ty = p.y + dy;
       const tile = tileAt(this.map, tx, ty);
-      if (tile === TILE.TREE) {
+      if (tile === TILE.TREE || tile === TILE.SNOWTREE) {
         if (Math.random() * 100 < p.skills.lumberjacking + 40) {
           p.logs += 1;
           this.sys(p, 'You chop some logs.');
@@ -496,7 +496,7 @@ class Game {
       return;
     }
     this.resources.delete(key);
-    this.setTile(x, y, TILE.GRASS);
+    this.setTile(x, y, tile === TILE.SNOWTREE ? TILE.SNOW : TILE.GRASS);
     this.depleted.set(key, { tile, respawnAt: now() + RESOURCE_RESPAWN_MS });
     this.sys(p, message);
   }
@@ -627,6 +627,7 @@ class Game {
     }
     if (dist(p, mob) > 1.5 || t < p.swingAt) return;
     p.swingAt = t + Math.max(900, 2000 - p.dex * 10);
+    p.swungAt = t;
 
     const hitChance = clamp(50 + (p.skills.swordsmanship - MOB_KINDS[mob.kind].skill) / 2, 10, 95);
     this.gainSkill(p, 'swordsmanship');
@@ -711,6 +712,7 @@ class Game {
       if (d <= 1.5) {
         if (t >= mob.swingAt) {
           mob.swingAt = t + 1600;
+          mob.swungAt = t;
           const hitChance = clamp(50 + (def.skill - target.skills.swordsmanship) / 2, 10, 95);
           if (Math.random() * 100 <= hitChance) {
             const dmg = rand(def.dmg[0], def.dmg[1]);
@@ -812,9 +814,11 @@ class Game {
         players: players.filter(near).map((q) => ({
           id: q.id, name: q.name, x: q.x, y: q.y,
           hp: q.hp, maxhp: maxHp(q), dead: q.dead,
+          a: t - (q.swungAt || 0) < 600 ? 1 : 0,
         })),
         mobs: mobs.filter(near).map((m) => ({
           id: m.id, kind: m.kind, x: m.x, y: m.y, hp: m.hp, maxhp: m.maxhp,
+          a: t - (m.swungAt || 0) < 700 ? 1 : 0,
         })),
         drops: drops.filter(near).map((d) => ({ id: d.id, x: d.x, y: d.y, item: d.item })),
       });
