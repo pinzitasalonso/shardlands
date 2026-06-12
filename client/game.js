@@ -409,6 +409,7 @@ document.addEventListener('keydown', (ev) => {
     case 'f': case 'F': toggleFullscreen(); break;
     case 'm': case 'M': toggleWorldMap(); break;
     case 'o': case 'O': toggleSettings(); break;
+    case 'c': case 'C': toggleCharPanel(); break;
     default: keys.add(ev.key.toLowerCase());
   }
 });
@@ -565,6 +566,16 @@ document.getElementById('worldmap').addEventListener('click', () => {
 function toggleFullscreen() {
   if (document.fullscreenElement) document.exitFullscreen();
   else document.documentElement.requestFullscreen().catch(() => {});
+}
+
+// On small screens the character sheet starts hidden and 'open' shows it;
+// on desktop it starts visible and 'collapsed' hides it. Clearing the
+// opposite class keeps a rotation/resize from sticking it the wrong way.
+function toggleCharPanel() {
+  const el = document.getElementById('char-panel');
+  const mobile = window.matchMedia('(max-width: 700px)').matches;
+  el.classList.toggle(mobile ? 'open' : 'collapsed');
+  el.classList.remove(mobile ? 'collapsed' : 'open');
 }
 
 canvas.addEventListener('mousedown', (ev) => {
