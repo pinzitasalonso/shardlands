@@ -298,9 +298,16 @@ def main():
         '0': {'ground': ['water.0', 'water.1'], 'effect': 'water'},
         '1': {'ground': ['grass.0', 'grass.1', 'grass.2', 'grass.3', 'grass.4', 'grass.5', 'grass.6'],
               'decor': {'chance': 0.07, 'objects': ['tallgrass.0', 'tallgrass.1', 'bush.0', 'bush.1']}},
+        # objectSets: the client picks one set per coarse map region, so
+        # whole forests read as oakwood, pinewood or deadwood biomes.
         '2': {'ground': ['grass.1', 'grass.3', 'grass.5'],
               'object': ['tree.oak', 'tree.oak', 'tree.pine0', 'tree.pine1', 'tree.pine2',
-                         'tree.fir0', 'tree.fir1', 'tree.dead']},
+                         'tree.fir0', 'tree.fir1', 'tree.dead'],
+              'objectSets': [
+                  ['tree.oak', 'tree.oak', 'tree.oak', 'tree.fir1', 'tree.dead'],
+                  ['tree.pine0', 'tree.pine1', 'tree.pine2', 'tree.pine3', 'tree.fir0', 'tree.fir1'],
+                  ['tree.dead', 'tree.dead', 'tree.pine3', 'tree.fir1'],
+              ]},
         '3': {'groundProc': 'dirt', 'object': ['rocks.0', 'rocks.1', 'rocks.2']},
         '4': {'groundProc': 'dirt'},
         '5': {'ground': ['floor.0', 'floor.1', 'floor.2']},
@@ -315,15 +322,16 @@ def main():
         fr, n = parse_flare_stance(os.path.join(SRC, f'{name}.txt'))
         return img, fr, n
 
+    # Scales keep creatures in proportion with the 64x32 tiles: a human is
+    # about a tile-and-a-half tall, like classic UO.
     creatures = {}
     img, fr, n = packed('goblin')
-    creatures['mongbat'] = build_creature('mongbat', [(img, fr)], n,
-                                          hue=(0.45, (0.16, 0.45, 0.25)), scale=0.8)
+    creatures['goblin'] = build_creature('goblin', [(img, fr)], n, scale=0.78)
     img, fr, n = packed('skeleton')
-    creatures['skeleton'] = build_creature('skeleton', [(img, fr)], n)
+    creatures['skeleton'] = build_creature('skeleton', [(img, fr)], n, scale=0.6)
     img, fr, n = packed('hobgoblin')
-    creatures['orc'] = build_creature('orc', [(img, fr)], n)
-    creatures['ettin'] = build_minotaur(scale=1.15)
+    creatures['orc'] = build_creature('orc', [(img, fr)], n, scale=0.95)
+    creatures['ettin'] = build_minotaur(scale=1.0)
     creatures['dragon'] = build_dragon(scale=0.5)
 
     pants = packed('cloth_pants')
@@ -332,10 +340,12 @@ def main():
     hood = packed('mage_hood')
     n = min(pants[2], shirt[2], head[2])
     creatures['player'] = build_creature(
-        'player', [(pants[0], pants[1]), (shirt[0], shirt[1]), (head[0], head[1])], n, frame_ms=260)
+        'player', [(pants[0], pants[1]), (shirt[0], shirt[1]), (head[0], head[1])], n,
+        scale=0.66, frame_ms=260)
     n = min(pants[2], shirt[2], hood[2])
     creatures['vendor'] = build_creature(
-        'vendor', [(pants[0], pants[1]), (shirt[0], shirt[1]), (hood[0], hood[1])], n, frame_ms=320)
+        'vendor', [(pants[0], pants[1]), (shirt[0], shirt[1]), (hood[0], hood[1])], n,
+        scale=0.66, frame_ms=320)
 
     manifest = {
         'tileW': 64, 'tileH': 32,

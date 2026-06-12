@@ -14,7 +14,7 @@ const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SA
 const WALKABLE = new Set([T.GRASS, T.ROAD, T.FLOOR, T.SAND, T.SHRINE]);
 
 const MOB_STYLE = {
-  mongbat: { color: '#9a5ab0', size: 0.5, name: 'a mongbat' },
+  goblin: { color: '#5aa040', size: 0.5, name: 'a goblin' },
   skeleton: { color: '#d8d4c8', size: 0.7, name: 'a skeleton' },
   orc: { color: '#5a8a3a', size: 0.8, name: 'an orc' },
   ettin: { color: '#a07040', size: 1.0, name: 'an ettin' },
@@ -32,6 +32,7 @@ const state = {
   players: new Map(),   // id -> { ...snapshot, rx, ry, heading }
   mobs: new Map(),
   vendors: [],          // static shopkeepers from the welcome message
+  drops: [],            // loot lying on the ground
   me: null,             // my entry in players
   you: null,            // private stats from the server
   speech: new Map(),    // entity id -> { text, until, magic }
@@ -95,6 +96,7 @@ function handleMessage(msg) {
     case 'state': {
       syncEntities(state.players, msg.players);
       syncEntities(state.mobs, msg.mobs);
+      state.drops = msg.drops || [];
       state.me = state.players.get(state.myId) || null;
       if (state.me) state.myTile = { x: state.me.x, y: state.me.y };
       if (state.target && !state.mobs.has(state.target)) state.target = 0;
@@ -509,7 +511,12 @@ function render() {
         const recipe = Assets.tile(tile) || Assets.tile(T.WATER);
         Assets.drawGround(ctx, recipe, h, sx, sy);
 
-        if (recipe.object) {
+        if (recipe.objectSets) {
+          const sets = recipe.objectSets;
+          const set = sets[Math.floor(hash((tx >> 4) * 7 + 3, (ty >> 4) * 13 + 5) * sets.length)];
+          const name = set[Math.floor(hash(tx * 5 + 1, ty) * set.length)];
+          drawables.push({ depth: tx + ty, kind: 'sprite', name, x: top.x, y: top.y + HH });
+        } else if (recipe.object) {
           const name = recipe.object[Math.floor(hash(tx * 5 + 1, ty) * recipe.object.length)];
           drawables.push({ depth: tx + ty, kind: 'sprite', name, x: top.x, y: top.y + HH });
         } else if (recipe.decor && hash(tx, ty * 3 + 1) < recipe.decor.chance) {
@@ -530,6 +537,7 @@ function render() {
   }
 
   // Entities join the same depth-sorted pass.
+  for (const d of state.drops) drawables.push({ depth: d.x + d.y, kind: 'drop', e: d });
   for (const v of state.vendors) drawables.push({ depth: v.rx + v.ry, kind: 'vendor', e: v });
   for (const m of state.mobs.values()) drawables.push({ depth: m.rx + m.ry + 0.01, kind: 'mob', e: m });
   for (const p of state.players.values()) drawables.push({ depth: p.rx + p.ry + 0.01, kind: 'player', e: p });
@@ -540,6 +548,7 @@ function render() {
       case 'sprite': Assets.drawFrame(ctx, d.name, d.x, d.y); break;
       case 'block': drawFallbackBlock(d); break;
       case 'shrine': drawShrine(d.x, d.y, time); break;
+      case 'drop': drawDrop(d.e, cam, time); break;
       case 'vendor': drawVendor(d.e, cam, time); break;
       case 'mob': drawMob(d.e, cam, time); break;
       case 'player': drawPlayer(d.e, cam, time); break;
@@ -627,6 +636,49 @@ function drawFallbackBlock(d) {
   }
 }
 
+const DROP_COLORS = {
+  gold: ['#e8c84a', '#9a7e20'],
+  heal: ['#d05050', '#702828'],
+  mana: ['#5070d0', '#283870'],
+  logs: ['#8a6a42', '#4a3520'],
+  ore: ['#9a968a', '#56524a'],
+};
+
+function drawDrop(d, cam, time) {
+  const s = worldToScreen(d.x + 0.5, d.y + 0.5, cam);
+  const [main, dark] = DROP_COLORS[d.item] || DROP_COLORS.gold;
+  const bob = Math.sin(time / 350 + d.id) * 1.5;
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(s.x, s.y + 2, 8, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (d.item === 'gold') {
+    for (const [ox, oy] of [[-4, 0], [4, -1], [0, 2], [1, -3]]) {
+      ctx.fillStyle = main;
+      ctx.beginPath();
+      ctx.ellipse(s.x + ox, s.y + oy - 3, 4, 2.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = dark;
+      ctx.stroke();
+    }
+  } else if (d.item === 'logs' || d.item === 'ore') {
+    ctx.fillStyle = main;
+    ctx.fillRect(s.x - 6, s.y - 6 , 12, 7);
+    ctx.strokeStyle = dark;
+    ctx.strokeRect(s.x - 6.5, s.y - 6.5, 13, 8);
+  } else {
+    // A little potion bottle.
+    ctx.fillStyle = main;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y - 4 + bob, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = dark;
+    ctx.fillRect(s.x - 2, s.y - 13 + bob, 4, 5);
+    ctx.fillStyle = '#c8b478';
+    ctx.fillRect(s.x - 2, s.y - 15 + bob, 4, 2);
+  }
+}
+
 function entityShadow(sx, sy, r) {
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
   ctx.beginPath();
@@ -679,7 +731,7 @@ function drawPlayer(p, cam, time) {
   const c = Assets.state.ok && Assets.creature('player');
   let labelY;
   if (c) {
-    entityShadow(s.x, s.y, 14);
+    entityShadow(s.x, s.y, 11);
     Assets.drawCreature(ctx, 'player', p.heading, time + p.id * 137, s.x, s.y);
     labelY = s.y - c.ay - 8;
   } else {
@@ -712,7 +764,7 @@ function drawVendor(v, cam, time) {
   const c = Assets.state.ok && Assets.creature('vendor');
   let labelY;
   if (c) {
-    entityShadow(s.x, s.y, 14);
+    entityShadow(s.x, s.y, 11);
     Assets.drawCreature(ctx, 'vendor', v.heading, time, s.x, s.y);
     labelY = s.y - c.ay - 8;
   } else {
@@ -811,6 +863,8 @@ const MINI_COLORS = {
 
 function buildMinimap() {
   const m = state.map;
+  minimap.width = m.w;
+  minimap.height = m.h;
   const img = new ImageData(m.w, m.h);
   for (let i = 0; i < m.tiles.length; i++) {
     const c = MINI_COLORS[m.tiles[i]] || [0, 0, 0];

@@ -107,5 +107,15 @@ game.respawnResources(Date.now());
 assert.strictEqual(game.map.tiles[tree.y * game.map.w + tree.x], TILE.GRASS,
   'tree does not regrow under a player');
 
+// -- loot drops -------------------------------------------------------------------
+// Dragons always leave gold behind; step on the pile to claim it.
+game.rollLoot({ kind: 'dragon', x: p.x, y: p.y });
+assert(game.drops.size >= 1, 'dragon loot dropped');
+const goldBefore = p.gold;
+game.pickupDrops(p);
+assert(p.gold > goldBefore, 'walked over the gold pile and picked it up');
+assert.strictEqual([...game.drops.values()].filter((d) => d.x === p.x && d.y === p.y).length, 0,
+  'claimed drops are removed');
+
 console.log('smoke test: all assertions passed');
 process.exit(0);

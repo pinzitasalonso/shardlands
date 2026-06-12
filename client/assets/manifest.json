@@ -4,7 +4,7 @@
  "images": {
   "terrain": "terrain.png",
   "building": "building.png",
-  "mongbat": "creatures/mongbat.png",
+  "goblin": "creatures/goblin.png",
   "skeleton": "creatures/skeleton.png",
   "orc": "creatures/orc.png",
   "ettin": "creatures/ettin.png",
@@ -327,6 +327,29 @@
     "tree.fir0",
     "tree.fir1",
     "tree.dead"
+   ],
+   "objectSets": [
+    [
+     "tree.oak",
+     "tree.oak",
+     "tree.oak",
+     "tree.fir1",
+     "tree.dead"
+    ],
+    [
+     "tree.pine0",
+     "tree.pine1",
+     "tree.pine2",
+     "tree.pine3",
+     "tree.fir0",
+     "tree.fir1"
+    ],
+    [
+     "tree.dead",
+     "tree.dead",
+     "tree.pine3",
+     "tree.fir1"
+    ]
    ]
   },
   "3": {
@@ -369,42 +392,42 @@
   }
  },
  "creatures": {
-  "mongbat": {
-   "img": "mongbat",
-   "cellW": 123,
-   "cellH": 88,
-   "ax": 56,
-   "ay": 69,
+  "goblin": {
+   "img": "goblin",
+   "cellW": 120,
+   "cellH": 85,
+   "ax": 54,
+   "ay": 67,
    "frames": 4,
    "dirs": 8,
    "frameMs": 200
   },
   "skeleton": {
    "img": "skeleton",
-   "cellW": 324,
-   "cellH": 223,
-   "ax": 153,
-   "ay": 166,
+   "cellW": 194,
+   "cellH": 133,
+   "ax": 91,
+   "ay": 99,
    "frames": 4,
    "dirs": 8,
    "frameMs": 200
   },
   "orc": {
    "img": "orc",
-   "cellW": 110,
-   "cellH": 99,
-   "ax": 50,
-   "ay": 86,
+   "cellW": 104,
+   "cellH": 94,
+   "ax": 47,
+   "ay": 81,
    "frames": 4,
    "dirs": 8,
    "frameMs": 200
   },
   "ettin": {
    "img": "ettin",
-   "cellW": 147,
-   "cellH": 147,
-   "ax": 73,
-   "ay": 114,
+   "cellW": 128,
+   "cellH": 128,
+   "ax": 64,
+   "ay": 100,
    "frames": 4,
    "dirs": 8,
    "frameMs": 240
@@ -421,20 +444,20 @@
   },
   "player": {
    "img": "player",
-   "cellW": 109,
-   "cellH": 145,
-   "ax": 39,
-   "ay": 139,
+   "cellW": 71,
+   "cellH": 95,
+   "ax": 25,
+   "ay": 91,
    "frames": 4,
    "dirs": 8,
    "frameMs": 260
   },
   "vendor": {
    "img": "vendor",
-   "cellW": 109,
-   "cellH": 150,
-   "ax": 39,
-   "ay": 144,
+   "cellW": 71,
+   "cellH": 99,
+   "ax": 25,
+   "ay": 95,
    "frames": 4,
    "dirs": 8,
    "frameMs": 320

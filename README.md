@@ -19,13 +19,20 @@ each tab is a player in the same world.
 
 ## The world
 
-A 128×128 island, generated deterministically from a seed:
+A 192×192 island, generated deterministically from a seed:
 
-- **Briarhaven**, the town at the centre, with a stone plaza, four buildings,
-  and the **glowing ankh shrine** — walk your ghost onto it to resurrect.
-- A **graveyard** to the northwest crawling with skeletons.
-- **Orc camps** east, **ettins** in the southwest, mongbats in the meadows,
-  and **a dragon** brooding in the southeast mountains.
+- **Briarhaven**, the town at the crossroads, with a stone plaza, four
+  buildings, **Mira the Alchemist** selling potions, and the **glowing ankh
+  shrine** — walk your ghost onto it to resurrect.
+- **Northhold**, a logging village by the pinewoods, home of **Aldric the
+  Herbalist**, and **Saltmere**, a fishing hamlet on the south road.
+- A **ruined keep** and graveyard to the northwest crawling with skeletons,
+  **watchtowers** along the roads (one of them haunted), **standing stones**
+  on the north downs, and an **oasis** deep in the southeastern desert.
+- **Orc camps** in the northern pines, **ettins** and goblins in the south,
+  and **a dragon** brooding at its desert roost.
+- Monsters sometimes **drop loot** — gold, potions, materials — walk over it
+  to pick it up. Trees and rocks **deplete** after a few harvests and regrow.
 
 ## How to play
 

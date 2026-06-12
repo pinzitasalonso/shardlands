@@ -21,24 +21,37 @@ const SPELLS = {
 };
 
 const MOB_KINDS = {
-  mongbat: { name: 'a mongbat', hp: 14, dmg: [1, 3], skill: 20, gold: 5, speedMs: 350, aggro: 6 },
+  goblin: { name: 'a goblin', hp: 16, dmg: [2, 4], skill: 22, gold: 6, speedMs: 350, aggro: 6 },
   skeleton: { name: 'a skeleton', hp: 32, dmg: [3, 7], skill: 45, gold: 18, speedMs: 500, aggro: 7 },
   orc: { name: 'an orc', hp: 48, dmg: [4, 9], skill: 55, gold: 30, speedMs: 450, aggro: 7 },
   ettin: { name: 'an ettin', hp: 95, dmg: [8, 16], skill: 65, gold: 70, speedMs: 600, aggro: 8 },
   dragon: { name: 'a dragon', hp: 320, dmg: [16, 30], skill: 95, gold: 600, speedMs: 400, aggro: 10 },
 };
 
+// What corpses leave behind, beyond the guaranteed gold: [chance, item, min, max].
+const LOOT_TABLES = {
+  goblin: [[0.18, 'gold', 4, 10], [0.08, 'mana', 1, 1]],
+  skeleton: [[0.2, 'gold', 8, 20], [0.12, 'heal', 1, 1]],
+  orc: [[0.22, 'gold', 12, 30], [0.12, 'heal', 1, 1], [0.1, 'ore', 1, 2]],
+  ettin: [[0.35, 'gold', 30, 70], [0.2, 'heal', 1, 1], [0.15, 'logs', 2, 4]],
+  dragon: [[1, 'gold', 150, 400], [0.8, 'heal', 1, 2], [0.6, 'mana', 1, 2]],
+};
+
+const DROP_TTL_MS = 60_000;
+
 // Spawn regions: kind, how many to keep alive, centre and radius.
 const SPAWNERS = [
-  { kind: 'mongbat', count: 6, x: 80, y: 80, r: 14 },
-  { kind: 'mongbat', count: 4, x: 48, y: 90, r: 12 },
-  { kind: 'skeleton', count: 6, x: 31, y: 33, r: 8 },   // the graveyard
-  { kind: 'orc', count: 5, x: 95, y: 40, r: 12 },
-  { kind: 'ettin', count: 2, x: 30, y: 95, r: 10 },
-  { kind: 'dragon', count: 1, x: 105, y: 105, r: 8 },
+  { kind: 'goblin', count: 8, x: 120, y: 120, r: 16 },
+  { kind: 'goblin', count: 5, x: 58, y: 140, r: 12 },
+  { kind: 'skeleton', count: 8, x: 38, y: 30, r: 9 },   // the ruined keep
+  { kind: 'skeleton', count: 4, x: 92, y: 124, r: 9 },  // the haunted watchtower
+  { kind: 'orc', count: 6, x: 105, y: 29, r: 12 },      // the northern pines
+  { kind: 'orc', count: 4, x: 30, y: 110, r: 12 },
+  { kind: 'ettin', count: 3, x: 70, y: 150, r: 10 },
+  { kind: 'dragon', count: 1, x: 159, y: 149, r: 9 },   // the desert roost
 ];
 
-const SPAWN_POINT = { x: 64, y: 66 };
+const SPAWN_POINT = { x: 96, y: 98 };
 
 const RESOURCE_RESPAWN_MS = 90_000;
 
@@ -50,10 +63,17 @@ const POTIONS = {
 // Shopkeepers. Negative ids keep them out of the mob/player id space.
 const VENDORS = [
   {
-    id: -1, kind: 'vendor', name: 'Mira the Alchemist', x: 58, y: 71,
+    id: -1, kind: 'vendor', name: 'Mira the Alchemist', x: 90, y: 103,
     goods: [
       { item: 'heal', name: 'Greater Heal Potion', price: 45, desc: 'Restores 25-40 health.' },
       { item: 'mana', name: 'Mana Potion', price: 35, desc: 'Restores 20-30 mana.' },
+    ],
+  },
+  {
+    id: -2, kind: 'vendor', name: 'Aldric the Herbalist', x: 54, y: 42,
+    goods: [
+      { item: 'heal', name: 'Greater Heal Potion', price: 50, desc: 'Restores 25-40 health.' },
+      { item: 'mana', name: 'Mana Potion', price: 30, desc: 'Restores 20-30 mana.' },
     ],
   },
 ];
@@ -72,6 +92,7 @@ class Game {
     this.dirty = false;
     this.resources = new Map(); // "x,y" -> gathers left before depletion
     this.depleted = new Map();  // "x,y" -> { tile, respawnAt }
+    this.drops = new Map();     // id -> { id, x, y, item, amount, despawnAt }
 
     for (const sp of SPAWNERS) {
       sp.alive = new Set();
@@ -424,7 +445,49 @@ class Game {
     mob.spawner.respawnAt = now() + 20_000;
     this.sys(killer, `You have slain ${def.name}! You loot ${gold} gold.`);
     this.broadcast({ t: 'fx', kind: 'die', x: mob.x, y: mob.y });
+    this.rollLoot(mob);
     this.sendYou(killer);
+  }
+
+  // The corpse sometimes leaves something on the ground; first to step on
+  // the tile claims it.
+  rollLoot(mob) {
+    for (const [chance, item, min, max] of LOOT_TABLES[mob.kind] || []) {
+      if (Math.random() > chance) continue;
+      this.drops.set(this.nextId, {
+        id: this.nextId++,
+        x: mob.x, y: mob.y,
+        item, amount: rand(min, max),
+        despawnAt: now() + DROP_TTL_MS,
+      });
+    }
+  }
+
+  pickupDrops(p) {
+    for (const [id, d] of this.drops) {
+      if (d.x !== p.x || d.y !== p.y) continue;
+      this.drops.delete(id);
+      switch (d.item) {
+        case 'gold':
+          p.gold += d.amount;
+          this.sys(p, `You pick up ${d.amount} gold.`);
+          break;
+        case 'heal':
+        case 'mana':
+          p.pots[d.item] += d.amount;
+          this.sys(p, `You pick up ${d.amount > 1 ? d.amount + ' ' : 'a '}${d.item === 'heal' ? 'heal' : 'mana'} potion${d.amount > 1 ? 's' : ''}.`);
+          break;
+        case 'logs':
+          p.logs += d.amount;
+          this.sys(p, `You pick up ${d.amount} logs.`);
+          break;
+        case 'ore':
+          p.ore += d.amount;
+          this.sys(p, `You pick up ${d.amount} ore.`);
+          break;
+      }
+      this.sendYou(p);
+    }
   }
 
   killPlayer(p, byName) {
@@ -569,7 +632,9 @@ class Game {
   stepToward(mob, tx, ty) {
     const dx = Math.sign(tx - mob.x);
     const dy = Math.sign(ty - mob.y);
-    const options = [[dx, dy], [dx, 0], [0, dy]];
+    // Direct routes first, then perpendicular sidesteps so mobs slide along
+    // cliffs and shorelines instead of jamming against them forever.
+    const options = [[dx, dy], [dx, 0], [0, dy], [-dy, dx], [dy, -dx]];
     for (const [ox, oy] of options) {
       if (ox === 0 && oy === 0) continue;
       const nx = mob.x + ox;
@@ -596,6 +661,7 @@ class Game {
 
     for (const p of this.players.values()) {
       this.meleeTick(p, t);
+      if (!p.dead) this.pickupDrops(p);
       // Passive regeneration, once a second.
       if (!p.dead && t >= p.regenAt) {
         p.regenAt = t + 1000;
@@ -615,6 +681,10 @@ class Game {
 
     this.respawnResources(t);
 
+    for (const [id, d] of this.drops) {
+      if (t >= d.despawnAt) this.drops.delete(id);
+    }
+
     this.broadcast({
       t: 'state',
       players: [...this.players.values()].map((p) => ({
@@ -624,6 +694,7 @@ class Game {
       mobs: [...this.mobs.values()].map((m) => ({
         id: m.id, kind: m.kind, x: m.x, y: m.y, hp: m.hp, maxhp: m.maxhp,
       })),
+      drops: [...this.drops.values()].map((d) => ({ id: d.id, x: d.x, y: d.y, item: d.item })),
     });
   }
 
