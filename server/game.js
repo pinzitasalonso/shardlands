@@ -570,7 +570,29 @@ class Game {
   handleSay(p, text) {
     text = String(text || '').slice(0, 120).trim();
     if (!text) return;
+    if (text.startsWith('/')) return this.handleCommand(p, text);
     this.broadcast({ t: 'chat', id: p.id, name: p.name, text });
+  }
+
+  handleCommand(p, text) {
+    const cmd = text.slice(1).split(/\s+/)[0].toLowerCase();
+    if (cmd === 'teleport' || cmd === 'home' || cmd === 'recall') {
+      if (p.dead) return this.sys(p, 'The dead must walk to a shrine.');
+      const t = now();
+      if (t < (p.teleportAt || 0)) {
+        return this.sys(p, `The winds are spent. Try again in ${Math.ceil((p.teleportAt - t) / 1000)} seconds.`);
+      }
+      p.teleportAt = t + 60_000;
+      this.fxNear(p, { t: 'fx', kind: 'portal', x: p.x, y: p.y });
+      p.x = this.map.spawn.x;
+      p.y = this.map.spawn.y;
+      p.moveAt = t + 600;
+      p.target = 0;
+      this.fxNear(p, { t: 'fx', kind: 'portal', x: p.x, y: p.y });
+      this.sys(p, 'The winds carry you home to the Briarhaven plaza.');
+      return;
+    }
+    this.sys(p, `Unknown command: /${cmd}. Commands: /teleport`);
   }
 
   handleAttack(p, mobId) {
