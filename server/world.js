@@ -610,6 +610,46 @@ function generate(seed = 1337) {
   const nearestVillage = (x, y) => villages.reduce((b, v) =>
     Math.hypot(v.x - x, v.y - y) < Math.hypot(b.x - x, b.y - y) ? v : b, villages[0]);
 
+  // ---- The Dawn-Knight's road: a story you can walk, not a quest you are given.
+  // A bard's rumor leads to a survivor; the survivor names a heading; waymark
+  // stones confirm the road; the road ends where the songs end.
+  let squire = null;
+  if (rim) {
+    squire = settle(CX + (rim.x - CX) * 0.45, CY + (rim.y - CY) * 0.45, 90, 5);
+    if (squire) {
+      flatten(squire.x, squire.y, 4);
+      props.push({ x: squire.x, y: squire.y + 1, name: 'fx.campfire' });
+      props.push({ x: squire.x + 1, y: squire.y + 2, name: 'prop.stool' });
+      vendors.push({
+        name: 'Caol the Grey', x: squire.x, y: squire.y, model: 'hermit', goods: [],
+        stories: [
+          ['They still sing of Ser Alarion, the Dawn-Knight, in the south. I do not sing.',
+           'I was his squire. I polished the blade they called Dawnbreaker —',
+           'it drank the morning light and gave it back as fire.',
+           'He rode to end the thing at the rim of the world. The songs never say what I saw there.'],
+          ['You want his road? Then mark me, and mark me once.',
+           `From this fire, go ${compass(squire.x, squire.y, rim.x, rim.y)}, ${travel(Math.hypot(rim.x - squire.x, rim.y - squire.y))}.`,
+           'Waymark stones stand where his column passed. They whisper yet.',
+           'The last one is scorched black. Past it, no banner ever returned.'],
+        ],
+      });
+      const WAYMARKS = [
+        'A rising sun is scratched into this waymark stone. It points onward.',
+        'Bones of a warhorse lie beneath this waymark. The column was failing here.',
+        'The last waymark, scorched black. The air beyond shimmers. Turn back — or do not.',
+      ];
+      [0.3, 0.55, 0.8].forEach((f, i) => {
+        const wp = settle(
+          Math.round(squire.x + (rim.x - squire.x) * f),
+          Math.round(squire.y + (rim.y - squire.y) * f), 50, 3);
+        if (wp) {
+          if (get(wp.x, wp.y) !== TILE.WATER) set(wp.x, wp.y, TILE.ROCK);
+          secrets.push({ type: 'whisper', x: wp.x, y: wp.y, text: WAYMARKS[i] });
+        }
+      });
+    }
+  }
+
   const stories = [];
   const cacheSecrets = secrets.filter((sc) => sc.type === 'cache');
   for (let i = 0; i < 4 && cacheSecrets.length; i++) {
@@ -682,15 +722,23 @@ function generate(seed = 1337) {
   ]);
 
   const BARD_NAMES = ['Loremaster Edda', 'Finch the Wanderer', 'Old Maren', 'Quill'];
-  const mkBard = (name, x, y) => {
+  const mkBard = (name, x, y, guaranteed = []) => {
     const pool = stories.slice();
-    const own = [];
-    while (own.length < Math.min(6, pool.length)) {
+    const own = guaranteed.slice();
+    while (own.length < Math.min(6, guaranteed.length + pool.length)) {
       own.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
     }
     vendors.push({ name, x, y, goods: [], stories: own, model: 'bard' });
   };
-  mkBard(BARD_NAMES[0], CX + 6, CY - 8); // holds court in the capital inn
+  const eddaKnows = [];
+  if (squire) {
+    eddaKnows.push([
+      'Every child knows how Ser Alarion, the Dawn-Knight, rode against the rim and never came home.',
+      `What the songs forget: his squire lives. A grey old man keeps a lonely fire ${travel(Math.hypot(squire.x - CX, squire.y - CY))} to the ${compass(CX, CY, squire.x, squire.y)} of Briarhaven.`,
+      'He will not sing, that one. But he might speak.',
+    ]);
+  }
+  mkBard(BARD_NAMES[0], CX + 6, CY - 8, eddaKnows); // holds court in the capital inn
   villages.filter((v, i) => i % 3 === 0).slice(0, 3).forEach((v, i) => {
     mkBard(BARD_NAMES[1 + i], v.x + 4, v.y - 2); // by the lodge hearth
   });
