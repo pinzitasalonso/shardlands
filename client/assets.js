@@ -46,6 +46,7 @@ const Assets = (() => {
     dirt: ['#9a7a52', '#8f714b', '#a5845a', '#856844'],
     snow: ['#e9eef3', '#dfe6ee', '#f2f6f9', '#d6dfe9'],
     grass: ['#76883e', '#6d7f38', '#7f9244', '#687a36'],
+    swamp: ['#5a6b42', '#52613c', '#647549', '#4c5c3a'],
     water: ['#5b87c8', '#5583c4', '#618fd0', '#5f8bcc'],
   };
 
@@ -120,8 +121,9 @@ const Assets = (() => {
     if (!state.ok) return;
     const f = state.manifest.frames[name];
     if (!f) return;
+    const k = f.scale || 1;
     ctx.drawImage(state.images[f.img], f.x, f.y, f.w, f.h,
-      Math.round(sx - f.ax), Math.round(sy - f.ay), f.w, f.h);
+      Math.round(sx - f.ax * k), Math.round(sy - f.ay * k), f.w * k, f.h * k);
   }
 
   // Ground anchor is the top-left of the diamond's 64x32 bounding box.

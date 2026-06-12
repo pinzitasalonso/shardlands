@@ -10,8 +10,8 @@
 
 const HW = 32; // half tile width on screen
 const HH = 16; // half tile height on screen
-const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SAND: 7, SHRINE: 8, SNOW: 9, SNOWTREE: 10, PLANKS: 11 };
-const WALKABLE = new Set([T.GRASS, T.ROAD, T.FLOOR, T.SAND, T.SHRINE, T.SNOW, T.PLANKS]);
+const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SAND: 7, SHRINE: 8, SNOW: 9, SNOWTREE: 10, PLANKS: 11, SWAMP: 12, SWAMPTREE: 13 };
+const WALKABLE = new Set([T.GRASS, T.ROAD, T.FLOOR, T.SAND, T.SHRINE, T.SNOW, T.PLANKS, T.SWAMP]);
 
 const MOB_STYLE = {
   goblin: { color: '#5aa040', size: 0.5, name: 'a goblin' },
@@ -24,6 +24,9 @@ const MOB_STYLE = {
   sheep: { color: '#e8e4da', size: 0.5, name: 'a sheep' },
   pig: { color: '#d8a8a0', size: 0.5, name: 'a pig' },
   chicken: { color: '#e8d8b0', size: 0.3, name: 'a chicken' },
+  snake: { color: '#6a8a4a', size: 0.4, name: 'a bog serpent' },
+  crab: { color: '#b06a4a', size: 0.4, name: 'a marsh crab' },
+  boar: { color: '#6a5240', size: 0.6, name: 'a wild boar' },
   villager: { color: '#b0a890', size: 0.6, name: 'a villager', sprites: ['player', 'villager2', 'villager3'] },
   goblinking: { color: '#5aa040', size: 0.9, name: 'Skarg, the Goblin King', sprite: 'goblin', spriteScale: 1.5, boss: true },
   bonelord: { color: '#d8d4c8', size: 1.1, name: 'the Bone Lord', sprite: 'skeleton', spriteScale: 1.4, boss: true },
@@ -686,6 +689,8 @@ const TILE_BLEND = {
   [T.TREE]: { pal: 'grass', pri: 4 },
   [T.SNOW]: { pal: 'snow', pri: 5 },
   [T.SNOWTREE]: { pal: 'snow', pri: 5 },
+  [T.SWAMP]: { pal: 'swamp', pri: 2 },
+  [T.SWAMPTREE]: { pal: 'swamp', pri: 2 },
 };
 
 // Neighbour offsets for the four diamond edges, in edge order
@@ -706,6 +711,8 @@ const TILE_COLORS = {
   [T.SNOW]: ['#e6ebf0', '#dde4ec'],
   [T.SNOWTREE]: ['#e6ebf0', '#dde4ec'],
   [T.PLANKS]: ['#946e48', '#8a6642'],
+  [T.SWAMP]: ['#5a6b42', '#52613c'],
+  [T.SWAMPTREE]: ['#4c5c3a', '#46553a'],
 };
 
 function camera() {
@@ -1368,6 +1375,7 @@ const MINI_COLORS = {
   [T.ROCK]: [110, 106, 96], [T.ROAD]: [154, 138, 100], [T.FLOOR]: [138, 128, 120],
   [T.WALL]: [70, 66, 60], [T.SAND]: [192, 174, 124], [T.SHRINE]: [240, 210, 110],
   [T.SNOW]: [228, 234, 240], [T.SNOWTREE]: [196, 210, 218], [T.PLANKS]: [148, 110, 72],
+  [T.SWAMP]: [90, 107, 66], [T.SWAMPTREE]: [70, 86, 56],
 };
 
 function buildMinimap() {

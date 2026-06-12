@@ -5,6 +5,7 @@
   "terrain": "terrain.png",
   "building": "building.png",
   "snowtrees": "snowtrees.png",
+  "swamptrees": "swamptrees.png",
   "goblin": "creatures/goblin.png",
   "skeleton": "creatures/skeleton.png",
   "orc": "creatures/orc.png",
@@ -22,6 +23,9 @@
   "sheep": "creatures/sheep.png",
   "pig": "creatures/pig.png",
   "chicken": "creatures/chicken.png",
+  "boar": "creatures/boar.png",
+  "crab": "creatures/crab.png",
+  "snake": "creatures/snake.png",
   "w_dagger": "creatures/weapons/dagger.png",
   "w_longsword": "creatures/weapons/longsword.png",
   "w_mace": "creatures/weapons/mace.png",
@@ -153,7 +157,8 @@
    "w": 53,
    "h": 49,
    "ax": 26,
-   "ay": 33
+   "ay": 33,
+   "scale": 0.85
   },
   "rocks.1": {
    "img": "terrain",
@@ -162,7 +167,8 @@
    "w": 53,
    "h": 52,
    "ax": 26,
-   "ay": 36
+   "ay": 36,
+   "scale": 0.85
   },
   "rocks.2": {
    "img": "terrain",
@@ -171,7 +177,8 @@
    "w": 55,
    "h": 55,
    "ax": 27,
-   "ay": 39
+   "ay": 39,
+   "scale": 0.85
   },
   "tallgrass.0": {
    "img": "terrain",
@@ -216,7 +223,8 @@
    "w": 46,
    "h": 95,
    "ax": 23,
-   "ay": 79
+   "ay": 79,
+   "scale": 0.8
   },
   "tree.fir1": {
    "img": "terrain",
@@ -225,7 +233,8 @@
    "w": 43,
    "h": 71,
    "ax": 21,
-   "ay": 55
+   "ay": 55,
+   "scale": 0.8
   },
   "tree.pine0": {
    "img": "terrain",
@@ -234,7 +243,8 @@
    "w": 61,
    "h": 116,
    "ax": 30,
-   "ay": 100
+   "ay": 100,
+   "scale": 0.8
   },
   "tree.pine1": {
    "img": "terrain",
@@ -243,7 +253,8 @@
    "w": 57,
    "h": 116,
    "ax": 28,
-   "ay": 100
+   "ay": 100,
+   "scale": 0.8
   },
   "tree.pine2": {
    "img": "terrain",
@@ -252,7 +263,8 @@
    "w": 48,
    "h": 106,
    "ax": 24,
-   "ay": 90
+   "ay": 90,
+   "scale": 0.8
   },
   "tree.pine3": {
    "img": "terrain",
@@ -261,7 +273,8 @@
    "w": 37,
    "h": 103,
    "ax": 18,
-   "ay": 87
+   "ay": 87,
+   "scale": 0.8
   },
   "tree.dead": {
    "img": "terrain",
@@ -270,7 +283,8 @@
    "w": 142,
    "h": 113,
    "ax": 71,
-   "ay": 97
+   "ay": 97,
+   "scale": 0.7
   },
   "tree.oak": {
    "img": "terrain",
@@ -279,7 +293,8 @@
    "w": 172,
    "h": 145,
    "ax": 86,
-   "ay": 129
+   "ay": 129,
+   "scale": 0.72
   },
   "wall.0": {
    "img": "building",
@@ -333,7 +348,8 @@
    "w": 61,
    "h": 116,
    "ax": 30,
-   "ay": 100
+   "ay": 100,
+   "scale": 0.8
   },
   "tree.snowpine1": {
    "img": "snowtrees",
@@ -342,7 +358,8 @@
    "w": 57,
    "h": 116,
    "ax": 28,
-   "ay": 100
+   "ay": 100,
+   "scale": 0.8
   },
   "tree.snowpine2": {
    "img": "snowtrees",
@@ -351,7 +368,8 @@
    "w": 48,
    "h": 106,
    "ax": 24,
-   "ay": 90
+   "ay": 90,
+   "scale": 0.8
   },
   "tree.snowpine3": {
    "img": "snowtrees",
@@ -360,7 +378,8 @@
    "w": 37,
    "h": 103,
    "ax": 18,
-   "ay": 87
+   "ay": 87,
+   "scale": 0.8
   },
   "tree.snowfir0": {
    "img": "snowtrees",
@@ -369,7 +388,8 @@
    "w": 46,
    "h": 95,
    "ax": 23,
-   "ay": 79
+   "ay": 79,
+   "scale": 0.8
   },
   "tree.snowfir1": {
    "img": "snowtrees",
@@ -378,7 +398,8 @@
    "w": 43,
    "h": 71,
    "ax": 21,
-   "ay": 55
+   "ay": 55,
+   "scale": 0.8
   },
   "tree.snowdead": {
    "img": "snowtrees",
@@ -387,7 +408,48 @@
    "w": 142,
    "h": 113,
    "ax": 71,
-   "ay": 97
+   "ay": 97,
+   "scale": 0.7
+  },
+  "tree.swampdead": {
+   "img": "swamptrees",
+   "x": 0,
+   "y": 0,
+   "w": 142,
+   "h": 113,
+   "ax": 71,
+   "ay": 97,
+   "scale": 0.72
+  },
+  "tree.swampfir0": {
+   "img": "swamptrees",
+   "x": 144,
+   "y": 18,
+   "w": 46,
+   "h": 95,
+   "ax": 23,
+   "ay": 79,
+   "scale": 0.72
+  },
+  "tree.swampfir1": {
+   "img": "swamptrees",
+   "x": 192,
+   "y": 42,
+   "w": 43,
+   "h": 71,
+   "ax": 21,
+   "ay": 55,
+   "scale": 0.72
+  },
+  "tree.swamppine3": {
+   "img": "swamptrees",
+   "x": 237,
+   "y": 10,
+   "w": 37,
+   "h": 103,
+   "ax": 18,
+   "ay": 87,
+   "scale": 0.72
   }
  },
  "tiles": {
@@ -503,6 +565,19 @@
   "11": {
    "ground": [
     "planks"
+   ]
+  },
+  "12": {
+   "groundProc": "swamp"
+  },
+  "13": {
+   "groundProc": "swamp",
+   "object": [
+    "tree.swampdead",
+    "tree.swampdead",
+    "tree.swampfir0",
+    "tree.swampfir1",
+    "tree.swamppine3"
    ]
   },
   "10": {
@@ -991,6 +1066,90 @@
     "run": {
      "start": 1,
      "frames": 4,
+     "ms": 140,
+     "loop": "loop"
+    },
+    "melee": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400,
+     "loop": "loop"
+    }
+   }
+  },
+  "boar": {
+   "img": "boar",
+   "cellW": 64,
+   "cellH": 64,
+   "ax": 32,
+   "ay": 61,
+   "dirs": 8,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400,
+     "loop": "loop"
+    },
+    "run": {
+     "start": 1,
+     "frames": 3,
+     "ms": 140,
+     "loop": "loop"
+    },
+    "melee": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400,
+     "loop": "loop"
+    }
+   }
+  },
+  "crab": {
+   "img": "crab",
+   "cellW": 48,
+   "cellH": 64,
+   "ax": 24,
+   "ay": 58,
+   "dirs": 8,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400,
+     "loop": "loop"
+    },
+    "run": {
+     "start": 1,
+     "frames": 3,
+     "ms": 140,
+     "loop": "loop"
+    },
+    "melee": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400,
+     "loop": "loop"
+    }
+   }
+  },
+  "snake": {
+   "img": "snake",
+   "cellW": 41,
+   "cellH": 41,
+   "ax": 20,
+   "ay": 37,
+   "dirs": 8,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400,
+     "loop": "loop"
+    },
+    "run": {
+     "start": 1,
+     "frames": 3,
      "ms": 140,
      "loop": "loop"
     },
