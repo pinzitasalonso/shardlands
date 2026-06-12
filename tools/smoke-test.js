@@ -648,5 +648,56 @@ assert(p.x === city.x && p.y === city.y - 2, 'recall carries you to your bound c
 game.persistPlayer(p);
 assert.strictEqual(game.records[p.key].home.x, city.x, 'home survives a save');
 
+// -- batch F: session tokens, social pulls, leash-evade ------------------------------
+const wsT = fakeWs();
+game.handle(wsT, { t: 'join', email: 'token@test.dev', password: 'secret1', name: 'Token Tester' });
+const wT = wsT.sent.find((m) => m.t === 'welcome');
+assert(wT && wT.token && wT.token.length >= 32, 'welcome carries a session token');
+game.leave(wsT);
+const wsT2 = fakeWs();
+game.handle(wsT2, { t: 'join', token: wT.token });
+const wT2 = wsT2.sent.find((m) => m.t === 'welcome');
+assert(wT2, 'the token alone signs back in — no password');
+assert(wT2.token && wT2.token !== wT.token, 'tokens rotate on every sign-in');
+game.leave(wsT2);
+const wsT3 = fakeWs();
+game.handle(wsT3, { t: 'join', token: wT.token });
+assert(wsT3.sent.some((m) => m.t === 'reject' && m.expired), 'rotated-out tokens are dead');
+
+// social pull: wound one orc and its campmate joins the fight
+const packSp = { alive: new Set(), x: wild.x, y: wild.y, r: 4, kind: 'orc' };
+const orcA = { id: 999993, kind: 'orc', x: wild.x, y: wild.y, hp: 48, maxhp: 48,
+  homeX: wild.x, homeY: wild.y, target: 0, moveAt: Infinity, swingAt: Infinity, spawner: packSp };
+const orcB = { id: 999992, kind: 'orc', x: wild.x + 2, y: wild.y, hp: 48, maxhp: 48,
+  homeX: wild.x + 2, homeY: wild.y, target: 0, moveAt: Infinity, swingAt: Infinity, spawner: packSp };
+game.mobs.set(orcA.id, orcA);
+game.mobs.set(orcB.id, orcB);
+packSp.alive.add(orcA.id);
+packSp.alive.add(orcB.id);
+game.damageMob(p, orcA, 1);
+assert.strictEqual(orcB.target, p.id, 'the camp answers the first blow');
+game.mobs.delete(orcA.id);
+game.mobs.delete(orcB.id);
+
+// leash-evade: a mob kited far from home shrugs off its wounds and walks back
+const kited = { id: 999991, kind: 'orc', x: wild.x + 25, y: wild.y, hp: 5, maxhp: 48,
+  homeX: wild.x, homeY: wild.y, target: p.id, moveAt: 0, swingAt: Infinity,
+  chatAt: Infinity, spawner: { alive: new Set() } };
+game.mobs.set(kited.id, kited);
+game.mobTick(kited, Date.now());
+assert.strictEqual(kited.target, 0, 'the leash snaps the chase');
+assert.strictEqual(kited.hp, 48, 'and the wounds close');
+assert(kited.evading, 'it turns for home');
+assert(kited.x < wild.x + 25, 'and walks');
+game.mobs.delete(kited.id);
+// raiders are exempt: the march on the village must not leash
+const raider = { id: 999990, kind: 'orc', x: wild.x + 25, y: wild.y, hp: 5, maxhp: 48,
+  homeX: wild.x, homeY: wild.y, target: p.id, aggroBoost: 12, moveAt: Infinity, swingAt: Infinity,
+  chatAt: Infinity, spawner: { alive: new Set() } };
+game.mobs.set(raider.id, raider);
+game.mobTick(raider, Date.now());
+assert.strictEqual(raider.hp, 5, 'raiders never evade-heal');
+game.mobs.delete(raider.id);
+
 console.log('smoke test: all assertions passed');
 process.exit(0);

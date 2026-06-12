@@ -264,63 +264,81 @@ class Game {
     const email = String(msg.email || '').trim().toLowerCase();
     const password = String(msg.password || '');
     const name = String(msg.name || '').trim();
+    const token = String(msg.token || '');
 
-    if (!EMAIL_RE.test(email)) {
-      return this.send(ws, { t: 'reject', reason: 'Enter a valid email address.' });
-    }
-    if (password.length < 6) {
-      return this.send(ws, { t: 'reject', reason: 'Password must be at least 6 characters.' });
-    }
-
-    let account = this.accounts[email];
+    let account = null;
     let rec;
 
-    if (account) {
-      const hash = hashPassword(password, account.salt);
-      if (!crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(account.hash))) {
-        return this.send(ws, { t: 'reject', reason: 'Wrong password for that account.' });
+    // A bearer token from a previous session signs in without a password.
+    if (token) {
+      const tb = Buffer.from(token);
+      account = Object.values(this.accounts).find((a) =>
+        a.token && a.token.exp > Date.now() && a.token.v.length === token.length &&
+        crypto.timingSafeEqual(Buffer.from(a.token.v), tb)) || null;
+      if (!account) {
+        return this.send(ws, { t: 'reject', reason: 'Your session has expired. Sign in again.', expired: true });
       }
       rec = this.records[account.charKey];
       if (!rec) {
-        return this.send(ws, { t: 'reject', reason: 'Account has no character. Contact the shard keeper.' });
+        return this.send(ws, { t: 'reject', reason: 'Account has no character. Contact the shard keeper.', expired: true });
       }
     } else {
-      // New account: also creates its character.
-      if (!/^[A-Za-z][A-Za-z0-9 '-]{1,14}$/.test(name)) {
-        return this.send(ws, { t: 'reject', reason: 'New account: choose a character name (2-15 letters/numbers).' });
+      if (!EMAIL_RE.test(email)) {
+        return this.send(ws, { t: 'reject', reason: 'Enter a valid email address.' });
       }
-      const key = name.toLowerCase();
-      if (this.records[key]) {
-        return this.send(ws, { t: 'reject', reason: 'That character name is already taken.' });
+      if (password.length < 6) {
+        return this.send(ws, { t: 'reject', reason: 'Password must be at least 6 characters.' });
       }
-      const salt = crypto.randomBytes(16).toString('hex');
-      account = this.accounts[email] = {
-        email, salt,
-        hash: hashPassword(password, salt),
-        charKey: key,
-      };
-      rec = this.records[key] = {
-        name,
-        x: this.map.spawn.x,
-        y: this.map.spawn.y,
-        str: 35, dex: 35, int: 30,
-        hp: 67, mana: 30,
-        skills: Object.fromEntries(SKILLS.map((s) => [s, 20])),
-        gold: 100, logs: 0, ore: 0, gems: 0,
-        pots: { heal: 1, mana: 0 },
-        items: [{ uid: 1, id: 'dagger', q: 0, dur: 54, maxDur: 54 }],
-        weapon: 1,
-        armor: null,
-        offhand: null,
-        arrows: 0,
-        itemUid: 2,
-      };
-      persist.saveAccounts(this.accounts);
-      // save the record alongside the account, atomically from the player's
-      // point of view — a crash between the two must not strand an account
-      // that points at a character which was never written
-      persist.save(this.records);
-      this.dirty = false;
+
+      account = this.accounts[email];
+
+      if (account) {
+        const hash = hashPassword(password, account.salt);
+        if (!crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(account.hash))) {
+          return this.send(ws, { t: 'reject', reason: 'Wrong password for that account.' });
+        }
+        rec = this.records[account.charKey];
+        if (!rec) {
+          return this.send(ws, { t: 'reject', reason: 'Account has no character. Contact the shard keeper.' });
+        }
+      } else {
+        // New account: also creates its character.
+        if (!/^[A-Za-z][A-Za-z0-9 '-]{1,14}$/.test(name)) {
+          return this.send(ws, { t: 'reject', reason: 'New account: choose a character name (2-15 letters/numbers).' });
+        }
+        const key = name.toLowerCase();
+        if (this.records[key]) {
+          return this.send(ws, { t: 'reject', reason: 'That character name is already taken.' });
+        }
+        const salt = crypto.randomBytes(16).toString('hex');
+        account = this.accounts[email] = {
+          email, salt,
+          hash: hashPassword(password, salt),
+          charKey: key,
+        };
+        rec = this.records[key] = {
+          name,
+          x: this.map.spawn.x,
+          y: this.map.spawn.y,
+          str: 35, dex: 35, int: 30,
+          hp: 67, mana: 30,
+          skills: Object.fromEntries(SKILLS.map((s) => [s, 20])),
+          gold: 100, logs: 0, ore: 0, gems: 0,
+          pots: { heal: 1, mana: 0 },
+          items: [{ uid: 1, id: 'dagger', q: 0, dur: 54, maxDur: 54 }],
+          weapon: 1,
+          armor: null,
+          offhand: null,
+          arrows: 0,
+          itemUid: 2,
+        };
+        persist.saveAccounts(this.accounts);
+        // save the record alongside the account, atomically from the player's
+        // point of view — a crash between the two must not strand an account
+        // that points at a character which was never written
+        persist.save(this.records);
+        this.dirty = false;
+      }
     }
 
     for (const p of this.players.values()) {
@@ -328,6 +346,11 @@ class Game {
         return this.send(ws, { t: 'reject', reason: 'That character is already in the world.' });
       }
     }
+
+    // Every successful sign-in rotates a fresh week-long session token, so
+    // returning players skip the password screen.
+    account.token = { v: crypto.randomBytes(24).toString('hex'), exp: Date.now() + 7 * 86_400_000 };
+    persist.saveAccounts(this.accounts);
 
     const spot = isWalkable(this.map, rec.x, rec.y)
       ? { x: rec.x, y: rec.y }
@@ -371,6 +394,8 @@ class Game {
     this.send(ws, {
       t: 'welcome',
       id: p.id,
+      token: account.token.v,
+      charName: rec.name,
       map: { w: this.map.w, h: this.map.h, chunk: CHUNK },
       mini: this.miniData,
       buildings: this.map.buildings,
@@ -837,7 +862,7 @@ class Game {
         this.sys(p, 'The townsfolk are under the crown\'s protection.');
       } else {
         const dmg = rand(spell.dmg[0], spell.dmg[1]) + Math.floor(p.skills.magery / (spellId === 'energybolt' ? 8 : 12));
-        this.fxNear(p, { t: 'fx', kind: spellId === 'energybolt' ? 'fireball' : spellId, x: p.x, y: p.y, tx: mob.x, ty: mob.y, amount: dmg });
+        this.fxNear(p, { t: 'fx', kind: spellId, x: p.x, y: p.y, tx: mob.x, ty: mob.y, amount: dmg });
         this.damageMob(p, mob, dmg);
         this.gainStat(p, 'int');
       }
@@ -980,6 +1005,17 @@ class Game {
       mob.fleeFrom = { x: attacker.x, y: attacker.y };
     } else {
       mob.target = attacker.id; // fighting back
+      mob.evading = false;      // a fresh wound re-opens the argument
+      // The camp answers: nearby campmates without a fight of their own
+      // turn on the attacker. Picking fights near a warband is a choice.
+      for (const id of mob.spawner.alive) {
+        if (id === mob.id) continue;
+        const ally = this.mobs.get(id);
+        if (!ally || ally.target) continue;
+        const adef = MOB_KINDS[ally.kind];
+        if (adef.peaceful || adef.guard || (adef.aggro === 0 && !ally.aggroBoost)) continue;
+        if (dist(ally, mob) <= 8) ally.target = attacker.id;
+      }
     }
     this.fxNear(mob, { t: 'fx', kind: 'hit', x: mob.x, y: mob.y, amount: dmg });
     if (mob.hp <= 0) this.killMob(attacker, mob);
@@ -1362,6 +1398,31 @@ class Game {
         } else if (t >= mob.moveAt) {
           mob.moveAt = t + def.speedMs;
           this.stepToward(mob, foe.x, foe.y);
+        }
+        return;
+      }
+    }
+
+    // Leash-evade: a mob kited too far from its home shrugs off its wounds
+    // and strides back, deaf to taunts until it arrives. No more dragging
+    // a dragon across the world one arrow at a time. (Raiders are exempt —
+    // marching on a village is the whole point.)
+    const leashed = !mob.aggroBoost &&
+      (Math.abs(mob.x - mob.homeX) > 18 || Math.abs(mob.y - mob.homeY) > 18);
+    if (mob.target && leashed) {
+      mob.target = 0;
+      mob.hp = mob.maxhp;
+      mob.poison = null;
+      mob.evading = true;
+      this.fxNear(mob, { t: 'fx', kind: 'evade', x: mob.x, y: mob.y });
+    }
+    if (mob.evading) {
+      if (Math.abs(mob.x - mob.homeX) <= 4 && Math.abs(mob.y - mob.homeY) <= 4) {
+        mob.evading = false;
+      } else {
+        if (t >= mob.moveAt) {
+          mob.moveAt = t + def.speedMs;
+          this.stepToward(mob, mob.homeX, mob.homeY);
         }
         return;
       }
