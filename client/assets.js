@@ -142,6 +142,12 @@ const Assets = (() => {
     return state.manifest.tiles[id];
   }
 
+  // Top-down 16px recipes (the renderer's native format; the iso `tiles`
+  // recipes above are kept for reference until the old sheets are retired).
+  function tileTD(id) {
+    return state.manifest.tilesTD && state.manifest.tilesTD[id];
+  }
+
   function creature(kind) {
     return state.manifest.creatures[kind];
   }
@@ -182,5 +188,5 @@ const Assets = (() => {
     return true;
   }
 
-  return { state, load, tile, creature, drawFrame, drawGround, drawCreature, drawFringe };
+  return { state, load, tile, tileTD, creature, drawFrame, drawGround, drawCreature, drawFringe };
 })();
