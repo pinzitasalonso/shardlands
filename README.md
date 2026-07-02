@@ -174,6 +174,7 @@ free-licensed art only, never actual Ultima Online assets.
 | --- | --- |
 | WASD / arrows | walk (click the ground to path-walk there instead) |
 | Click a monster | attack it (melee auto-swings when adjacent) |
+| `Space` | attack the nearest hostile (re-engages your current target first; never auto-picks townsfolk or livestock) |
 | `1` / `2` / `3` | cast Magic Arrow / Fireball / Greater Heal |
 | `6` / `7` / `8` | cast Bless / Poison / Energy Bolt |
 | `4` / `5` | drink a heal / mana potion |
