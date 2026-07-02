@@ -414,6 +414,246 @@ def trim_object(sheet, box, name, frames, img, scale=None):
         frames[name]['scale'] = scale
 
 
+# ---- top-down 16px tileset -------------------------------------------------------
+#
+# The renderer is top-down square (16px art drawn at 3x = 48px tiles), sized
+# for KingRabbit-style pixel packs. Until purchased sheets land in
+# tools/asset-src/heroic/ (gitignored — paid art must never be committed),
+# build_topdown() draws a procedural placeholder set in the EXACT atlas and
+# manifest shape the real art will use: swap the drawing code for slicing
+# recipes and nothing else changes.
+
+TD = 16  # native pixel size of a top-down tile
+TD_SCALE = 3  # drawn at 3x on screen
+
+TD_PALETTES = {
+    'grass':  ['#6d7f38', '#76883e', '#7f9244', '#687a36', '#5c6e30'],
+    'water':  ['#4a76b8', '#4470b2', '#5080c0', '#3f6aaa', '#6890cc'],
+    'sand':   ['#c8b478', '#c0ac70', '#d0bc84', '#bca868', '#b09c60'],
+    'snow':   ['#e9eef3', '#dfe6ee', '#f2f6f9', '#d6dfe9', '#c8d4e2'],
+    'swamp':  ['#5a6b42', '#52613c', '#647549', '#4c5c3a', '#42522f'],
+    'dirt':   ['#9a7a52', '#8f714b', '#a5845a', '#856844', '#796040'],
+    'floor':  ['#a89878', '#a08f70', '#b0a080', '#988866', '#887a5c'],
+    'planks': ['#8a6a42', '#82633d', '#936f47', '#7a5c38', '#6e5334'],
+    'cave':   ['#42403c', '#3a3834', '#4a4842', '#34322e', '#2c2a26'],
+    'wall':   ['#8c8880', '#84807a', '#94908a', '#7a766e', '#6a665e'],
+}
+
+
+def hexrgb(s):
+    return tuple(int(s[i:i + 2], 16) for i in (1, 3, 5)) + (255,)
+
+
+def build_topdown(frames, images_out):
+    import random
+    rng = random.Random(20260613)
+    kinds = ['grass', 'water', 'sand', 'snow', 'swamp', 'dirt', 'floor',
+             'planks', 'cave', 'wall', 'shrine']
+    ground = Image.new('RGBA', (4 * TD, len(kinds) * TD), (0, 0, 0, 0))
+
+    def speckle(px, ox, oy, pal, n=26):
+        for _ in range(n):
+            x, y = rng.randrange(TD), rng.randrange(TD)
+            px[ox + x, oy + y] = hexrgb(pal[rng.randrange(1, len(pal))])
+
+    px = ground.load()
+    for row, kind in enumerate(kinds):
+        pal = TD_PALETTES['floor' if kind == 'shrine' else kind]
+        base = hexrgb(pal[0])
+        for v in range(4):
+            ox, oy = v * TD, row * TD
+            for y in range(TD):
+                for x in range(TD):
+                    px[ox + x, oy + y] = base
+            if kind == 'water':
+                # still water with drifting wave crests
+                speckle(px, ox, oy, pal, 14)
+                for _ in range(3):
+                    wy = rng.randrange(2, TD - 2)
+                    wx = rng.randrange(0, TD - 5)
+                    for i in range(rng.randrange(3, 6)):
+                        px[ox + wx + i, oy + wy] = hexrgb(pal[4])
+            elif kind == 'floor':
+                # stone slabs with mortar seams
+                speckle(px, ox, oy, pal, 16)
+                for y in range(TD):
+                    px[ox + (7 if y < 8 else 3 + 8 * (v % 2)), oy + y] = hexrgb(pal[4])
+                for x in range(TD):
+                    px[ox + x, oy + 7] = hexrgb(pal[4])
+            elif kind == 'planks':
+                speckle(px, ox, oy, pal, 10)
+                for x in (3, 7, 11, 15):
+                    for y in range(TD):
+                        px[ox + x, oy + y] = hexrgb(pal[4])
+                for y in range(TD):
+                    if rng.random() < 0.25:
+                        px[ox + rng.randrange(TD), oy + y] = hexrgb(pal[3])
+            elif kind == 'wall':
+                # a battlement seen from above: stone cap, dark rim,
+                # crenel notches along the edges, a worn inner walk
+                speckle(px, ox, oy, pal, 12)
+                rim = hexrgb(pal[4])
+                notch = hexrgb('#3a3630')
+                for i in range(TD):
+                    px[ox + i, oy] = rim
+                    px[ox + i, oy + TD - 1] = rim
+                    px[ox, oy + i] = rim
+                    px[ox + TD - 1, oy + i] = rim
+                for i in range(1, TD - 1):
+                    if i % 5 in (1, 2):
+                        px[ox + i, oy + 1] = notch
+                        px[ox + i, oy + TD - 2] = notch
+                        px[ox + 1, oy + i] = notch
+                        px[ox + TD - 2, oy + i] = notch
+                for y in range(4, 12):
+                    for x in range(4, 12):
+                        if (x + y + v) % 6 == 0:
+                            px[ox + x, oy + y] = hexrgb(pal[2])
+            elif kind == 'shrine':
+                speckle(px, ox, oy, pal, 12)
+                # a gold inlay ring
+                gold = hexrgb('#d8b35e')
+                for x, y in [(7, 3), (8, 3), (5, 5), (10, 5), (4, 7), (11, 7),
+                             (4, 8), (11, 8), (5, 10), (10, 10), (7, 12), (8, 12)]:
+                    px[ox + x, oy + y] = gold
+            else:
+                speckle(px, ox, oy, pal)
+        # frames: td.g.<kind>.<v>
+        for v in range(4):
+            frames[f'td.g.{kind}.{v}'] = {'img': 'ground16', 'x': v * TD, 'y': row * TD,
+                                          'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+
+    # ---- objects: trees, rocks, decor, props (16x24 cells, feet at y=22) ----
+    names = ['oak0', 'oak1', 'pine0', 'pine1', 'dead0', 'snowpine0', 'snowpine1',
+             'swamptree0', 'swamptree1', 'rock0', 'rock1', 'flower', 'tuft',
+             'well', 'table', 'stool']
+    OH = 24
+    objects = Image.new('RGBA', (len(names) * TD, OH), (0, 0, 0, 0))
+    d = objects.load()
+
+    def blob(ox, cx, cy, r, cols, outline):
+        for y in range(OH):
+            for x in range(TD):
+                dd = ((x - cx) ** 2 + (y - cy) ** 2) ** 0.5
+                if dd <= r:
+                    d[ox + x, y] = hexrgb(cols[rng.randrange(len(cols))])
+                elif dd <= r + 0.9 and outline:
+                    d[ox + x, y] = hexrgb(outline)
+
+    def trunk(ox, x, y0, y1, col='#5a4028'):
+        for y in range(y0, y1):
+            d[ox + x, y] = hexrgb(col)
+            d[ox + x + 1, y] = hexrgb('#4a3520')
+
+    def tri(ox, cx, ytop, ybot, half, cols, dust=None):
+        for y in range(ytop, ybot):
+            k = (y - ytop) / max(1, ybot - ytop - 1)
+            w = max(1, round(half * k))
+            for x in range(cx - w, cx + w + 1):
+                col = cols[rng.randrange(len(cols))]
+                if dust and y - ytop < 3 and rng.random() < 0.6:
+                    col = dust
+                d[ox + x, y] = hexrgb(col)
+
+    for i, name in enumerate(names):
+        ox = i * TD
+        if name.startswith('oak'):
+            trunk(ox, 7, 13, 20)
+            blob(ox, 8, 7, 6 + (1 if name.endswith('1') else 0),
+                 ['#4c6e2c', '#557a32', '#3f5e24'], '#2c451a')
+        elif name.startswith('pine'):
+            trunk(ox, 7, 16, 20)
+            tri(ox, 8, 1 + (2 if name.endswith('1') else 0), 17, 7,
+                ['#3c5c28', '#446832', '#325020'])
+        elif name == 'dead0':
+            trunk(ox, 7, 6, 20)
+            for bx, by, ln in ((4, 8, 3), (9, 6, 4), (3, 12, 4), (10, 11, 3)):
+                for k in range(ln):
+                    d[ox + bx + k, by] = hexrgb('#4a3520')
+        elif name.startswith('snowpine'):
+            trunk(ox, 7, 16, 20)
+            tri(ox, 8, 1 + (2 if name.endswith('1') else 0), 17, 7,
+                ['#3c5c28', '#446832', '#325020'], dust='#e9eef3')
+        elif name.startswith('swamptree'):
+            trunk(ox, 7, 11 if name.endswith('0') else 13, 20, '#3a3428')
+            blob(ox, 8, 7, 5, ['#4c5c3a', '#42522f', '#385026'], '#2a3a20')
+        elif name.startswith('rock'):
+            blob(ox, 8, 17, 4 + (1 if name.endswith('1') else 0),
+                 ['#8c8880', '#7a766e', '#94908a'], '#5a564e')
+            for x in range(5, 12):
+                d[ox + x, 14 if name.endswith('0') else 13] = hexrgb('#a4a09a')
+        elif name == 'flower':
+            d[ox + 8, 20] = hexrgb('#4c6e2c')
+            d[ox + 8, 21] = hexrgb('#4c6e2c')
+            for x, y in ((7, 19), (9, 19), (8, 18), (8, 20)):
+                d[ox + x, y] = hexrgb('#d86a6a' if rng.random() < 0.5 else '#e8e0d0')
+        elif name == 'tuft':
+            for x, y0 in ((6, 18), (8, 17), (10, 18), (7, 19), (9, 19)):
+                for y in range(y0, 22):
+                    d[ox + x, y] = hexrgb('#7f9244')
+        elif name == 'well':
+            for y in range(14, 22):
+                for x in range(3, 13):
+                    d[ox + x, y] = hexrgb('#8c8880' if (x + y) % 3 else '#7a766e')
+            for x in range(5, 11):
+                for y in range(16, 20):
+                    d[ox + x, y] = hexrgb('#1a2430')
+            for x, y in ((3, 13), (12, 13)):
+                for yy in range(y - 8, y + 1):
+                    d[ox + x, yy] = hexrgb('#5a4028')
+            for x in range(2, 14):
+                d[ox + x, 5] = hexrgb('#8a6a42')
+                d[ox + x, 6] = hexrgb('#7a5c38')
+        elif name == 'table':
+            for x in range(2, 14):
+                for y in range(14, 17):
+                    d[ox + x, y] = hexrgb('#8a6a42' if y == 14 else '#7a5c38')
+            for x in (3, 12):
+                for y in range(17, 22):
+                    d[ox + x, y] = hexrgb('#6e5334')
+        elif name == 'stool':
+            for x in range(5, 11):
+                d[ox + x, 17] = hexrgb('#8a6a42')
+                d[ox + x, 18] = hexrgb('#7a5c38')
+            for x in (5, 10):
+                for y in range(19, 22):
+                    d[ox + x, y] = hexrgb('#6e5334')
+        feet = 22 if name in ('well', 'table', 'stool', 'flower', 'tuft', 'rock0', 'rock1') else 20
+        frames[f'td.o.{name}'] = {'img': 'objects16', 'x': ox, 'y': 0, 'w': TD, 'h': OH,
+                                  'ax': TD // 2, 'ay': feet, 'scale': TD_SCALE}
+
+    ground.save(os.path.join(OUT, 'ground16.png'))
+    objects.save(os.path.join(OUT, 'objects16.png'))
+    images_out['ground16'] = 'ground16.png'
+    images_out['objects16'] = 'objects16.png'
+
+    g = lambda kind: [f'td.g.{kind}.{v}' for v in range(4)]
+    return {
+        '0': {'ground': g('water'), 'effect': 'water'},
+        '1': {'ground': g('grass'),
+              'decor': {'chance': 0.05, 'objects': ['td.o.flower', 'td.o.tuft', 'td.o.tuft']}},
+        '2': {'ground': g('grass'),
+              'object': ['td.o.oak0', 'td.o.oak1', 'td.o.pine0', 'td.o.pine1', 'td.o.dead0'],
+              'objectSets': [
+                  ['td.o.oak0', 'td.o.oak0', 'td.o.oak1', 'td.o.pine1', 'td.o.dead0'],
+                  ['td.o.pine0', 'td.o.pine1', 'td.o.pine0', 'td.o.pine1', 'td.o.dead0'],
+                  ['td.o.dead0', 'td.o.dead0', 'td.o.pine1'],
+              ]},
+        '3': {'ground': g('dirt'), 'object': ['td.o.rock0', 'td.o.rock1']},
+        '4': {'ground': g('dirt')},
+        '5': {'ground': g('floor')},
+        '6': {'ground': g('wall')},
+        '7': {'ground': g('sand')},
+        '8': {'ground': g('shrine'), 'effect': 'shrine'},
+        '9': {'ground': g('snow')},
+        '10': {'ground': g('snow'), 'object': ['td.o.snowpine0', 'td.o.snowpine1']},
+        '11': {'ground': g('planks')},
+        '12': {'ground': g('swamp')},
+        '13': {'ground': g('swamp'), 'object': ['td.o.swamptree0', 'td.o.swamptree1']},
+        '14': {'ground': g('cave')},
+    }
+
+
 def main():
     fetch_all()
     os.makedirs(os.path.join(OUT, 'creatures'), exist_ok=True)
@@ -612,19 +852,25 @@ def main():
     creatures['crab'] = build_dir4_creature('crab', 3, 48, 64, scale=1.0)
     creatures['snake'] = build_dir4_creature('snake', 3, 32, 32, scale=1.3)
 
+    td_images = {}
+    tiles_td = build_topdown(frames, td_images)
+
     manifest = {
         'tileW': 64, 'tileH': 32,
+        'td': TD, 'tdScale': TD_SCALE,
         'images': {
             'terrain': 'terrain.png',
             'building': 'building.png',
             'snowtrees': 'snowtrees.png',
             'swamptrees': 'swamptrees.png',
+            **td_images,
             **{c['img']: f"creatures/{c['img']}.png" for c in creatures.values()},
             **{'w_' + k: f'creatures/weapons/{k}.png'
                for k in creatures['player'].get('overlays', {})},
         },
         'frames': frames,
         'tiles': tiles,
+        'tilesTD': tiles_td,
         'creatures': creatures,
     }
     with open(os.path.join(OUT, 'manifest.json'), 'w') as f:

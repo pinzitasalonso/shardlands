@@ -125,6 +125,15 @@ next server restart.
 
 ## Editing the sprites (Photoshop / Figma / any editor)
 
+The renderer is top-down square: **16px tiles drawn at 3×** (48px on
+screen), sized for classic pixel-art packs. Terrain and scenery live in
+`ground16.png` / `objects16.png` — currently procedural placeholders,
+generated in the exact atlas format that purchased pixel art (e.g.
+KingRabbit's packs) will use. Drop bought sheets into
+`tools/asset-src/heroic/` (gitignored — **never commit paid art**) and swap
+the drawing code in `build_topdown()` for slicing recipes; nothing else in
+the engine changes.
+
 All art is generated into `client/assets/` by `tools/build-assets.py`
 (needs `pillow` + `numpy`). To restyle it by hand:
 
