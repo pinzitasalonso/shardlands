@@ -18,7 +18,7 @@ const Assets = (() => {
 
   async function load() {
     try {
-      const res = await fetch('assets/manifest.json');
+      const res = await fetch('assets/manifest.json', { cache: 'no-store' });
       if (!res.ok) throw new Error('manifest http ' + res.status);
       const manifest = await res.json();
       const pairs = await Promise.all(Object.entries(manifest.images).map(

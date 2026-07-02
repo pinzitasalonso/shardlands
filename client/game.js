@@ -1134,9 +1134,10 @@ const TILE_COLORS = {
 function camera() {
   const px = state.me ? state.me.rx + 0.5 : 64;
   const py = state.me ? state.me.ry + 0.5 : 64;
+  // integer camera: every sprite rounds the same way, so pixels never swim
   return {
-    ox: canvas.width / 2 - px * TP,
-    oy: canvas.height / 2 - py * TP,
+    ox: Math.round(canvas.width / 2 - px * TP),
+    oy: Math.round(canvas.height / 2 - py * TP),
   };
 }
 
@@ -1247,18 +1248,30 @@ function render() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   if (!state.map || !state.me) return;
 
-  // Ease render positions toward authoritative positions.
-  for (const map of [state.players, state.mobs]) {
+  const time = Date.now();
+
+  // Glide render positions toward authoritative ones at the entity's real
+  // walking speed (constant velocity, not exponential easing — continuous
+  // movement becomes one smooth scroll instead of a dash per tile).
+  const dtMs = Math.min(120, time - (state.lastFrameAt || time));
+  state.lastFrameAt = time;
+  const glide = (map, msPerTile) => {
     for (const e of map.values()) {
-      if (Math.abs(e.x - e.rx) > 4 || Math.abs(e.y - e.ry) > 4) { e.rx = e.x; e.ry = e.y; }
-      e.rx += (e.x - e.rx) * 0.35;
-      e.ry += (e.y - e.ry) * 0.35;
+      const dx = e.x - e.rx;
+      const dy = e.y - e.ry;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) { e.rx = e.x; e.ry = e.y; continue; }
+      // diagonal steps are granted more slowly (165ms vs 118ms)
+      const step = dtMs / (dx && dy ? msPerTile * 1.4 : msPerTile);
+      e.rx += Math.max(-step, Math.min(step, dx));
+      e.ry += Math.max(-step, Math.min(step, dy));
     }
-  }
+  };
+  glide(state.players, 118); // the server grants a step every 118ms
+  glide(state.mobs, 300);    // mobs stroll — a middling speedMs across kinds
 
   const cam = camera();
-  const time = Date.now();
-  const useSprites = Assets.state.ok;
+  // a stale cached manifest (no top-down recipes) must fall back, not crash
+  const useSprites = Assets.state.ok && !!Assets.state.manifest.tilesTD;
 
   // Visible tile range, with margin for tall objects.
   const cx = Math.floor(state.me.rx);
