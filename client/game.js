@@ -407,6 +407,7 @@ document.addEventListener('keydown', (ev) => {
   if (ae && (ae.id === 'name' || ae.id === 'email' || ae.id === 'password')) return;
 
   switch (ev.key) {
+    case ' ': ev.preventDefault(); attackNearest(); break;
     case 'Enter': chatInput.focus(); ev.preventDefault(); break;
     case 'Escape':
       closeShop();
@@ -629,6 +630,33 @@ function pointerAction(cx, cy, pickR) {
 }
 
 canvas.addEventListener('mousedown', (ev) => pointerAction(ev.clientX, ev.clientY, 38));
+
+// Spacebar: engage. Keeps hitting your current target while it lives and
+// stays close; otherwise picks the nearest hostile. Townsfolk, guards and
+// livestock are never auto-picked — killing those takes a deliberate click.
+const AUTO_ATTACK_EXCLUDE = new Set(['villager', 'guard', 'sheep', 'pig', 'chicken', 'deer', 'whitestag']);
+
+function attackNearest() {
+  if (!state.me || state.you && state.you.dead) return;
+  const cur = state.target ? state.mobs.get(state.target) : null;
+  if (cur && Math.max(Math.abs(cur.x - state.me.x), Math.abs(cur.y - state.me.y)) <= 10) {
+    send({ t: 'attack', id: cur.id });
+    state.walkTarget = { x: cur.x, y: cur.y };
+    return;
+  }
+  let best = null;
+  let bestD = 8;
+  for (const m of state.mobs.values()) {
+    if (AUTO_ATTACK_EXCLUDE.has(m.kind)) continue;
+    const d = Math.max(Math.abs(m.x - state.me.x), Math.abs(m.y - state.me.y));
+    if (d < bestD) { bestD = d; best = m; }
+  }
+  if (!best) return;
+  state.target = best.id;
+  send({ t: 'attack', id: best.id });
+  state.walkTarget = { x: best.x, y: best.y };
+  updateTargetFrame();
+}
 
 function setWalkTarget(x, y) {
   state.walkTarget = { x, y };
