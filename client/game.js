@@ -1327,9 +1327,32 @@ function render() {
         const recipe = Assets.tileTD(tile) || Assets.tileTD(T.WATER);
         Assets.drawGround(ctx, recipe, h, sx, sy);
 
-        // scenery is jittered inside its tile so forests don't grid-lock
-        const jx = (hash(tx * 13 + 7, ty * 3) - 0.5) * 22;
-        const jy = (hash(tx, ty * 17 + 9) - 0.5) * 10;
+        // Walls pick their piece by which neighbours are also wall, so
+        // ramparts read as connected runs with proper corners.
+        if (recipe.autowall) {
+          const A = recipe.autowall;
+          const wn = tileAt(tx, ty - 1) === T.WALL;
+          const ws = tileAt(tx, ty + 1) === T.WALL;
+          const ww = tileAt(tx - 1, ty) === T.WALL;
+          const we = tileAt(tx + 1, ty) === T.WALL;
+          let f = A.h;
+          if (wn && ws && !ww && !we) f = A.v;
+          else if (ws && we && !wn && !ww) f = A.tl;
+          else if (ws && ww && !wn && !we) f = A.tr;
+          else if (wn && we && !ws && !ww) f = A.bl;
+          else if (wn && ww && !ws && !we) f = A.br;
+          else if (ww && !we && !wn && !ws) f = A.capR; // a run ends going east
+          else if (we && !ww && !wn && !ws) f = A.capL;
+          else if (wn && !ws && !ww && !we) f = A.capB;
+          else if (ws && !wn && !ww && !we) f = A.capT;
+          Assets.drawFrame(ctx, f, sx, sy);
+        }
+
+        // Hand-drawn stamps are built to fill their tile (HoMM-style forest
+        // clusters) and stay put; procedural placeholder scenery jitters so
+        // it doesn't grid-lock.
+        const jx = recipe.stamp ? 0 : (hash(tx * 13 + 7, ty * 3) - 0.5) * 22;
+        const jy = recipe.stamp ? 0 : (hash(tx, ty * 17 + 9) - 0.5) * 10;
         if (recipe.objectSets) {
           // one set per coarse region, so whole forests share a species mix
           const sets = recipe.objectSets;

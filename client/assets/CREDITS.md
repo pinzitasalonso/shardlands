@@ -6,6 +6,16 @@ here; these assets merely evoke the same isometric style.
 
 Generated atlases are produced by `tools/build-assets.py` from these sources:
 
+## Top-down terrain and scenery (`ground16.png`, `objects16.png`)
+- Sliced from the **Heroic Asset Series** (HAS Overworld 2.1, HAS Dungeon)
+  by **Aleksandr Makarov** (@IKnowKingRabbit) -- purchased packs, used and
+  shipped here as part of a game per the pack license, with thanks.
+  - https://iknowkingrabbit.itch.io
+  - https://www.patreon.com/iknowkingrabbit
+  The raw pack files are NOT in this repository and must never be committed;
+  only atlases composed for the game are. If the purchased sheets are absent,
+  the build falls back to an original procedural placeholder tileset.
+
 ## Terrain and buildings (`terrain.png`, `building.png`)
 - "Isometric 64x64 Outside Tileset" and "Isometric 64x64 Medieval Building
   Tileset" by **Yar**, CC-BY 3.0.
