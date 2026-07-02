@@ -579,6 +579,186 @@ def build_topdown_heroic(frames, images_out):
     }
 
 
+# ---- HAS creatures ------------------------------------------------------------
+#
+# Faction/creature sheets are 16px rows per unit with labelled bands:
+# Idle @ cols 0-3, Walk @ 4-7, Attack @ 8-11 (Hit/Death follow; unused).
+# Units face LEFT. We compose one atlas per game creature: 8 heading rows
+# (octants of atan2: 0=E,1=SE,2=S,3=SW,4=W,5=NW,6=N,7=NE) x 12 anim cols
+# (stance 0-3, run 4-7, melee 8-11), baked at 3x (or more for big monsters)
+# so the client draws them 1:1 crisp.
+
+HAS_CREATURE_SHEETS = {
+    'stronghold': 'HAS CreaturePack (v.1.3)/HAS Creature Pack 1.2/Stronghold/StrongholdSpriteSheet.png',
+    'necro': 'HAS CreaturePack (v.1.3)/HAS Creature Pack 1.2/Necromancer/NecromancerSpriteSheet.png',
+    'castle': 'HAS CreaturePack (v.1.3)/HAS Creature Pack 1.2/Castle/CastleSpriteSheet.png',
+    'rampart': 'HAS CreaturePack (v.1.3)/HAS Creature Pack 1.2/Rampart/RampartSpriteSheet.png',
+    'inferno': 'HAS CreaturePack (v.1.3)/HAS Creature Pack 1.2/Inferno/InfernoSpriteSheet.png',
+    'animals': 'HASWildlife (v.1.0)/Animals/AnimalsSheet.png',
+}
+
+# kind -> (sheet, row, bake scale, recolor)
+HAS_UNITS = {
+    'goblin':   ('stronghold', 1, 3, None),
+    'orc':      ('stronghold', 13, 3, None),
+    'ettin':    ('stronghold', 14, 4, None),
+    'skeleton': ('necro', 1, 3, None),
+    'skelmage': ('necro', 14, 3, None),
+    'bonelord': ('necro', 9, 4, None),
+    'guard':    ('castle', 12, 3, None),
+    'villager': ('castle', 5, 3, None),
+    'villager2': ('castle', 2, 3, None),   # the village hunter
+    'villager3': ('rampart', 4, 3, None),  # the ranger
+    'vendor':   ('rampart', 6, 3, None),   # white-robed sorceress
+    'smith':    ('rampart', 10, 3, None),  # dwarf with a hammer
+    'bard':     ('rampart', 11, 3, None),  # a satyr, pipes and all
+    'hermit':   ('rampart', 14, 3, None),  # green-robed druid
+    'dragon':   ('inferno', 15, 5, None),  # the arch-fiend wears the crown
+    'wolf':     ('inferno', 3, 3, None),   # hell hound, close enough to a hungry wolf
+    'deer':     ('animals', 3, 3, None),
+    'boar':     ('animals', 2, 3, None),
+    'snake':    ('animals', 6, 3, None),
+}
+
+HAS_HERO_DIRS = ['Right', 'Right-Down', 'Down', 'Left-Down', 'Left', 'Left-Up', 'Up', 'Right-Up']
+HAS_HEROES = {  # kind -> (faction dir name, file prefix, gender)
+    # Only the player rides: a mounted knight, in the finest UO tradition.
+    'player':    ('Castle', 'CastleSprite', 'Male'),
+}
+
+
+def grayify(img):
+    out = img.copy()
+    px = out.load()
+    for y in range(out.height):
+        for x in range(out.width):
+            r, g, b, a = px[x, y]
+            if a:
+                l = int(0.3 * r + 0.55 * g + 0.15 * b)
+                px[x, y] = (l, l, min(255, l + 10), a)
+    return out
+
+
+def compose_has_atlas(name, get_frame, z, dirs=8, anims=None):
+    """get_frame(anim_col 0-11, mirrored) -> 16x16 image. Writes atlas + returns manifest."""
+    c = 16 * z
+    atlas = Image.new('RGBA', (12 * c, dirs * c), (0, 0, 0, 0))
+    # which headings use the mirrored (right-facing) frames
+    mirrored_for = {0: True, 1: True, 2: False, 3: False, 4: False, 5: False, 6: True, 7: True}
+    for row in range(dirs):
+        for col in range(12):
+            f = get_frame(col, dirs > 1 and mirrored_for[row])
+            atlas.paste(f.resize((c, c), Image.NEAREST), (col * c, row * c))
+    atlas.save(os.path.join(OUT, 'creatures', f'{name}.png'))
+    return {
+        'img': name, 'cellW': c, 'cellH': c, 'dirs': dirs,
+        'ax': c // 2, 'ay': c - 3 * z,
+        'anims': anims or {
+            'stance': {'start': 0, 'frames': 4, 'ms': 260, 'loop': 'back_forth'},
+            'run': {'start': 4, 'frames': 4, 'ms': 140},
+            'melee': {'start': 8, 'frames': 4, 'ms': 130},
+        },
+    }
+
+
+def build_has_creatures():
+    sheets = {k: Image.open(os.path.join(HEROIC, p)).convert('RGBA')
+              for k, p in HAS_CREATURE_SHEETS.items()}
+    creatures = {}
+    for kind, (sheet, row, z, recolor) in HAS_UNITS.items():
+        img = sheets[sheet]
+        def get_frame(col, mirrored, img=img, row=row, recolor=recolor):
+            f = img.crop((col * 16, row * 16, col * 16 + 16, row * 16 + 16))
+            if recolor == 'gray':
+                f = grayify(f)
+            return f.transpose(Image.FLIP_LEFT_RIGHT) if mirrored else f
+        creatures[kind] = compose_has_atlas(kind, get_frame, z)
+
+    hero_root = os.path.join(HEROIC, 'HAS Hero Pack (v.1.0)', 'HAS Hero Pack')
+    for kind, (faction, prefix, gender) in HAS_HEROES.items():
+        sprites = os.path.join(hero_root, faction, gender, 'Sprites')
+        cache = {}
+        def load(d, n, sprites=sprites, prefix=prefix, gender=gender, cache=cache):
+            key = (d, n)
+            if key not in cache:
+                cache[key] = Image.open(os.path.join(
+                    sprites, f'{prefix}{gender}-{d} (Frame {n}).png')).convert('RGBA')
+            return cache[key]
+        # per-heading direction comes from the filename, not mirroring
+        c = 48
+        atlas = Image.new('RGBA', (12 * c, 8 * c), (0, 0, 0, 0))
+        for row, d in enumerate(HAS_HERO_DIRS):
+            # stance = standing frame; run = the walk cycle; melee = a jab
+            plan = [1, 1, 1, 1, 1, 2, 3, 4, 2, 4, 2, 4]
+            for col, n in enumerate(plan):
+                atlas.paste(load(d, n).resize((c, c), Image.NEAREST), (col * c, row * c))
+        atlas.save(os.path.join(OUT, 'creatures', f'{kind}.png'))
+        creatures[kind] = {
+            'img': kind, 'cellW': c, 'cellH': c, 'dirs': 8, 'ax': c // 2, 'ay': c - 9,
+            'anims': {
+                'stance': {'start': 0, 'frames': 1, 'ms': 400},
+                'run': {'start': 4, 'frames': 4, 'ms': 150},
+                'melee': {'start': 8, 'frames': 4, 'ms': 130},
+            },
+        }
+
+    # Tiny original critters in HAS proportions for kinds the packs lack.
+    for kind, draw in CRITTERS.items():
+        base = [draw(pose) for pose in (0, 1)]
+        def get_frame(col, mirrored, base=base):
+            pose = 0 if col < 4 else (col % 2)
+            f = base[pose]
+            return f.transpose(Image.FLIP_LEFT_RIGHT) if mirrored else f
+        creatures[kind] = compose_has_atlas(kind, get_frame, 3)
+    return creatures
+
+
+def _draw_critter(spec):
+    def draw(pose):
+        im = Image.new('RGBA', (16, 16), (0, 0, 0, 0))
+        px = im.load()
+        for color, pts in spec(pose):
+            c = hexrgb(color)
+            for x, y in pts:
+                if 0 <= x < 16 and 0 <= y < 16:
+                    px[x, y] = c
+        return im
+    return draw
+
+
+def _oval(cx, cy, rx, ry):
+    return [(x, y) for y in range(16) for x in range(16)
+            if ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1]
+
+
+CRITTERS = {
+    'sheep': _draw_critter(lambda pose: [
+        ('#e8e4da', _oval(8, 9, 4.6, 3.2)),
+        ('#c8c4ba', [(5, 6), (7, 6), (10, 6)]),
+        ('#3a3530', [(12, 8), (13, 8), (12, 9), (13, 9)]),          # face
+        ('#2a2724', [(6, 12 + pose % 2), (10, 13 - pose % 2)]),      # legs
+    ]),
+    'pig': _draw_critter(lambda pose: [
+        ('#e0a8a0', _oval(8, 10, 4.4, 2.8)),
+        ('#c88880', [(12, 9), (13, 9), (13, 10), (12, 10)]),         # snout
+        ('#5a3a36', [(11, 8)]),                                      # eye
+        ('#b87870', [(6, 13 - pose % 2), (10, 12 + pose % 2)]),      # trotters
+    ]),
+    'chicken': _draw_critter(lambda pose: [
+        ('#efe7d3', _oval(8, 11, 2.6, 2.2)),
+        ('#efe7d3', [(9, 8), (10, 8), (9, 9)]),                      # head
+        ('#c83c30', [(9, 7)]),                                       # comb
+        ('#e8b040', [(11, 9), (8, 14 - pose % 2), (9, 13 + pose % 2)]),  # beak + feet
+    ]),
+    'crab': _draw_critter(lambda pose: [
+        ('#c05038', _oval(8, 10, 3.6, 2.2)),
+        ('#a84330', [(4, 8 - pose % 2), (12, 8 - pose % 2), (3, 7), (13, 7)]),  # claws
+        ('#2a2724', [(6, 9), (10, 9)]),                              # eyes
+        ('#a84330', [(4, 12), (6, 13 - pose % 2), (10, 13 - pose % 2), (12, 12)]),  # legs
+    ]),
+}
+
+
 def build_topdown_placeholder(frames, images_out):
     import random
     rng = random.Random(20260613)
@@ -986,6 +1166,10 @@ def main():
     creatures['boar'] = build_dir4_creature('boar', 3, 64, 64, scale=1.0)
     creatures['crab'] = build_dir4_creature('crab', 3, 48, 64, scale=1.0)
     creatures['snake'] = build_dir4_creature('snake', 3, 32, 32, scale=1.3)
+
+    # Purchased HAS sheets replace the free-art creatures wholesale.
+    if os.path.isdir(HEROIC):
+        creatures.update(build_has_creatures())
 
     td_images = {}
     tiles_td = build_topdown(frames, td_images)

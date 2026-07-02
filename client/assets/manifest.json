@@ -31,16 +31,9 @@
   "boar": "creatures/boar.png",
   "crab": "creatures/crab.png",
   "snake": "creatures/snake.png",
-  "w_dagger": "creatures/weapons/dagger.png",
-  "w_longsword": "creatures/weapons/longsword.png",
-  "w_mace": "creatures/weapons/mace.png",
-  "w_battle_axe": "creatures/weapons/battle_axe.png",
-  "w_greatsword": "creatures/weapons/greatsword.png",
-  "w_longbow": "creatures/weapons/longbow.png",
-  "w_leather": "creatures/weapons/leather.png",
-  "w_chain": "creatures/weapons/chain.png",
-  "w_buckler": "creatures/weapons/buckler.png",
-  "w_kite_shield": "creatures/weapons/kite_shield.png"
+  "bonelord": "creatures/bonelord.png",
+  "guard": "creatures/guard.png",
+  "villager": "creatures/villager.png"
  },
  "frames": {
   "grass.0": {
@@ -1481,179 +1474,11 @@
  "creatures": {
   "goblin": {
    "img": "goblin",
-   "cellW": 171,
-   "cellH": 141,
-   "ax": 79,
-   "ay": 117,
+   "cellW": 48,
+   "cellH": 48,
    "dirs": 8,
-   "anims": {
-    "stance": {
-     "start": 0,
-     "frames": 4,
-     "ms": 180,
-     "loop": "back_forth"
-    },
-    "run": {
-     "start": 4,
-     "frames": 8,
-     "ms": 90,
-     "loop": "loop"
-    },
-    "melee": {
-     "start": 12,
-     "frames": 3,
-     "ms": 110,
-     "loop": "loop"
-    }
-   }
-  },
-  "skeleton": {
-   "img": "skeleton",
-   "cellW": 230,
-   "cellH": 157,
-   "ax": 115,
-   "ay": 111,
-   "dirs": 8,
-   "anims": {
-    "stance": {
-     "start": 0,
-     "frames": 4,
-     "ms": 180,
-     "loop": "back_forth"
-    },
-    "run": {
-     "start": 4,
-     "frames": 8,
-     "ms": 90,
-     "loop": "loop"
-    },
-    "melee": {
-     "start": 12,
-     "frames": 4,
-     "ms": 110,
-     "loop": "loop"
-    }
-   }
-  },
-  "skelmage": {
-   "img": "skelmage",
-   "cellW": 190,
-   "cellH": 135,
-   "ax": 87,
-   "ay": 107,
-   "dirs": 8,
-   "anims": {
-    "stance": {
-     "start": 0,
-     "frames": 4,
-     "ms": 180,
-     "loop": "back_forth"
-    },
-    "run": {
-     "start": 4,
-     "frames": 8,
-     "ms": 90,
-     "loop": "loop"
-    },
-    "melee": {
-     "start": 12,
-     "frames": 4,
-     "ms": 110,
-     "loop": "loop"
-    }
-   }
-  },
-  "orc": {
-   "img": "orc",
-   "cellW": 190,
-   "cellH": 152,
-   "ax": 89,
-   "ay": 120,
-   "dirs": 8,
-   "anims": {
-    "stance": {
-     "start": 0,
-     "frames": 4,
-     "ms": 180,
-     "loop": "back_forth"
-    },
-    "run": {
-     "start": 4,
-     "frames": 8,
-     "ms": 90,
-     "loop": "loop"
-    },
-    "melee": {
-     "start": 12,
-     "frames": 4,
-     "ms": 110,
-     "loop": "loop"
-    }
-   }
-  },
-  "ettin": {
-   "img": "ettin",
-   "cellW": 128,
-   "cellH": 128,
-   "ax": 64,
-   "ay": 100,
-   "dirs": 8,
-   "anims": {
-    "stance": {
-     "start": 0,
-     "frames": 4,
-     "ms": 240,
-     "loop": "back_forth"
-    },
-    "run": {
-     "start": 4,
-     "frames": 8,
-     "ms": 90,
-     "loop": "loop"
-    },
-    "melee": {
-     "start": 12,
-     "frames": 4,
-     "ms": 110,
-     "loop": "loop"
-    }
-   }
-  },
-  "dragon": {
-   "img": "dragon",
-   "cellW": 234,
-   "cellH": 144,
-   "ax": 117,
-   "ay": 112,
-   "dirs": 1,
-   "anims": {
-    "stance": {
-     "start": 0,
-     "frames": 4,
-     "ms": 280,
-     "loop": "loop"
-    },
-    "run": {
-     "start": 0,
-     "frames": 4,
-     "ms": 280,
-     "loop": "loop"
-    },
-    "melee": {
-     "start": 0,
-     "frames": 4,
-     "ms": 280,
-     "loop": "loop"
-    }
-   }
-  },
-  "player": {
-   "img": "player",
-   "cellW": 218,
-   "cellH": 186,
-   "ax": 103,
-   "ay": 138,
-   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
    "anims": {
     "stance": {
      "start": 0,
@@ -1663,419 +1488,610 @@
     },
     "run": {
      "start": 4,
-     "frames": 8,
-     "ms": 90,
-     "loop": "loop"
+     "frames": 4,
+     "ms": 140
     },
     "melee": {
-     "start": 12,
+     "start": 8,
      "frames": 4,
-     "ms": 110,
-     "loop": "loop"
+     "ms": 130
     }
-   },
-   "overlays": {
-    "dagger": "w_dagger",
-    "longsword": "w_longsword",
-    "mace": "w_mace",
-    "battle_axe": "w_battle_axe",
-    "greatsword": "w_greatsword",
-    "longbow": "w_longbow",
-    "leather": "w_leather",
-    "chain": "w_chain",
-    "buckler": "w_buckler",
-    "kite_shield": "w_kite_shield"
    }
   },
-  "vendor": {
-   "img": "vendor",
-   "cellW": 121,
-   "cellH": 117,
-   "ax": 55,
-   "ay": 94,
+  "skeleton": {
+   "img": "skeleton",
+   "cellW": 48,
+   "cellH": 48,
    "dirs": 8,
+   "ax": 24,
+   "ay": 39,
    "anims": {
     "stance": {
      "start": 0,
      "frames": 4,
-     "ms": 320,
+     "ms": 260,
      "loop": "back_forth"
     },
     "run": {
      "start": 4,
-     "frames": 8,
-     "ms": 90,
-     "loop": "loop"
+     "frames": 4,
+     "ms": 140
     },
     "melee": {
-     "start": 12,
+     "start": 8,
      "frames": 4,
-     "ms": 110,
-     "loop": "loop"
+     "ms": 130
+    }
+   }
+  },
+  "skelmage": {
+   "img": "skelmage",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "orc": {
+   "img": "orc",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "ettin": {
+   "img": "ettin",
+   "cellW": 64,
+   "cellH": 64,
+   "dirs": 8,
+   "ax": 32,
+   "ay": 52,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "dragon": {
+   "img": "dragon",
+   "cellW": 80,
+   "cellH": 80,
+   "dirs": 8,
+   "ax": 40,
+   "ay": 65,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "player": {
+   "img": "player",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 1,
+     "ms": 400
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 150
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "vendor": {
+   "img": "vendor",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
     }
    }
   },
   "smith": {
    "img": "smith",
-   "cellW": 121,
-   "cellH": 115,
-   "ax": 55,
-   "ay": 93,
+   "cellW": 48,
+   "cellH": 48,
    "dirs": 8,
+   "ax": 24,
+   "ay": 39,
    "anims": {
     "stance": {
      "start": 0,
      "frames": 4,
-     "ms": 300,
+     "ms": 260,
      "loop": "back_forth"
     },
     "run": {
      "start": 4,
-     "frames": 8,
-     "ms": 90,
-     "loop": "loop"
+     "frames": 4,
+     "ms": 140
     },
     "melee": {
-     "start": 12,
+     "start": 8,
      "frames": 4,
-     "ms": 110,
-     "loop": "loop"
+     "ms": 130
     }
    }
   },
   "bard": {
    "img": "bard",
-   "cellW": 121,
-   "cellH": 115,
-   "ax": 55,
-   "ay": 93,
+   "cellW": 48,
+   "cellH": 48,
    "dirs": 8,
+   "ax": 24,
+   "ay": 39,
    "anims": {
     "stance": {
      "start": 0,
      "frames": 4,
-     "ms": 280,
+     "ms": 260,
      "loop": "back_forth"
     },
     "run": {
      "start": 4,
-     "frames": 8,
-     "ms": 90,
-     "loop": "loop"
+     "frames": 4,
+     "ms": 140
     },
     "melee": {
-     "start": 12,
+     "start": 8,
      "frames": 4,
-     "ms": 110,
-     "loop": "loop"
+     "ms": 130
     }
    }
   },
   "hermit": {
    "img": "hermit",
-   "cellW": 121,
-   "cellH": 116,
-   "ax": 55,
-   "ay": 94,
+   "cellW": 48,
+   "cellH": 48,
    "dirs": 8,
+   "ax": 24,
+   "ay": 39,
    "anims": {
     "stance": {
      "start": 0,
      "frames": 4,
-     "ms": 340,
+     "ms": 260,
      "loop": "back_forth"
     },
     "run": {
      "start": 4,
-     "frames": 8,
-     "ms": 90,
-     "loop": "loop"
+     "frames": 4,
+     "ms": 140
     },
     "melee": {
-     "start": 12,
+     "start": 8,
      "frames": 4,
-     "ms": 110,
-     "loop": "loop"
+     "ms": 130
     }
    }
   },
   "villager2": {
    "img": "villager2",
-   "cellW": 121,
-   "cellH": 115,
-   "ax": 55,
-   "ay": 93,
+   "cellW": 48,
+   "cellH": 48,
    "dirs": 8,
+   "ax": 24,
+   "ay": 39,
    "anims": {
     "stance": {
      "start": 0,
      "frames": 4,
-     "ms": 300,
+     "ms": 260,
      "loop": "back_forth"
     },
     "run": {
      "start": 4,
-     "frames": 8,
-     "ms": 90,
-     "loop": "loop"
+     "frames": 4,
+     "ms": 140
     },
     "melee": {
-     "start": 12,
+     "start": 8,
      "frames": 4,
-     "ms": 110,
-     "loop": "loop"
+     "ms": 130
     }
    }
   },
   "villager3": {
    "img": "villager3",
-   "cellW": 121,
-   "cellH": 115,
-   "ax": 55,
-   "ay": 93,
+   "cellW": 48,
+   "cellH": 48,
    "dirs": 8,
+   "ax": 24,
+   "ay": 39,
    "anims": {
     "stance": {
      "start": 0,
      "frames": 4,
-     "ms": 300,
+     "ms": 260,
      "loop": "back_forth"
     },
     "run": {
      "start": 4,
-     "frames": 8,
-     "ms": 90,
-     "loop": "loop"
+     "frames": 4,
+     "ms": 140
     },
     "melee": {
-     "start": 12,
+     "start": 8,
      "frames": 4,
-     "ms": 110,
-     "loop": "loop"
+     "ms": 130
     }
    }
   },
   "wolf": {
    "img": "wolf",
-   "cellW": 52,
-   "cellH": 70,
-   "ax": 26,
-   "ay": 67,
+   "cellW": 48,
+   "cellH": 48,
    "dirs": 8,
+   "ax": 24,
+   "ay": 39,
    "anims": {
     "stance": {
      "start": 0,
-     "frames": 1,
-     "ms": 400,
-     "loop": "loop"
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
     },
     "run": {
-     "start": 1,
-     "frames": 3,
-     "ms": 140,
-     "loop": "loop"
+     "start": 4,
+     "frames": 4,
+     "ms": 140
     },
     "melee": {
-     "start": 0,
-     "frames": 1,
-     "ms": 400,
-     "loop": "loop"
+     "start": 8,
+     "frames": 4,
+     "ms": 130
     }
    }
   },
   "deer": {
    "img": "deer",
-   "cellW": 64,
-   "cellH": 64,
-   "ax": 32,
-   "ay": 61,
+   "cellW": 48,
+   "cellH": 48,
    "dirs": 8,
+   "ax": 24,
+   "ay": 39,
    "anims": {
     "stance": {
      "start": 0,
-     "frames": 1,
-     "ms": 400,
-     "loop": "loop"
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
     },
     "run": {
-     "start": 1,
-     "frames": 3,
-     "ms": 140,
-     "loop": "loop"
+     "start": 4,
+     "frames": 4,
+     "ms": 140
     },
     "melee": {
-     "start": 0,
-     "frames": 1,
-     "ms": 400,
-     "loop": "loop"
+     "start": 8,
+     "frames": 4,
+     "ms": 130
     }
    }
   },
   "sheep": {
    "img": "sheep",
-   "cellW": 64,
-   "cellH": 64,
-   "ax": 32,
-   "ay": 42,
+   "cellW": 48,
+   "cellH": 48,
    "dirs": 8,
+   "ax": 24,
+   "ay": 39,
    "anims": {
     "stance": {
      "start": 0,
-     "frames": 1,
-     "ms": 400,
-     "loop": "loop"
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
     },
     "run": {
-     "start": 1,
+     "start": 4,
      "frames": 4,
-     "ms": 140,
-     "loop": "loop"
+     "ms": 140
     },
     "melee": {
-     "start": 0,
-     "frames": 1,
-     "ms": 400,
-     "loop": "loop"
+     "start": 8,
+     "frames": 4,
+     "ms": 130
     }
    }
   },
   "pig": {
    "img": "pig",
-   "cellW": 64,
-   "cellH": 64,
-   "ax": 32,
-   "ay": 44,
+   "cellW": 48,
+   "cellH": 48,
    "dirs": 8,
+   "ax": 24,
+   "ay": 39,
    "anims": {
     "stance": {
      "start": 0,
-     "frames": 1,
-     "ms": 400,
-     "loop": "loop"
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
     },
     "run": {
-     "start": 1,
+     "start": 4,
      "frames": 4,
-     "ms": 140,
-     "loop": "loop"
+     "ms": 140
     },
     "melee": {
-     "start": 0,
-     "frames": 1,
-     "ms": 400,
-     "loop": "loop"
+     "start": 8,
+     "frames": 4,
+     "ms": 130
     }
    }
   },
   "chicken": {
    "img": "chicken",
-   "cellW": 32,
-   "cellH": 32,
-   "ax": 16,
-   "ay": 29,
+   "cellW": 48,
+   "cellH": 48,
    "dirs": 8,
+   "ax": 24,
+   "ay": 39,
    "anims": {
     "stance": {
      "start": 0,
-     "frames": 1,
-     "ms": 400,
-     "loop": "loop"
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
     },
     "run": {
-     "start": 1,
+     "start": 4,
      "frames": 4,
-     "ms": 140,
-     "loop": "loop"
+     "ms": 140
     },
     "melee": {
-     "start": 0,
-     "frames": 1,
-     "ms": 400,
-     "loop": "loop"
+     "start": 8,
+     "frames": 4,
+     "ms": 130
     }
    }
   },
   "boar": {
    "img": "boar",
-   "cellW": 64,
-   "cellH": 64,
-   "ax": 32,
-   "ay": 61,
+   "cellW": 48,
+   "cellH": 48,
    "dirs": 8,
+   "ax": 24,
+   "ay": 39,
    "anims": {
     "stance": {
      "start": 0,
-     "frames": 1,
-     "ms": 400,
-     "loop": "loop"
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
     },
     "run": {
-     "start": 1,
-     "frames": 3,
-     "ms": 140,
-     "loop": "loop"
+     "start": 4,
+     "frames": 4,
+     "ms": 140
     },
     "melee": {
-     "start": 0,
-     "frames": 1,
-     "ms": 400,
-     "loop": "loop"
+     "start": 8,
+     "frames": 4,
+     "ms": 130
     }
    }
   },
   "crab": {
    "img": "crab",
    "cellW": 48,
-   "cellH": 64,
-   "ax": 24,
-   "ay": 58,
+   "cellH": 48,
    "dirs": 8,
+   "ax": 24,
+   "ay": 39,
    "anims": {
     "stance": {
      "start": 0,
-     "frames": 1,
-     "ms": 400,
-     "loop": "loop"
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
     },
     "run": {
-     "start": 1,
-     "frames": 3,
-     "ms": 140,
-     "loop": "loop"
+     "start": 4,
+     "frames": 4,
+     "ms": 140
     },
     "melee": {
-     "start": 0,
-     "frames": 1,
-     "ms": 400,
-     "loop": "loop"
+     "start": 8,
+     "frames": 4,
+     "ms": 130
     }
    }
   },
   "snake": {
    "img": "snake",
-   "cellW": 41,
-   "cellH": 41,
-   "ax": 20,
-   "ay": 37,
+   "cellW": 48,
+   "cellH": 48,
    "dirs": 8,
+   "ax": 24,
+   "ay": 39,
    "anims": {
     "stance": {
      "start": 0,
-     "frames": 1,
-     "ms": 400,
-     "loop": "loop"
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
     },
     "run": {
-     "start": 1,
-     "frames": 3,
-     "ms": 140,
-     "loop": "loop"
+     "start": 4,
+     "frames": 4,
+     "ms": 140
     },
     "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "bonelord": {
+   "img": "bonelord",
+   "cellW": 64,
+   "cellH": 64,
+   "dirs": 8,
+   "ax": 32,
+   "ay": 52,
+   "anims": {
+    "stance": {
      "start": 0,
-     "frames": 1,
-     "ms": 400,
-     "loop": "loop"
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "guard": {
+   "img": "guard",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "villager": {
+   "img": "villager",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
     }
    }
   }
