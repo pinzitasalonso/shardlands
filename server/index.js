@@ -116,7 +116,14 @@ const server = http.createServer((req, res) => {
       res.writeHead(404);
       return res.end('Not found');
     }
-    res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
+    const ext = path.extname(file);
+    res.writeHead(200, {
+      'Content-Type': MIME[ext] || 'application/octet-stream',
+      // code and the manifest must never go stale — a cached client from an
+      // older deploy mixed with new data renders a broken world. Sprite
+      // sheets may cache briefly; they change only on asset rebuilds.
+      'Cache-Control': ext === '.png' ? 'max-age=60' : 'no-store',
+    });
     res.end(data);
   });
 });
