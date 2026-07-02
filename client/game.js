@@ -29,12 +29,11 @@ const MOB_STYLE = {
   snake: { color: '#6a8a4a', size: 0.4, name: 'a bog serpent' },
   crab: { color: '#b06a4a', size: 0.4, name: 'a marsh crab' },
   boar: { color: '#6a5240', size: 0.6, name: 'a wild boar' },
-  villager: { color: '#b0a890', size: 0.6, name: 'a villager', sprites: ['player', 'villager2', 'villager3'] },
-  guard: { color: '#8a93a5', size: 0.7, name: 'a town guard', sprite: 'player',
-    overlay: ['chain', 'longsword', 'kite_shield'] },
+  villager: { color: '#b0a890', size: 0.6, name: 'a villager', sprites: ['villager', 'villager2', 'villager3'] },
+  guard: { color: '#8a93a5', size: 0.7, name: 'a town guard' },
   whitestag: { color: '#f0f0e8', size: 0.7, name: 'the White Stag', sprite: 'deer', spriteScale: 1.3, boss: true },
   goblinking: { color: '#5aa040', size: 0.9, name: 'Skarg, the Goblin King', sprite: 'goblin', spriteScale: 1.5, boss: true },
-  bonelord: { color: '#d8d4c8', size: 1.1, name: 'the Bone Lord', sprite: 'skeleton', spriteScale: 1.4, boss: true },
+  bonelord: { color: '#d8d4c8', size: 1.1, name: 'the Bone Lord', spriteScale: 1.15, boss: true },
   wolfking: { color: '#6a625a', size: 0.9, name: 'Greyfang, the Wolf King', sprite: 'wolf', spriteScale: 1.6, boss: true },
   vyrmaur: { color: '#c03828', size: 1.6, name: 'Vyrmaur the Undying', sprite: 'dragon', spriteScale: 2.0, boss: true },
 };
@@ -82,7 +81,14 @@ function weaponLabel(item) {
   return (q && q.name ? q.name + ' ' : '') + (state.weapons[item.id] ? state.weapons[item.id].name : item.id);
 }
 
-Assets.load();
+// The world does not open until the art is in hand: the Play button (and
+// token auto-login) wait on this. If loading fails, Assets.load resolves
+// anyway and the flat-shaded fallback carries the day.
+const assetsReady = Assets.load().then(() => {
+  const btn = document.getElementById('play');
+  btn.disabled = false;
+  btn.textContent = 'Enter the World';
+});
 
 // ---- networking -------------------------------------------------------------
 
@@ -896,16 +902,17 @@ function tryLogin() {
   localStorage.setItem('shardlands:email', email);
   if (name) localStorage.setItem('shardlands:lastname', name);
   loginError('');
-  connect({ email, password, name });
+  assetsReady.then(() => connect({ email, password, name }));
 }
 
 // A saved session token walks straight back into the world — no password,
 // which matters most on a phone. An expired token falls back to the form.
+// Either way, not before the sprites are loaded.
 const savedToken = localStorage.getItem('shardlands:token');
 if (savedToken) {
   const who = localStorage.getItem('shardlands:char');
   loginError(who ? `Returning as ${who}…` : 'Returning to the world…');
-  connect({ token: savedToken });
+  assetsReady.then(() => connect({ token: savedToken }));
 }
 
 document.getElementById('play').addEventListener('click', tryLogin);

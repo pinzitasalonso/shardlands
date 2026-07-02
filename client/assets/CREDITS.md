@@ -23,6 +23,13 @@ Generated atlases are produced by `tools/build-assets.py` from these sources:
   - https://opengameart.org/content/isometric-64x64-medieval-building-tileset
 
 ## Creatures and avatars (`creatures/*.png`)
+- When the purchased sheets are present, ALL creatures, the mounted player
+  knight, villagers, guards and vendor models are sliced from the **Heroic
+  Asset Series** (HAS Creature Pack, HAS Hero Pack, HAS Wildlife) by
+  **Aleksandr Makarov** (@IKnowKingRabbit) — same license terms as the
+  terrain above. Sheep, pig, chicken and crab are tiny original sprites
+  drawn in matching proportions. Without the purchased sheets, the free
+  sources below are used instead:
 - Skeleton, goblin (recolored as the mongbat), hobgoblin (orc), and the
   player/vendor avatar layers are from the **Flare** project
   (https://flarerpg.org, https://github.com/flareteam/flare-game),
