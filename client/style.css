@@ -641,7 +641,7 @@ button { font-family: inherit; cursor: pointer; }
   /* chat: slim strip above the hotbar */
   #chat {
     left: 8px;
-    bottom: calc(112px + env(safe-area-inset-bottom));
+    bottom: calc(132px + env(safe-area-inset-bottom));
     width: min(72vw, 300px);
     min-width: 0;
   }
@@ -656,4 +656,56 @@ button { font-family: inherit; cursor: pointer; }
   .login-box { padding: 22px 18px; margin: 0 10px; }
   .login-box h1 { font-size: 30px; letter-spacing: 4px; }
   .help { display: none; } /* keyboard hints mean nothing to a thumb */
+}
+
+/* ---- HAS pixel chrome -------------------------------------------------------
+   Every panel wears a 9-sliced window frame from KingRabbit's HAS UI pack
+   (16px slices; big dialogs draw them 1:1, HUD cards at 12px, buttons at
+   8px). The old gradient backgrounds remain underneath as the fallback if
+   the images ever fail to load. */
+
+#player-frame, #target-frame, #char-panel, #minimap-wrap, #actions,
+#chat-log, #chat-input, #shop, #inventory, #settings, .login-box {
+  border: 12px solid transparent;
+  border-image: url('assets/ui/panel.png') 16 / 12px round;
+  border-radius: 0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+  image-rendering: pixelated;
+}
+
+#shop, #inventory, #settings, .login-box {
+  border-width: 16px;
+  border-image-width: 16px;
+}
+
+#actions button, .shop-close, .shop-row button, .login-box > button,
+#skills-toggle, #deeds-toggle, .inv-row button, .iw-actions button {
+  border: 8px solid transparent;
+  border-image: url('assets/ui/button.png') 16 fill / 8px round;
+  border-radius: 0;
+  image-rendering: pixelated;
+  color: #f4e9c8;
+  text-shadow: 0 1px 2px rgba(20, 10, 4, 0.8);
+}
+
+#actions button:hover, .shop-close:hover, .shop-row button:hover,
+.login-box > button:hover, #skills-toggle:hover, #deeds-toggle:hover {
+  filter: brightness(1.18);
+}
+
+#target-frame { border-image-source: url('assets/ui/panel-silver.png'); }
+#target-frame.boss { border-image-source: url('assets/ui/panel.png'); }
+
+.bar { border: 2px solid #6a5430; }
+
+/* the pixel gauntlet points the way */
+body, button { cursor: url('assets/ui/cursor.png') 2 2, auto; }
+
+@media (max-width: 700px) {
+  /* thinner pixel frames on phone-sized panels */
+  #player-frame, #target-frame, #char-panel, #minimap-wrap, #actions,
+  #chat-log, #chat-input {
+    border-width: 8px;
+    border-image-width: 8px;
+  }
 }
