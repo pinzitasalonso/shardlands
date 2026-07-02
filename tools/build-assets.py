@@ -416,15 +416,17 @@ def trim_object(sheet, box, name, frames, img, scale=None):
 
 # ---- top-down 16px tileset -------------------------------------------------------
 #
-# The renderer is top-down square (16px art drawn at 3x = 48px tiles), sized
-# for KingRabbit-style pixel packs. Until purchased sheets land in
-# tools/asset-src/heroic/ (gitignored — paid art must never be committed),
-# build_topdown() draws a procedural placeholder set in the EXACT atlas and
-# manifest shape the real art will use: swap the drawing code for slicing
-# recipes and nothing else changes.
+# The renderer is top-down square (16px art drawn at 3x = 48px tiles). When
+# the purchased KingRabbit sheets are present in tools/asset-src/heroic/
+# (gitignored — the raw packs must never be committed; the composed atlases
+# ship "as part of a game", which the HAS license explicitly allows with
+# attribution), build_topdown() slices them. Without the sheets it draws
+# the procedural placeholder set in the same atlas + manifest shape.
 
 TD = 16  # native pixel size of a top-down tile
 TD_SCALE = 3  # drawn at 3x on screen
+
+HEROIC = os.path.join(SRC, 'heroic', 'KingRabbit')
 
 TD_PALETTES = {
     'grass':  ['#6d7f38', '#76883e', '#7f9244', '#687a36', '#5c6e30'],
@@ -445,6 +447,139 @@ def hexrgb(s):
 
 
 def build_topdown(frames, images_out):
+    if os.path.isdir(HEROIC):
+        return build_topdown_heroic(frames, images_out)
+    print('heroic sheets not found — using the procedural placeholder tileset')
+    return build_topdown_placeholder(frames, images_out)
+
+
+# ---- the real thing: slicing recipes for KingRabbit's HAS packs -------------------
+# All cell references are (col, row) into 16px-grid sheets.
+
+HAS_SHEETS = {
+    'GB': 'HAS Overworld 2.1/GrassBiome/GB-LandTileset.png',
+    'IB': 'HAS Overworld 2.1/IceBiome/IB-LandTileset.png',
+    'MB': 'HAS Overworld 2.1/MarshBiome/MB-LandTileset.png',
+    'SB': 'HAS Overworld 2.1/SandBiome/SB-LandTileset.png',
+    'DB': 'HAS Overworld 2.1/DirtBiome/DB-LandTileset.png',
+    'OCEAN': 'HAS Overworld 2.1/Universal/Universal-Ocean-Static.png',
+    'ROAD': 'HAS Overworld 2.1/Universal/Universal-Road-Tileset.png',
+    'TREES': 'HAS Overworld 2.1/Universal/Universal-Trees-And-Mountains.png',
+    'BLDG': 'HAS Overworld 2.1/Universal/Universal-Buildings-and-walls.png',
+    'DNG': 'HAS Dungeon (v.1.01)/Dungeon/Dungeon-Tileset.png',
+}
+
+# Ground variants (each biome LandTileset shares one template; the textured
+# field block lives at cols 1-6, rows 14-16).
+HAS_GROUNDS = {
+    'grass':  [('GB', 1, 14), ('GB', 4, 14), ('GB', 5, 15), ('GB', 5, 16)],
+    'snow':   [('IB', 1, 14), ('IB', 4, 14), ('IB', 5, 15), ('IB', 5, 16)],
+    'swamp':  [('MB', 1, 14), ('MB', 4, 15), ('MB', 5, 15), ('MB', 5, 16)],
+    'sand':   [('SB', 1, 14), ('SB', 4, 14), ('SB', 5, 15), ('SB', 5, 16)],
+    'dirt':   [('DB', 1, 14), ('DB', 4, 14), ('DB', 5, 15), ('DB', 5, 16)],
+    'water':  [('OCEAN', 0, 0), ('OCEAN', 1, 0), ('OCEAN', 2, 0), ('OCEAN', 6, 2)],
+    'road':   [('ROAD', 14, 1)],                       # brown dirt road, seamless centre
+    'floor':  [('DNG', 1, 7), ('DNG', 1, 12)],         # dungeon stone slabs
+    'planks': [('ROAD', 14, 6)],                       # pale cobbled boardwalk
+    'cave':   [('DNG', 1, 19), ('DNG', 4, 19)],        # brown rubble floor
+}
+
+# Scenery stamps: 16px cells designed to fill their tile (HoMM-style forest
+# clusters), so the client draws them un-jittered.
+HAS_OBJECTS = {
+    'oak0':   ('TREES', 1, 1), 'oak1': ('TREES', 2, 1), 'oak2': ('TREES', 3, 1),
+    'pine0':  ('TREES', 1, 10), 'pine1': ('TREES', 2, 10),
+    'dead0':  ('TREES', 14, 1), 'dead1': ('TREES', 15, 1),
+    'snowpine0': ('TREES', 40, 1), 'snowpine1': ('TREES', 41, 1),
+    'swamptree0': ('TREES', 1, 13), 'swamptree1': ('TREES', 2, 13),
+    'rock0':  ('TREES', 1, 23), 'rock1': ('TREES', 2, 23),
+    'flower': ('GB', 2, 0), 'tuft': ('GB', 3, 0),
+    'stone0': ('GB', 4, 0), 'twig': ('GB', 8, 1),
+    'snowdecor0': ('IB', 2, 0), 'snowdecor1': ('IB', 4, 0),
+    'sanddecor0': ('SB', 2, 0), 'sanddecor1': ('SB', 4, 0),
+    'swampdecor0': ('MB', 2, 0), 'mushroom': ('TREES', 1, 28),
+    'table':  ('BLDG', 2, 4), 'stool': ('BLDG', 1, 4),
+    'well':   ('DNG', 15, 1),  # a stout barrel-well until a better match
+    'chest':  ('DNG', 12, 0),
+    # wall autotile pieces (grey stone set): the sheet's top strip is a
+    # complete horizontal wall (capL, middle, capR), the left column a
+    # complete vertical one, and the keep corners have little towers
+    'wall.h': ('BLDG', 2, 0), 'wall.v': ('BLDG', 0, 2),
+    'wall.tl': ('BLDG', 1, 1), 'wall.tr': ('BLDG', 3, 1),
+    'wall.bl': ('BLDG', 1, 3), 'wall.br': ('BLDG', 3, 3),
+    'wall.capL': ('BLDG', 1, 0), 'wall.capR': ('BLDG', 3, 0),
+    'wall.capT': ('BLDG', 0, 1), 'wall.capB': ('BLDG', 0, 3),
+}
+
+
+def build_topdown_heroic(frames, images_out):
+    sheets = {k: Image.open(os.path.join(HEROIC, p)).convert('RGBA')
+              for k, p in HAS_SHEETS.items()}
+    cell = lambda ref: sheets[ref[0]].crop(
+        (ref[1] * TD, ref[2] * TD, ref[1] * TD + TD, ref[2] * TD + TD))
+
+    kinds = list(HAS_GROUNDS)
+    ground = Image.new('RGBA', (4 * TD, len(kinds) * TD), (0, 0, 0, 0))
+    for row, kind in enumerate(kinds):
+        refs = HAS_GROUNDS[kind]
+        for v, ref in enumerate(refs):
+            ground.paste(cell(ref), (v * TD, row * TD))
+            frames[f'td.g.{kind}.{v}'] = {'img': 'ground16', 'x': v * TD, 'y': row * TD,
+                                          'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+
+    names = list(HAS_OBJECTS)
+    objects = Image.new('RGBA', (len(names) * TD, TD), (0, 0, 0, 0))
+    for i, name in enumerate(names):
+        objects.paste(cell(HAS_OBJECTS[name]), (i * TD, 0))
+        if name.startswith('wall.'):
+            # walls draw like ground: anchored at the tile's top-left
+            frames[f'td.{name}'] = {'img': 'objects16', 'x': i * TD, 'y': 0, 'w': TD, 'h': TD,
+                                    'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+        else:
+            # stamps fill their tile: anchor bottom-centre of the cell
+            frames[f'td.o.{name}'] = {'img': 'objects16', 'x': i * TD, 'y': 0, 'w': TD, 'h': TD,
+                                      'ax': TD // 2, 'ay': TD, 'scale': TD_SCALE}
+
+    ground.save(os.path.join(OUT, 'ground16.png'))
+    objects.save(os.path.join(OUT, 'objects16.png'))
+    images_out['ground16'] = 'ground16.png'
+    images_out['objects16'] = 'objects16.png'
+
+    g = lambda kind: [f'td.g.{kind}.{v}' for v in range(len(HAS_GROUNDS[kind]))]
+    autowall = {k: f'td.wall.{k}' for k in
+                ('h', 'v', 'tl', 'tr', 'bl', 'br', 'capL', 'capR', 'capT', 'capB')}
+    return {
+        '0': {'ground': g('water'), 'effect': 'water'},
+        '1': {'ground': g('grass'), 'stamp': True,
+              'decor': {'chance': 0.05,
+                        'objects': ['td.o.flower', 'td.o.tuft', 'td.o.stone0', 'td.o.twig']}},
+        '2': {'ground': g('grass'), 'stamp': True,
+              'object': ['td.o.oak0', 'td.o.oak1', 'td.o.oak2', 'td.o.pine0', 'td.o.dead0'],
+              'objectSets': [
+                  ['td.o.oak0', 'td.o.oak1', 'td.o.oak2', 'td.o.oak0', 'td.o.dead0'],
+                  ['td.o.pine0', 'td.o.pine1', 'td.o.pine0', 'td.o.pine1', 'td.o.dead1'],
+                  ['td.o.dead0', 'td.o.dead1', 'td.o.pine1'],
+              ]},
+        '3': {'ground': g('dirt'), 'stamp': True, 'object': ['td.o.rock0', 'td.o.rock1']},
+        '4': {'ground': g('road')},
+        '5': {'ground': g('floor')},
+        '6': {'ground': g('grass'), 'autowall': autowall},
+        '7': {'ground': g('sand'), 'stamp': True,
+              'decor': {'chance': 0.04, 'objects': ['td.o.sanddecor0', 'td.o.sanddecor1']}},
+        '8': {'ground': g('floor'), 'effect': 'shrine'},
+        '9': {'ground': g('snow'), 'stamp': True,
+              'decor': {'chance': 0.04, 'objects': ['td.o.snowdecor0', 'td.o.snowdecor1']}},
+        '10': {'ground': g('snow'), 'stamp': True, 'object': ['td.o.snowpine0', 'td.o.snowpine1']},
+        '11': {'ground': g('planks')},
+        '12': {'ground': g('swamp'), 'stamp': True,
+               'decor': {'chance': 0.05, 'objects': ['td.o.swampdecor0', 'td.o.mushroom']}},
+        '13': {'ground': g('swamp'), 'stamp': True,
+               'object': ['td.o.swamptree0', 'td.o.swamptree1']},
+        '14': {'ground': g('cave')},
+    }
+
+
+def build_topdown_placeholder(frames, images_out):
     import random
     rng = random.Random(20260613)
     kinds = ['grass', 'water', 'sand', 'snow', 'swamp', 'dirt', 'floor',
