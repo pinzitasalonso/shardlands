@@ -6,6 +6,10 @@ here; these assets merely evoke the same isometric style.
 
 Generated atlases are produced by `tools/build-assets.py` from these sources:
 
+## UI chrome (`ui/*.png`)
+- Window frames, buttons and the cursor are sliced from **HAS UI** by
+  **Aleksandr Makarov** (@IKnowKingRabbit), same license terms as below.
+
 ## Top-down terrain and scenery (`ground16.png`, `objects16.png`)
 - Sliced from the **Heroic Asset Series** (HAS Overworld 2.1, HAS Dungeon)
   by **Aleksandr Makarov** (@IKnowKingRabbit) -- purchased packs, used and

@@ -759,6 +759,27 @@ CRITTERS = {
 }
 
 
+
+# ---- HAS UI: window frames, buttons, cursor for the HTML chrome -------------------
+
+def build_has_ui():
+    ui_src = os.path.join(HEROIC, 'HAS UI')
+    out = os.path.join(OUT, 'ui')
+    os.makedirs(out, exist_ok=True)
+    # each sheet is a demo layout; crop just the clean window for 9-slicing
+    picks = {
+        'panel.png': ('Windows/sheet_window__12.png', (0, 0, 64, 64)),  # gold-ornate
+        'button.png': ('Windows/sheet_window__10.png', (0, 0, 48, 48)),  # warm wood
+        'panel-silver.png': ('Windows/sheet_window__17.png', (0, 0, 48, 48)),
+    }
+    for dst, (rel, box) in picks.items():
+        Image.open(os.path.join(ui_src, rel)).convert('RGBA').crop(box).save(
+            os.path.join(out, dst))
+    cur = Image.open(os.path.join(ui_src, 'Cursors/Cursor_1.png')).convert('RGBA')
+    cur.resize((cur.width * 2, cur.height * 2), Image.NEAREST).save(os.path.join(out, 'cursor.png'))
+    print('ui chrome baked from HAS UI')
+
+
 def build_topdown_placeholder(frames, images_out):
     import random
     rng = random.Random(20260613)
@@ -1170,6 +1191,7 @@ def main():
     # Purchased HAS sheets replace the free-art creatures wholesale.
     if os.path.isdir(HEROIC):
         creatures.update(build_has_creatures())
+        build_has_ui()
 
     td_images = {}
     tiles_td = build_topdown(frames, td_images)
