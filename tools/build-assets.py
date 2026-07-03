@@ -547,6 +547,34 @@ def build_topdown_heroic(frames, images_out):
     images_out['ground16'] = 'ground16.png'
     images_out['objects16'] = 'objects16.png'
 
+    # Biome fringes: every land tileset carries a tufty 3x3 blob at cells
+    # (10-12, 14-16) — its edges are the pack's own soft transitions. Slice
+    # four 6px strips per biome; the client overlays a higher-priority
+    # neighbour's strip onto this tile, so grass tufts spill over sand,
+    # snow drifts over grass, and biome seams stop being hard staircases.
+    FRINGE_SHEETS = {'grass': 'GB', 'snow': 'IB', 'swamp': 'MB', 'sand': 'SB', 'dirt': 'DB'}
+    FR = 6  # strip depth in source pixels
+    PIECES = ['n', 's', 'w', 'e']
+    fringe = Image.new('RGBA', (len(PIECES) * TD, len(FRINGE_SHEETS) * TD), (0, 0, 0, 0))
+    for row, (kind, sk) in enumerate(FRINGE_SHEETS.items()):
+        sh = sheets[sk]
+        blob = lambda cx, cy, box: sh.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16)).crop(box)
+        # strip cropped from the blob edge facing the neighbour, pasted where
+        # it lands on the RECEIVING tile (n = neighbour to the north, etc.)
+        strips = {
+            'n': (blob(11, 16, (0, 16 - FR, 16, 16)), (0, 0)),
+            's': (blob(11, 14, (0, 0, 16, FR)), (0, 16 - FR)),
+            'w': (blob(12, 15, (16 - FR, 0, 16, 16)), (0, 0)),
+            'e': (blob(10, 15, (0, 0, FR, 16)), (16 - FR, 0)),
+        }
+        for i, p in enumerate(PIECES):
+            im, (ox, oy) = strips[p]
+            fringe.paste(im, (i * TD + ox, row * TD + oy))
+            frames[f'td.fr.{kind}.{p}'] = {'img': 'fringe16', 'x': i * TD, 'y': row * TD,
+                                           'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+    fringe.save(os.path.join(OUT, 'fringe16.png'))
+    images_out['fringe16'] = 'fringe16.png'
+
     # dungeon brick wall cells + a torch, straight from the dungeon tileset
     dng = sheets['DNG'] if False else Image.open(os.path.join(HEROIC, HAS_SHEETS['DNG'])).convert('RGBA')
     extra = Image.new('RGBA', (9 * TD, 2 * TD), (0, 0, 0, 0))
