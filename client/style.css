@@ -713,5 +713,14 @@ body, button { cursor: url('assets/ui/cursor.png') 2 2, auto; }
 }
 
 /* pixel icons from the HAS packs */
-.slot-img { width: 32px; height: 32px; image-rendering: pixelated; margin-top: 5px; pointer-events: none; }
+.slot-img {
+  position: absolute;
+  inset: 3px;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+#actions kbd, #actions .count { z-index: 1; }
 .px-icon { width: 22px; height: 22px; image-rendering: pixelated; vertical-align: middle; }

@@ -1317,7 +1317,6 @@
     "td.g.grass.2",
     "td.g.grass.3"
    ],
-   "stamp": true,
    "decor": {
     "chance": 0.05,
     "objects": [
@@ -1335,7 +1334,6 @@
     "td.g.grass.2",
     "td.g.grass.3"
    ],
-   "stamp": true,
    "object": [
     "td.o.oak0",
     "td.o.oak1",
@@ -1372,7 +1370,6 @@
     "td.g.dirt.2",
     "td.g.dirt.3"
    ],
-   "stamp": true,
    "object": [
     "td.o.rock0",
     "td.o.rock1"
@@ -1416,7 +1413,6 @@
     "td.g.sand.2",
     "td.g.sand.3"
    ],
-   "stamp": true,
    "decor": {
     "chance": 0.04,
     "objects": [
@@ -1439,7 +1435,6 @@
     "td.g.snow.2",
     "td.g.snow.3"
    ],
-   "stamp": true,
    "decor": {
     "chance": 0.04,
     "objects": [
@@ -1455,7 +1450,6 @@
     "td.g.snow.2",
     "td.g.snow.3"
    ],
-   "stamp": true,
    "object": [
     "td.o.snowpine0",
     "td.o.snowpine1"
@@ -1473,7 +1467,6 @@
     "td.g.swamp.2",
     "td.g.swamp.3"
    ],
-   "stamp": true,
    "decor": {
     "chance": 0.05,
     "objects": [
@@ -1489,7 +1482,6 @@
     "td.g.swamp.2",
     "td.g.swamp.3"
    ],
-   "stamp": true,
    "object": [
     "td.o.swamptree0",
     "td.o.swamptree1"
