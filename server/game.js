@@ -76,6 +76,22 @@ const MOB_KINDS = {
   // The Crimson Count sleeps beneath the second ruined keep, and every
   // wound he deals feeds him.
   vampire: { name: 'the Crimson Count', hp: 280, dmg: [12, 22], skill: 88, gold: 420, speedMs: 350, aggro: 10, boss: true, vampiric: true },
+  // The mountain clans: miners work the high quarries under the halberds
+  // of their wardens. Peaceful — but the wardens answer anything hostile.
+  dwarf: { name: 'a dwarf miner', hp: 40, dmg: [3, 7], skill: 40, gold: 0, speedMs: 600, aggro: 0, peaceful: true },
+  dwarfguard: { name: 'a dwarf warden', hp: 150, dmg: [9, 16], skill: 80, gold: 0, speedMs: 400, aggro: 0, peaceful: true, guard: true },
+  dwarfpriest: { name: 'a rune-priest', hp: 60, dmg: [2, 5], skill: 50, gold: 0, speedMs: 650, aggro: 0, peaceful: true },
+  // The warlord's own: harder company than the common camps, and Gruk
+  // himself under the white-crested banner.
+  orcbrute: { name: 'an orc brute', hp: 82, dmg: [7, 13], skill: 62, gold: 45, speedMs: 500, aggro: 8 },
+  orcwarlord: { name: 'Gruk, Warlord of the Wastes', hp: 340, dmg: [14, 24], skill: 90, gold: 520, speedMs: 380, aggro: 10, boss: true },
+  // The deep-wood folk suffer no trespass beneath their pines.
+  elfranger: { name: 'an elf ranger', hp: 45, dmg: [4, 8], skill: 60, gold: 30, speedMs: 350, aggro: 5, caster: { range: 8, dmg: [5, 10], cdMs: 2200, fx: 'arrow' } },
+  dryad: { name: 'a dryad', hp: 35, dmg: [3, 7], skill: 45, gold: 22, speedMs: 400, aggro: 4 },
+  treant: { name: 'an elder treant', hp: 190, dmg: [10, 18], skill: 75, gold: 95, speedMs: 800, aggro: 5 },
+  // The mire-folk of the sunken warren.
+  lizardman: { name: 'a lizardman warrior', hp: 55, dmg: [5, 11], skill: 60, gold: 35, speedMs: 420, aggro: 7 },
+  raptor: { name: 'a swamp raptor', hp: 38, dmg: [4, 9], skill: 50, gold: 12, speedMs: 280, aggro: 8 },
 };
 
 const VILLAGER_NAMES = ['Tomlin', 'Berta', 'Old Casso', 'Wilmot', 'Ysolde', 'Pell',
@@ -92,6 +108,16 @@ const VILLAGER_LINES = [
   'Gems! A fellow came through with a fistful of gems last week.',
   'My grandmother swore something old sleeps at the rim of the world.',
 ];
+
+// The quarry clans keep their own counsel.
+const DWARF_LINES = [
+  'The seam runs deep here, and the ore runs true.',
+  'Ettins took the east quarry. We do not speak of the east quarry.',
+  'Mind thy boots. The last one who kicked over a rune-stone limps yet.',
+  'The mountain gives to those who ask with a pick, not a sword.',
+  'We sell nothing. We owe nothing. Good day to thee.',
+];
+const GOSSIP_LINES = { dwarf: DWARF_LINES, dwarfguard: DWARF_LINES, dwarfpriest: DWARF_LINES };
 
 // What corpses leave behind, beyond the guaranteed gold: [chance, item, min, max].
 // Weapon rows are [chance, 'weapon', pool of ids, qualityMin, qualityMax].
@@ -118,6 +144,16 @@ const LOOT_TABLES = {
   wolfrider: [[0.28, 'gold', 12, 30], [0.1, 'heal', 1, 1], [0.06, 'weapon', ['mace', 'sword'], 0, 2]],
   vampire: [[1, 'gold', 200, 450], [1, 'gems', 2, 4], [0.6, 'heal', 1, 2], [0.6, 'mana', 1, 2],
             [1, 'weapon', ['greatsword', 'battleaxe'], 2, 4], [0.5, 'tmap']],
+  orcbrute: [[0.3, 'gold', 20, 45], [0.14, 'heal', 1, 1], [0.12, 'ore', 1, 3],
+             [0.08, 'weapon', ['mace', 'battleaxe'], 0, 2], [0.05, 'tmap']],
+  orcwarlord: [[1, 'gold', 250, 500], [1, 'gems', 2, 3], [0.7, 'heal', 1, 2],
+               [1, 'weapon', ['battleaxe', 'greatsword'], 2, 4], [0.6, 'tmap']],
+  elfranger: [[0.3, 'gold', 12, 30], [0.1, 'mana', 1, 1], [0.1, 'weapon', ['longbow'], 1, 3]],
+  dryad: [[0.3, 'gold', 8, 20], [0.15, 'mana', 1, 2], [0.2, 'logs', 1, 3]],
+  treant: [[0.6, 'gold', 40, 100], [0.8, 'logs', 4, 9], [0.3, 'gems', 1, 2]],
+  lizardman: [[0.3, 'gold', 14, 34], [0.1, 'heal', 1, 1], [0.08, 'gems', 1, 1],
+              [0.06, 'weapon', ['sword', 'mace'], 0, 2]],
+  raptor: [[0.3, 'gold', 5, 14], [0.4, 'meat', 1, 2]],
 };
 
 // Mirrors the client's sky exactly (same clock, same curve): darkness is 0
@@ -1532,7 +1568,7 @@ class Game {
       // Casters bombard from range.
       if (def.caster && d <= def.caster.range && d > 1.5 && t >= (mob.castAt || 0)) {
         mob.castAt = t + def.caster.cdMs;
-        this.fxNear(mob, { t: 'fx', kind: 'mbolt', x: mob.x, y: mob.y, tx: target.x, ty: target.y });
+        this.fxNear(mob, { t: 'fx', kind: def.caster.fx || 'mbolt', x: mob.x, y: mob.y, tx: target.x, ty: target.y });
         this.hitPlayer(target, rand(def.caster.dmg[0], def.caster.dmg[1]), mob.name || def.name);
         return;
       }
@@ -1565,9 +1601,10 @@ class Game {
       for (const p of this.players.values()) {
         if (dist(mob, p) <= 7) {
           mob.chatAt = t + 25_000;
+          const lines = GOSSIP_LINES[mob.kind] || VILLAGER_LINES;
           this.fxNear(mob, {
             t: 'chat', id: mob.id, name: mob.name || def.name,
-            text: VILLAGER_LINES[rand(0, VILLAGER_LINES.length - 1)],
+            text: lines[rand(0, lines.length - 1)],
           });
           break;
         }

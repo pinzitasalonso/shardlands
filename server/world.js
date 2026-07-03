@@ -538,9 +538,12 @@ function generate(seed = 1337) {
     openMouth(warrenMouth, 5, {
       wander: 0.7, // tight crooked tunnels
       steps: 850,
-      keepers: [['goblin', 8, 'mid', 18], ['snake', 4, 'mid', 14], ['goblin', 5, 'far', 8]],
+      // the goblins dug it; the lizardmen rose out of the deep water and took it
+      keepers: [['goblin', 5, 'mid', 18], ['snake', 3, 'mid', 14],
+                ['lizardman', 6, 'mid', 16], ['raptor', 3, 'mid', 14],
+                ['lizardman', 5, 'far', 8]],
       loot: [['gold', 220, 450], ['gems', 1, 3], ['mana', 1, 2]],
-    }, 'A goblin-dug shaft yawns out of the mire, shored with stolen timber. Voices echo below.');
+    }, 'A goblin-dug shaft yawns out of the mire — but the tracks going down are clawed, and wet.');
     props.push({ x: warrenMouth.x + 1, y: warrenMouth.y + 1, name: 'prop.snakelair' });
   }
 
@@ -654,7 +657,11 @@ function generate(seed = 1337) {
     }
   });
 
-  // ---- Quarries: rich rock, guarded ------------------------------------------------
+  // ---- Quarries: rich rock, worked or overrun ---------------------------------------
+  // Half the quarries are dwarf-worked: miners at the rock, halberdier
+  // wardens at the gate, a rune-priest by the fire. The rest the clans
+  // lost to the ettins, and they'd pay to see them retaken.
+  let quarryIdx = 0;
   scatter(6, 1600, (s) => {
     for (let i = 0; i < 10; i++) {
       const a = rng() * Math.PI * 2;
@@ -664,7 +671,18 @@ function generate(seed = 1337) {
       if (get(x, y) !== TILE.WATER) set(x, y, TILE.ROCK);
     }
     props.push({ x: s.x + 1, y: s.y - 2, name: 'prop.dwarffortress' });
-    spawners.push({ kind: 'ettin', count: 2, x: s.x, y: s.y, r: 8 });
+    if (quarryIdx++ % 2 === 0) {
+      spawners.push({ kind: 'dwarf', count: 4, x: s.x, y: s.y, r: 7 });
+      spawners.push({ kind: 'dwarfguard', count: 2, x: s.x, y: s.y, r: 6 });
+      spawners.push({ kind: 'dwarfpriest', count: 1, x: s.x, y: s.y, r: 5 });
+      props.push({ x: s.x - 2, y: s.y + 2, name: 'fx.campfire' });
+      secrets.push({ type: 'whisper', x: s.x, y: s.y + 4,
+        text: 'Hammer-song rings off the rock. The wardens watch you over their beards.' });
+    } else {
+      spawners.push({ kind: 'ettin', count: 2, x: s.x, y: s.y, r: 8 });
+      secrets.push({ type: 'whisper', x: s.x, y: s.y + 4,
+        text: 'Broken pick-hafts and a cold forge. Whatever drove the dwarves out is still here.' });
+    }
     secrets.push({ type: 'cache', x: s.x, y: s.y, loot: [['gold', 60, 140], ['gems', 0, 1]] });
   });
 
@@ -703,8 +721,36 @@ function generate(seed = 1337) {
     if (rng() > 0.7) props.push({ x: sp.x + 1, y: sp.y + 1, name: 'prop.stool' });
   });
 
+  // ---- The deep pinewood belongs to the elves ---------------------------------------
+  // Where the trees grow thickest, the wood-folk keep their groves: rangers
+  // in the branches, dryads among the blossom, an elder treant at the heart.
+  // They suffer no trespass.
+  let groves = 0;
+  for (let gy = 96; gy < H - 96 && groves < 5; gy += 80) {
+    for (let gx = 96; gx < W - 96 && groves < 5; gx += 80) {
+      if (Math.hypot(gx - CX, gy - CY) < 250) continue;
+      let wood = 0;
+      for (let dy = -7; dy <= 7; dy += 2) {
+        for (let dx = -7; dx <= 7; dx += 2) {
+          const t = get(gx + dx, gy + dy);
+          if (t === TILE.TREE || t === TILE.SNOWTREE) wood++;
+        }
+      }
+      if (wood >= 26) {
+        spawners.push({ kind: 'elfranger', count: 3, x: gx, y: gy, r: 9 });
+        spawners.push({ kind: 'dryad', count: 3, x: gx, y: gy, r: 8 });
+        spawners.push({ kind: 'treant', count: 1, x: gx, y: gy, r: 5, respawnMs: 120_000 });
+        secrets.push({ type: 'whisper', x: gx, y: gy + 6,
+          text: 'The birdsong stops. Every tree here seems to be watching you.' });
+        secrets.push({ type: 'cache', x: gx, y: gy,
+          loot: [['gold', 70, 160], ['mana', 1, 2], ['gems', 0, 2]] });
+        groves++;
+      }
+    }
+  }
+
   // ---- The mires breed their own trouble -------------------------------------------
-  const swampKinds = ['snake', 'crab', 'boar'];
+  const swampKinds = ['snake', 'crab', 'boar', 'lizardman', 'raptor'];
   let swampSpawners = 0;
   for (let gy = 64; gy < H - 64 && swampSpawners < 16; gy += 96) {
     for (let gx = 64; gx < W - 64 && swampSpawners < 16; gx += 96) {
@@ -716,7 +762,7 @@ function generate(seed = 1337) {
         }
       }
       if (wet >= 20) {
-        spawners.push({ kind: swampKinds[swampSpawners % 3], count: 4, x: gx, y: gy, r: 9 });
+        spawners.push({ kind: swampKinds[swampSpawners % swampKinds.length], count: 4, x: gx, y: gy, r: 9 });
         swampSpawners++;
       }
     }
@@ -742,6 +788,23 @@ function generate(seed = 1337) {
   if (wolfSpot) {
     spawners.push({ kind: 'wolfking', count: 1, x: wolfSpot.x, y: wolfSpot.y, r: 4, respawnMs: 300_000 });
     spawners.push({ kind: 'wolf', count: 5, x: wolfSpot.x, y: wolfSpot.y, r: 9 });
+  }
+  // Gruk's warcamp: the orc warbands answer to one banner, planted far out
+  // in the wastes with his brutes and outriders camped around it.
+  const grukSpot = settle(CX + (rng() - 0.5) * 1600, CY + 500 + rng() * 400, 200, 10);
+  if (grukSpot) {
+    flatten(grukSpot.x, grukSpot.y, 8);
+    props.push({ x: grukSpot.x, y: grukSpot.y - 2, name: 'fx.campfire' });
+    props.push({ x: grukSpot.x - 4, y: grukSpot.y + 3, name: 'fx.campfire' });
+    props.push({ x: grukSpot.x + 4, y: grukSpot.y + 3, name: 'fx.campfire' });
+    spawners.push({ kind: 'orcwarlord', count: 1, x: grukSpot.x, y: grukSpot.y, r: 4, respawnMs: 300_000 });
+    spawners.push({ kind: 'orcbrute', count: 4, x: grukSpot.x, y: grukSpot.y, r: 8 });
+    spawners.push({ kind: 'wolfrider', count: 3, x: grukSpot.x, y: grukSpot.y, r: 10 });
+    spawners.push({ kind: 'orc', count: 5, x: grukSpot.x, y: grukSpot.y, r: 12 });
+    secrets.push({ type: 'cache', x: grukSpot.x + 2, y: grukSpot.y,
+      loot: [['gold', 180, 400], ['gems', 1, 3], ['heal', 1, 2]] });
+    secrets.push({ type: 'whisper', x: grukSpot.x, y: grukSpot.y - 8,
+      text: 'War-drums. Banner poles. Every orc track in the wastes bends toward this place.' });
   }
 
   // ---- At the rim of the world, something older than the dragons sleeps ----------
