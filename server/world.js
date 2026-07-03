@@ -201,9 +201,9 @@ function generate(seed = 1337) {
   // ---- Briarhaven: the capital at the heart of the island ---------------------
   const CX = W / 2;
   const CY = H / 2;
-  flatten(CX, CY, 22);
-  for (let y = CY - 12; y <= CY + 12; y++) {
-    for (let x = CX - 12; x <= CX + 12; x++) set(x, y, TILE.FLOOR);
+  flatten(CX, CY, 30);
+  for (let y = CY - 16; y <= CY + 16; y++) {
+    for (let x = CX - 16; x <= CX + 16; x++) set(x, y, TILE.FLOOR);
   }
   building(CX - 11, CY - 11, 8, 6, CX - 7, CY - 6);  // smithy
   building(CX + 4, CY - 11, 8, 6, CX + 8, CY - 6);   // inn
@@ -241,6 +241,34 @@ function generate(seed = 1337) {
       { item: 'mana', name: 'Mana Potion', price: 35, desc: 'Restores 20-30 mana.' },
     ],
   });
+  // ---- the capital's ramparts: the crown city finally wears its walls ---------
+  for (let x = CX - 20; x <= CX + 20; x++) {
+    if (Math.abs(x - CX) <= 1) set(x, CY + 18, TILE.ROAD); // south gate
+    else set(x, CY + 18, TILE.WALL);
+    set(x, CY - 18, TILE.WALL); // north face runs into the castle precinct
+  }
+  for (let y = CY - 18; y <= CY + 18; y++) {
+    if (Math.abs(y - CY) <= 1) {
+      set(CX - 20, y, TILE.ROAD); // west gate
+      set(CX + 20, y, TILE.ROAD); // east gate
+    } else {
+      set(CX - 20, y, TILE.WALL);
+      set(CX + 20, y, TILE.WALL);
+    }
+  }
+  // the outer ring: cottages, stalls and townsfolk between plaza and wall
+  props.push({ x: CX - 18, y: CY + 7, name: 'prop.cottage0' });
+  props.push({ x: CX + 18, y: CY - 6, name: 'prop.cottage1' });
+  props.push({ x: CX + 17, y: CY + 11, name: 'prop.cottage2' });
+  props.push({ x: CX - 17, y: CY - 9, name: 'prop.cottage3' });
+  props.push({ x: CX - 14, y: CY + 14, name: 'prop.table' });
+  props.push({ x: CX - 13, y: CY + 15, name: 'prop.stool' });
+  props.push({ x: CX + 14, y: CY + 14, name: 'prop.well' });
+  spawners.push({ kind: 'villager', count: 3, x: CX - 14, y: CY + 12, r: 5 });
+  spawners.push({ kind: 'chicken', count: 3, x: CX + 15, y: CY + 8, r: 4 });
+  // the king's road runs out the south gate to meet the world
+  road(CX, CY + 21, CX, CY + 17);
+
   const spawn = { x: CX, y: CY + 2 };
 
   // ---- Villages scattered across the island, joined to the capital by roads ----
@@ -301,7 +329,7 @@ function generate(seed = 1337) {
         { item: 'arrow', name: 'Bundle of Arrows (20)', price: 15, desc: 'For the longbow.' },
       ],
     });
-    road(v.x, v.y + 5, CX, CY + 11);
+    road(v.x, v.y + 5, CX, CY + 21);
     // A goblin camp lurks a little way outside every village.
     const camp = settle(v.x + (rng() - 0.5) * 240, v.y + (rng() - 0.5) * 240, 60, 10);
     if (camp) spawners.push({ kind: 'goblin', count: 6, x: camp.x, y: camp.y, r: 12 });
@@ -373,7 +401,7 @@ function generate(seed = 1337) {
     });
     spawners.push({ kind: 'villager', count: 4, x: cx, y: cy, r: 8 });
     spawners.push({ kind: 'guard', count: 4, x: cx, y: cy, r: 11 });
-    road(cx, cy + 14, CX, CY + 11);
+    road(cx, cy + 14, CX, CY + 21);
     // every city gets its landmark hall, rising behind the north wall —
     // solid stone underneath, so nobody walks through it
     const hall = { Frosthelm: 'citytower', Sunwatch: 'cityrampart', Mirehold: 'citystronghold' }[def.name];
@@ -384,8 +412,8 @@ function generate(seed = 1337) {
     cities.push({ name: def.name, x: cx, y: cy, r: 16 });
   }
   // The capital is the first city of all: guarded and safe within the plaza.
-  spawners.push({ kind: 'guard', count: 4, x: CX, y: CY, r: 11 });
-  cities.push({ name: 'Briarhaven', x: CX, y: CY, r: 16 });
+  spawners.push({ kind: 'guard', count: 6, x: CX, y: CY, r: 16 });
+  cities.push({ name: 'Briarhaven', x: CX, y: CY, r: 21 });
 
   // ---- The barrow-deeps: caverns beneath the world ------------------------------
   // Carved in the dead ocean strip along the top edge; reachable only through
