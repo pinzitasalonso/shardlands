@@ -1126,6 +1126,36 @@
    "ay": 0,
    "scale": 3
   },
+  "td.f.wall": {
+   "img": "extras16",
+   "x": 64,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.f.win": {
+   "img": "extras16",
+   "x": 80,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 8,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.f.door": {
+   "img": "extras16",
+   "x": 96,
+   "y": 0,
+   "w": 16,
+   "h": 32,
+   "ax": 8,
+   "ay": 32,
+   "scale": 2
+  },
   "td.g.ubrick.0": {
    "img": "extras16",
    "x": 0,
@@ -1156,6 +1186,16 @@
    "ay": 16,
    "scale": 3
   },
+  "td.o.stairsup": {
+   "img": "extras16",
+   "x": 48,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 8,
+   "ay": 16,
+   "scale": 3
+  },
   "td.o.citycastle": {
    "img": "structures",
    "x": 0,
@@ -1164,7 +1204,7 @@
    "h": 64,
    "ax": 32,
    "ay": 62,
-   "scale": 6
+   "scale": 7
   },
   "td.o.citytower": {
    "img": "structures",

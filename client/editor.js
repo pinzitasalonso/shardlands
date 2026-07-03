@@ -19,7 +19,8 @@ const PROPS = ['prop.well', 'prop.table', 'prop.stool', 'fx.campfire',
   'prop.cottage0', 'prop.cottage1', 'prop.cottage2', 'prop.cottage3',
   'prop.keep', 'prop.ruins', 'prop.graveyard', 'prop.dragoncity',
   'prop.snakelair', 'prop.daemoncave', 'prop.dwarffortress', 'prop.bloodtemple',
-  'prop.citycastle', 'prop.citytower', 'prop.citystronghold', 'prop.cityrampart'];
+  'prop.citycastle', 'prop.citytower', 'prop.citystronghold', 'prop.cityrampart',
+  'prop.stairsup'];
 
 const cv = document.getElementById('map');
 const ctx = cv.getContext('2d');

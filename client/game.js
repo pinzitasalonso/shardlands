@@ -1546,7 +1546,7 @@ function drawRoof(b, cam, time) {
   const ridgeY = Math.round(tl.y + roofH * 0.42);
 
   const roofTex = Assets.pattern(ctx, (b.x * 7 + b.y * 13) % 2 ? 'td.g.floor.0' : 'td.g.road.0');
-  const wallTex = Assets.pattern(ctx, 'td.g.planks.0');
+  const wallTex = Assets.pattern(ctx, 'td.f.wall'); // HAS brick face
   // patterns anchor to the building, not the screen, or textures swim
   const fill = (x, y, sw, sh, tex, fallback) => {
     ctx.save();
@@ -1556,47 +1556,26 @@ function drawRoof(b, cam, time) {
     ctx.restore();
   };
 
-  // ---- the facade: stone face, timber frame, windows, door ----
-  fill(tl.x, fy, w, facadeH, wallTex, '#c9b896');
-  ctx.fillStyle = 'rgba(60, 40, 20, 0.22)'; // wall sits in the roof's shade
-  ctx.fillRect(tl.x, fy, w, 10);
-  ctx.fillStyle = '#4a3520'; // timber posts and beams
-  ctx.fillRect(tl.x, fy, 4, facadeH);
-  ctx.fillRect(tl.x + w - 4, fy, 4, facadeH);
-  ctx.fillRect(tl.x, fy, w, 4);
+  // ---- the facade: HAS brick face, arched windows, the pack's own door ----
+  fill(tl.x, fy, w, facadeH, wallTex, '#9a6a58');
+  ctx.fillStyle = 'rgba(30, 15, 8, 0.25)'; // wall sits in the roof's shade
+  ctx.fillRect(tl.x, fy, w, 8);
   ctx.strokeStyle = 'rgba(30, 20, 10, 0.6)';
   ctx.strokeRect(tl.x + 0.5, fy + 0.5, w - 1, facadeH - 1);
 
-  // windows on every other tile column, skipping the door's column
-  const winY = fy + Math.round(facadeH * 0.28);
+  // arched windows on every other tile column, skipping the door's column
   for (let cx = b.x; cx < b.x + b.w; cx++) {
     if ((cx - b.x) % 2 === 0 || cx === b.dx) continue;
     const s = worldToScreen(cx + 0.5, 0, cam);
-    ctx.fillStyle = '#241a10';
-    ctx.fillRect(s.x - 9, winY - 2, 18, 26);
-    ctx.fillStyle = 'rgba(252, 206, 110, 0.75)';
-    ctx.fillRect(s.x - 7, winY, 14, 22);
-    ctx.fillStyle = '#241a10'; // cross frame
-    ctx.fillRect(s.x - 1, winY, 2, 22);
-    ctx.fillRect(s.x - 7, winY + 10, 14, 2);
+    Assets.drawFrame(ctx, 'td.f.win', s.x, fy + Math.round(facadeH * 0.15));
   }
 
-  // the door, full height at street level (south doors live on the facade;
-  // other doors get their marker drawn on their own tile below)
+  // the door, at street level (south doors live on the facade; doors on
+  // other faces get their marker drawn on their own tile below)
   const southDoor = b.dy === b.y + b.h - 1;
   if (b.dx !== undefined && southDoor) {
     const s = worldToScreen(b.dx + 0.5, 0, cam);
-    const dh = Math.round(facadeH * 0.62);
-    ctx.fillStyle = '#241a10';
-    ctx.fillRect(s.x - 14, br.y - dh - 4, 28, dh + 4); // frame + shadow
-    ctx.fillStyle = '#6e5334';
-    ctx.fillRect(s.x - 11, br.y - dh, 22, dh);          // the door
-    ctx.strokeStyle = 'rgba(20, 12, 6, 0.8)';
-    ctx.strokeRect(s.x - 11.5, br.y - dh - 0.5, 23, dh);
-    ctx.fillStyle = '#3a2a18'; // planks
-    ctx.fillRect(s.x - 1, br.y - dh, 2, dh);
-    ctx.fillStyle = '#d8b35e'; // brass handle
-    ctx.fillRect(s.x + 5, br.y - Math.round(dh * 0.5), 4, 4);
+    Assets.drawFrame(ctx, 'td.f.door', s.x, br.y);
   }
 
   // ---- the roof: far slope shaded above the ridge, near slope below ----
