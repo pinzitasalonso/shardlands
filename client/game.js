@@ -1300,7 +1300,17 @@ function render() {
     for (const e of map.values()) {
       const dx = e.x - e.rx;
       const dy = e.y - e.ry;
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) { e.rx = e.x; e.ry = e.y; continue; }
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+        e.rx = e.x;
+        e.ry = e.y;
+        // a big jump means a portal or recall: forget the old destination,
+        // or the stale path marches you straight back through the door
+        if (e.id === state.myId) {
+          state.walkTarget = null;
+          state.path = null;
+        }
+        continue;
+      }
       // diagonal steps are granted more slowly (165ms vs 118ms)
       const step = dtMs / (dx && dy ? msPerTile * 1.4 : msPerTile);
       e.rx += Math.max(-step, Math.min(step, dx));
@@ -1520,128 +1530,143 @@ const ROOF_PALETTES = [
   { far: '#523c2f', near: '#7a5a45', gable: '#66493a', cap: '#3e2d23' }, // umber
 ];
 
-// A gabled roof seen from above: two shingle slopes split along the ridge
-// of the building's long axis. UO-style: it vanishes while you stand inside.
+// Buildings present a face to the camera: a stone facade along the south
+// edge with lit windows and the door at street level, and a pitched,
+// textured roof above it. UO-style: all of it vanishes while you stand
+// inside.
 function drawRoof(b, cam, time) {
   const pal = ROOF_PALETTES[(b.x * 7 + b.y * 13) % ROOF_PALETTES.length];
-  const e = 0.22; // eave overhang in tiles
+  const e = 0.22; // eave overhang, east/west/north only
   const tl = worldToScreen(b.x - e, b.y - e, cam);
-  const br = worldToScreen(b.x + b.w + e, b.y + b.h + e, cam);
+  const br = worldToScreen(b.x + b.w + e, b.y + b.h, cam);
   const w = br.x - tl.x;
-  const h = br.y - tl.y;
+  const facadeH = Math.round(TP * 1.35);
+  const fy = br.y - facadeH;         // where roof meets wall
+  const roofH = fy - tl.y;
+  const ridgeY = Math.round(tl.y + roofH * 0.42);
 
-  // Slopes are tiled with real HAS shingle texture (slate slabs or pale
-  // cobbles per building); the far slope sits in shadow.
-  const tex = Assets.pattern(ctx, (b.x * 7 + b.y * 13) % 2 ? 'td.g.floor.0' : 'td.g.planks.0');
-  const slope = (x, y, sw, sh, fill, shade) => {
-    // anchor the pattern to the roof, not the screen, or the shingles
-    // swim underfoot as the camera moves
+  const roofTex = Assets.pattern(ctx, (b.x * 7 + b.y * 13) % 2 ? 'td.g.floor.0' : 'td.g.road.0');
+  const wallTex = Assets.pattern(ctx, 'td.g.planks.0');
+  // patterns anchor to the building, not the screen, or textures swim
+  const fill = (x, y, sw, sh, tex, fallback) => {
     ctx.save();
     ctx.translate(x, y);
-    ctx.fillStyle = tex || fill;
+    ctx.fillStyle = tex || fallback;
     ctx.fillRect(0, 0, sw, sh);
     ctx.restore();
+  };
+
+  // ---- the facade: stone face, timber frame, windows, door ----
+  fill(tl.x, fy, w, facadeH, wallTex, '#c9b896');
+  ctx.fillStyle = 'rgba(60, 40, 20, 0.22)'; // wall sits in the roof's shade
+  ctx.fillRect(tl.x, fy, w, 10);
+  ctx.fillStyle = '#4a3520'; // timber posts and beams
+  ctx.fillRect(tl.x, fy, 4, facadeH);
+  ctx.fillRect(tl.x + w - 4, fy, 4, facadeH);
+  ctx.fillRect(tl.x, fy, w, 4);
+  ctx.strokeStyle = 'rgba(30, 20, 10, 0.6)';
+  ctx.strokeRect(tl.x + 0.5, fy + 0.5, w - 1, facadeH - 1);
+
+  // windows on every other tile column, skipping the door's column
+  const winY = fy + Math.round(facadeH * 0.28);
+  for (let cx = b.x; cx < b.x + b.w; cx++) {
+    if ((cx - b.x) % 2 === 0 || cx === b.dx) continue;
+    const s = worldToScreen(cx + 0.5, 0, cam);
+    ctx.fillStyle = '#241a10';
+    ctx.fillRect(s.x - 9, winY - 2, 18, 26);
+    ctx.fillStyle = 'rgba(252, 206, 110, 0.75)';
+    ctx.fillRect(s.x - 7, winY, 14, 22);
+    ctx.fillStyle = '#241a10'; // cross frame
+    ctx.fillRect(s.x - 1, winY, 2, 22);
+    ctx.fillRect(s.x - 7, winY + 10, 14, 2);
+  }
+
+  // the door, full height at street level (south doors live on the facade;
+  // other doors get their marker drawn on their own tile below)
+  const southDoor = b.dy === b.y + b.h - 1;
+  if (b.dx !== undefined && southDoor) {
+    const s = worldToScreen(b.dx + 0.5, 0, cam);
+    const dh = Math.round(facadeH * 0.62);
+    ctx.fillStyle = '#241a10';
+    ctx.fillRect(s.x - 14, br.y - dh - 4, 28, dh + 4); // frame + shadow
+    ctx.fillStyle = '#6e5334';
+    ctx.fillRect(s.x - 11, br.y - dh, 22, dh);          // the door
+    ctx.strokeStyle = 'rgba(20, 12, 6, 0.8)';
+    ctx.strokeRect(s.x - 11.5, br.y - dh - 0.5, 23, dh);
+    ctx.fillStyle = '#3a2a18'; // planks
+    ctx.fillRect(s.x - 1, br.y - dh, 2, dh);
+    ctx.fillStyle = '#d8b35e'; // brass handle
+    ctx.fillRect(s.x + 5, br.y - Math.round(dh * 0.5), 4, 4);
+  }
+
+  // ---- the roof: far slope shaded above the ridge, near slope below ----
+  const shingles = (x, y, sw, sh, shade) => {
+    fill(x, y, sw, sh, roofTex, shade ? pal.far : pal.near);
     if (shade) {
       ctx.fillStyle = 'rgba(24, 12, 6, 0.3)';
       ctx.fillRect(x, y, sw, sh);
     }
     ctx.strokeStyle = 'rgba(40, 16, 10, 0.5)';
     ctx.strokeRect(x + 0.5, y + 0.5, sw - 1, sh - 1);
-  };
-  // Shingle courses every ~14px running parallel to the ridge, with the
-  // seams of individual shingles staggered between courses.
-  const courses = (x, y, sw, sh, vertical) => {
+    // shingle courses with staggered seams
     ctx.strokeStyle = 'rgba(40, 16, 10, 0.28)';
     ctx.beginPath();
-    const across = vertical ? sw : sh;
-    const n = Math.max(2, Math.round(across / 14));
+    const n = Math.max(2, Math.round(sh / 14));
     for (let k = 1; k < n; k++) {
-      const f = k / n;
-      if (vertical) {
-        ctx.moveTo(x + sw * f, y);
-        ctx.lineTo(x + sw * f, y + sh);
-      } else {
-        ctx.moveTo(x, y + sh * f);
-        ctx.lineTo(x + sw, y + sh * f);
-      }
+      ctx.moveTo(x, y + sh * k / n);
+      ctx.lineTo(x + sw, y + sh * k / n);
     }
     ctx.stroke();
     ctx.strokeStyle = 'rgba(40, 16, 10, 0.14)';
     ctx.beginPath();
     for (let k = 0; k < n; k++) {
-      const c0 = k / n;
-      const step = 26;
-      const off = (k % 2) * (step / 2);
-      if (vertical) {
-        for (let yy = y + off; yy < y + sh; yy += step) {
-          ctx.moveTo(x + sw * c0, yy);
-          ctx.lineTo(x + sw * (c0 + 1 / n), yy);
-        }
-      } else {
-        for (let xx = x + off; xx < x + sw; xx += step) {
-          ctx.moveTo(xx, y + sh * c0);
-          ctx.lineTo(xx, y + sh * (c0 + 1 / n));
-        }
+      const off = (k % 2) * 13;
+      for (let xx = x + off; xx < x + sw; xx += 26) {
+        ctx.moveTo(xx, y + sh * k / n);
+        ctx.lineTo(xx, y + sh * (k + 1) / n);
       }
     }
     ctx.stroke();
   };
-
-  let ridgeA;
-  let ridgeB;
-  if (b.w >= b.h) {
-    // Ridge runs west-east: north slope lit, south slope shaded.
-    slope(tl.x, tl.y, w, h / 2, pal.near, false);
-    slope(tl.x, tl.y + h / 2, w, h / 2, pal.far, true);
-    courses(tl.x, tl.y, w, h / 2, false);
-    courses(tl.x, tl.y + h / 2, w, h / 2, false);
-    ridgeA = [tl.x + 3, tl.y + h / 2];
-    ridgeB = [br.x - 3, tl.y + h / 2];
-  } else {
-    slope(tl.x, tl.y, w / 2, h, pal.near, false);
-    slope(tl.x + w / 2, tl.y, w / 2, h, pal.far, true);
-    courses(tl.x, tl.y, w / 2, h, true);
-    courses(tl.x + w / 2, tl.y, w / 2, h, true);
-    ridgeA = [tl.x + w / 2, tl.y + 3];
-    ridgeB = [tl.x + w / 2, br.y - 3];
-  }
+  shingles(tl.x + 5, tl.y, w - 10, ridgeY - tl.y, true);   // far side, foreshortened
+  shingles(tl.x, ridgeY, w, fy - ridgeY, false);           // the slope facing us
   ctx.strokeStyle = pal.cap;
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(ridgeA[0], ridgeA[1]);
-  ctx.lineTo(ridgeB[0], ridgeB[1]);
+  ctx.moveTo(tl.x + 4, ridgeY);
+  ctx.lineTo(br.x - 4, ridgeY);
   ctx.stroke();
   ctx.lineWidth = 1;
 
   // Chimney and a lazy plume of smoke, a third of the way along the ridge.
-  const chx = ridgeA[0] + (ridgeB[0] - ridgeA[0]) * 0.3;
-  const chy = ridgeA[1] + (ridgeB[1] - ridgeA[1]) * 0.3;
+  const chx = tl.x + w * 0.3;
+  const chy = ridgeY;
   ctx.fillStyle = '#6a6258';
-  ctx.fillRect(chx - 5, chy - 5, 10, 10);
+  ctx.fillRect(chx - 5, chy - 12, 10, 12);
   ctx.fillStyle = '#3a362e';
-  ctx.fillRect(chx - 2, chy - 2, 4, 4);
+  ctx.fillRect(chx - 5, chy - 14, 10, 3);
   const seed = (b.x * 31 + b.y * 17) % 1000;
   for (let i = 0; i < 3; i++) {
     const k = ((time / 1800 + seed / 1000 + i / 3) % 1);
     const px = chx + Math.sin((k * 5 + i) * 2.2) * 5 + k * 10;
-    const py = chy - k * 14;
+    const py = chy - 16 - k * 16;
     ctx.fillStyle = `rgba(200, 198, 192, ${0.3 * (1 - k)})`;
     ctx.beginPath();
     ctx.arc(px, py, 3 + k * 5, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // The way in, unmistakable: a framed wooden door on the doorway tile.
-  if (b.dx !== undefined) {
+  // doors on any other face keep the flat marker on their own tile
+  if (b.dx !== undefined && !southDoor) {
     const d = worldToScreen(b.dx, b.dy, cam);
     ctx.fillStyle = '#2a1c10';
-    ctx.fillRect(d.x + 8, d.y + 4, TP - 16, TP - 4);   // dark opening
+    ctx.fillRect(d.x + 8, d.y + 4, TP - 16, TP - 4);
     ctx.fillStyle = '#8a6a42';
-    ctx.fillRect(d.x + 8, d.y + 4, TP - 16, 6);        // lintel
+    ctx.fillRect(d.x + 8, d.y + 4, TP - 16, 6);
     ctx.fillStyle = '#6e5334';
-    ctx.fillRect(d.x + 12, d.y + 12, TP - 24, TP - 14); // the door itself
+    ctx.fillRect(d.x + 12, d.y + 12, TP - 24, TP - 14);
     ctx.fillStyle = '#d8b35e';
-    ctx.fillRect(d.x + TP - 17, d.y + 26, 4, 4);        // brass handle
+    ctx.fillRect(d.x + TP - 17, d.y + 26, 4, 4);
     ctx.strokeStyle = 'rgba(20, 12, 6, 0.8)';
     ctx.strokeRect(d.x + 11.5, d.y + 11.5, TP - 23, TP - 13);
   }

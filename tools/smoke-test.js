@@ -583,7 +583,7 @@ assert(game.lastTickMs > 0, 'tick time is measured for /health');
 // -- batch E: cities, guards, sanctuary, home binding, more dungeons -----------------
 assert(game.map.cities && game.map.cities.length >= 4, 'walled cities stand');
 assert(game.map.cities.some((c) => c.name === 'Briarhaven'), 'the capital counts among them');
-assert.strictEqual(cavePortals.length, 12, 'six dungeons, each with a mouth and an exit');
+assert.strictEqual(cavePortals.length, 14, 'seven dungeons, each with a mouth and an exit');
 assert(game.spawners.filter((sp) => sp.kind === 'guard').length >= 4, 'guards hold the walls');
 
 // sanctuary: nothing hunts a traveller inside the walls...

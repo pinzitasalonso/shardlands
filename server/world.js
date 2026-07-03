@@ -374,14 +374,17 @@ function generate(seed = 1337) {
     spawners.push({ kind: 'villager', count: 4, x: cx, y: cy, r: 8 });
     spawners.push({ kind: 'guard', count: 4, x: cx, y: cy, r: 11 });
     road(cx, cy + 14, CX, CY + 11);
-    // every city gets its landmark hall, rising behind the shrine
+    // every city gets its landmark hall, rising behind the north wall —
+    // solid stone underneath, so nobody walks through it
     const hall = { Frosthelm: 'citytower', Sunwatch: 'cityrampart', Mirehold: 'citystronghold' }[def.name];
-    props.push({ x: cx, y: cy + 9, name: 'prop.' + hall });
+    for (let y = cy - 18; y <= cy - 15; y++) {
+      for (let x = cx - 3; x <= cx + 3; x++) set(x, y, TILE.WALL);
+    }
+    props.push({ x: cx, y: cy - 15, name: 'prop.' + hall });
     cities.push({ name: def.name, x: cx, y: cy, r: 16 });
   }
   // The capital is the first city of all: guarded and safe within the plaza.
   spawners.push({ kind: 'guard', count: 4, x: CX, y: CY, r: 11 });
-  props.push({ x: CX, y: CY + 10, name: 'prop.citycastle' }); // the crown's own keep
   cities.push({ name: 'Briarhaven', x: CX, y: CY, r: 16 });
 
   // ---- The barrow-deeps: caverns beneath the world ------------------------------
@@ -391,7 +394,7 @@ function generate(seed = 1337) {
   // Each dungeon gets its own slab in the strip and a theme: who keeps its
   // halls, what waits at the deepest point, and how the carving wanders.
   const carveDungeon = (idx, theme = {}) => {
-    const cx = 220 + idx * 300;
+    const cx = theme.cx || (220 + idx * 300);
     const cy = 26;
     // a sealed slab of rock
     for (let y = cy - 18; y <= cy + 18; y++) {
@@ -500,6 +503,24 @@ function generate(seed = 1337) {
     }, 'A goblin-dug shaft yawns out of the mire, shored with stolen timber. Voices echo below.');
     props.push({ x: warrenMouth.x + 1, y: warrenMouth.y + 1, name: 'prop.snakelair' });
   }
+
+  // ---- The royal castle: a walled precinct north of Briarhaven's plaza. ---------
+  // Its gate is a stair down into the crown's undercroft, the seventh and
+  // richest of the deeps.
+  flatten(CX, CY - 19, 9);
+  for (let y = CY - 16; y <= CY - 13; y++) {
+    for (let x = CX - 3; x <= CX + 3; x++) set(x, y, TILE.FLOOR); // forecourt
+  }
+  for (let y = CY - 21; y <= CY - 17; y++) {
+    for (let x = CX - 4; x <= CX + 4; x++) set(x, y, TILE.WALL); // solid under the keep
+  }
+  props.push({ x: CX, y: CY - 17, name: 'prop.citycastle' });
+  openMouth({ x: CX, y: CY - 16 }, 6, {
+    cx: 1870,
+    steps: 800,
+    keepers: [['skeleton', 8, 'mid', 18], ['skelmage', 3, 'mid', 14], ['skeleton', 5, 'far', 8]],
+    loot: [['gold', 300, 600], ['gems', 2, 4], ['heal', 1, 2], ['mana', 1, 2]],
+  }, 'A cold stair descends beneath the castle. The crown buries what it fears.');
 
   // ---- Wilderness mob camps -----------------------------------------------------
   const camps = [
