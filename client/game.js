@@ -872,7 +872,8 @@ function openShop(vendor) {
       const price = Math.round((def.price || 0) * (qual.priceMul || 1));
       const label = (qual.name ? qual.name + ' ' : '') + def.name;
       return `<div class="shop-row">
-         <span style="color:${QUALITY_COLORS[g.q]}">${esc(label)}<small>${def.dmg[0]}-${def.dmg[1]} dmg${def.minSkill ? ' · needs ' + def.minSkill + ' swords' : ''}</small></span>
+         <img class="eq-icon" src="assets/ui/icons/eq/${esc(g.item)}.png" alt="">
+         <span style="color:${QUALITY_COLORS[g.q]}">${esc(label)}<small>${def.dmg ? def.dmg[0] + '-' + def.dmg[1] + ' dmg' : def.dr ? '-' + def.dr + ' dmg taken' : def.block ? def.block + '% block' : ''}${def.minSkill ? ' · needs ' + def.minSkill + ' skill' : ''}</small></span>
          <button data-idx="${idx}">${price} gp</button>
        </div>`;
     }
@@ -886,6 +887,7 @@ function openShop(vendor) {
     forge = '<div class="shop-title" style="margin-top:10px">Forge</div>' +
       Object.entries(state.weapons).filter(([, def]) => def.craft && !def.secret).map(([id, def]) =>
         `<div class="shop-row">
+           <img class="eq-icon" src="assets/ui/icons/eq/${esc(id)}.png" alt="">
            <span>${esc(def.name)}<small>${def.craft.ore} ore · ${def.craft.logs} logs · ${def.craft.gold} gp</small></span>
            <button data-craft="${esc(id)}">Forge</button>
          </div>`).join('');
@@ -1020,7 +1022,7 @@ function renderInventory() {
     const durColor = durFrac > 0.5 ? '#48b048' : durFrac > 0.25 ? '#c8a030' : '#c84030';
     return `<div class="inv-weapon${equipped ? ' equipped' : ''}">
        <div class="iw-top">
-         <span style="color:${QUALITY_COLORS[it.q]}">${esc(weaponLabel(it))}</span>
+         <span><img class="eq-icon" src="assets/ui/icons/eq/${esc(it.id)}.png" alt=""><span style="color:${QUALITY_COLORS[it.q]}">${esc(weaponLabel(it))}</span></span>
          <span class="iw-dmg">${def.dmg ? def.dmg[0] + '-' + def.dmg[1] + ' dmg' : def.dr ? '-' + def.dr + ' dmg taken' : def.block ? def.block + '% block' : ''}</span>
        </div>
        <div class="iw-dur"><div style="width:${Math.round(100 * durFrac)}%;background:${durColor}"></div></div>

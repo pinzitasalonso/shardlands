@@ -730,3 +730,15 @@ body, button { cursor: url('assets/ui/cursor.png') 2 2, auto; }
 }
 #actions kbd, #actions .count { z-index: 1; }
 .px-icon { width: 22px; height: 22px; image-rendering: pixelated; vertical-align: middle; }
+
+/* equipment icons in shop / forge / backpack rows */
+.eq-icon {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  image-rendering: pixelated;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+.shop-row > span { flex: 1; }
+.iw-top .eq-icon { width: 22px; height: 22px; margin-right: 4px; }
