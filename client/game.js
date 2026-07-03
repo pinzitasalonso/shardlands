@@ -12,6 +12,17 @@
 const TP = 48;      // tile size on screen
 const HT = TP / 2;  // half tile — offset from a tile's top-left to its centre
 const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SAND: 7, SHRINE: 8, SNOW: 9, SNOWTREE: 10, PLANKS: 11, SWAMP: 12, SWAMPTREE: 13, CAVE: 14 };
+
+// Soft biome seams: tile id -> [fringe art kind (null = never spills),
+// priority]. The higher-priority side lays its tufts onto the lower;
+// water and roads receive fringes but never spill their own.
+const FRINGES = {
+  [T.WATER]: [null, 0], [T.ROAD]: [null, 0.5],
+  [T.SAND]: ['sand', 1],
+  [T.SWAMP]: ['swamp', 2], [T.SWAMPTREE]: ['swamp', 2],
+  [T.GRASS]: ['grass', 3], [T.TREE]: ['grass', 3],
+  [T.SNOW]: ['snow', 4], [T.SNOWTREE]: ['snow', 4],
+};
 const WALKABLE = new Set([T.GRASS, T.ROAD, T.FLOOR, T.SAND, T.SHRINE, T.SNOW, T.PLANKS, T.SWAMP, T.CAVE]);
 
 const MOB_STYLE = {
@@ -1391,6 +1402,18 @@ function render() {
         const under = ty < 64 && Assets.tileTD('u' + tile);
         const recipe = under || Assets.tileTD(tile) || Assets.tileTD(T.WATER);
         Assets.drawGround(ctx, recipe, h, sx, sy);
+
+        // Soft biome seams: a higher-priority neighbour lays its tufty
+        // fringe over this tile's edge — grass over sand, snow over grass.
+        const fr = FRINGES[tile];
+        if (fr && ty >= 64) {
+          const pr = fr[1];
+          let f;
+          if ((f = FRINGES[tileAt(tx, ty - 1)]) && f[0] && f[1] > pr) Assets.drawFrame(ctx, 'td.fr.' + f[0] + '.n', sx, sy);
+          if ((f = FRINGES[tileAt(tx, ty + 1)]) && f[0] && f[1] > pr) Assets.drawFrame(ctx, 'td.fr.' + f[0] + '.s', sx, sy);
+          if ((f = FRINGES[tileAt(tx - 1, ty)]) && f[0] && f[1] > pr) Assets.drawFrame(ctx, 'td.fr.' + f[0] + '.w', sx, sy);
+          if ((f = FRINGES[tileAt(tx + 1, ty)]) && f[0] && f[1] > pr) Assets.drawFrame(ctx, 'td.fr.' + f[0] + '.e', sx, sy);
+        }
         if (under && recipe.torch && tileAt(tx, ty + 1) === T.CAVE && hash(tx * 7, ty * 3) < 0.14) {
           drawables.push({ depth: ty, kind: 'sprite', name: 'td.o.torch', x: sx + HT, y: sy + TP + 12 });
           state.torches.push({ x: tx + 0.5, y: ty + 0.8 });
