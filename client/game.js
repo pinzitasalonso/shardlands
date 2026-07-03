@@ -1406,18 +1406,43 @@ function render() {
       if (useSprites) {
         const under = ty < 64 && Assets.tileTD('u' + tile);
         const recipe = under || Assets.tileTD(tile) || Assets.tileTD(T.WATER);
-        Assets.drawGround(ctx, recipe, h, sx, sy);
+        if (recipe.wanim) {
+          // the living sea: cycle the pack's seven ocean frames
+          const set = recipe.wanim[Math.floor(time / 180) % recipe.wanim.length];
+          Assets.drawFrame(ctx, set[Math.floor(h * set.length)], sx, sy);
+        } else {
+          Assets.drawGround(ctx, recipe, h, sx, sy);
+        }
+        // mountain ranges: interlocking peak cells picked by map position,
+        // grass showing through the gaps exactly like the pack's own maps
+        if (recipe.peaks) {
+          Assets.drawFrame(ctx, recipe.peaks[(tx % 3) + (ty % 3) * 3], sx, sy);
+        }
 
         // Soft biome seams: a higher-priority neighbour lays its tufty
         // fringe over this tile's edge — grass over sand, snow over grass.
         const fr = FRINGES[tile];
         if (fr && ty >= 64) {
           const pr = fr[1];
-          let f;
-          if ((f = FRINGES[tileAt(tx, ty - 1)]) && f[0] && f[1] > pr) Assets.drawFrame(ctx, 'td.fr.' + f[0] + '.n', sx, sy);
-          if ((f = FRINGES[tileAt(tx, ty + 1)]) && f[0] && f[1] > pr) Assets.drawFrame(ctx, 'td.fr.' + f[0] + '.s', sx, sy);
-          if ((f = FRINGES[tileAt(tx - 1, ty)]) && f[0] && f[1] > pr) Assets.drawFrame(ctx, 'td.fr.' + f[0] + '.w', sx, sy);
-          if ((f = FRINGES[tileAt(tx + 1, ty)]) && f[0] && f[1] > pr) Assets.drawFrame(ctx, 'td.fr.' + f[0] + '.e', sx, sy);
+          const spill = (fx, fy) => {
+            const f = FRINGES[tileAt(fx, fy)];
+            return f && f[0] && f[1] > pr ? f[0] : null;
+          };
+          const n = spill(tx, ty - 1);
+          const s = spill(tx, ty + 1);
+          const w = spill(tx - 1, ty);
+          const e = spill(tx + 1, ty);
+          if (n) Assets.drawFrame(ctx, 'td.fr.' + n + '.n', sx, sy);
+          if (s) Assets.drawFrame(ctx, 'td.fr.' + s + '.s', sx, sy);
+          if (w) Assets.drawFrame(ctx, 'td.fr.' + w + '.w', sx, sy);
+          if (e) Assets.drawFrame(ctx, 'td.fr.' + e + '.e', sx, sy);
+          // corner nubs where only the diagonal is higher ground, so the
+          // seams round off instead of stair-stepping
+          let d;
+          if (!n && !w && (d = spill(tx - 1, ty - 1))) Assets.drawFrame(ctx, 'td.fr.' + d + '.nw', sx, sy);
+          if (!n && !e && (d = spill(tx + 1, ty - 1))) Assets.drawFrame(ctx, 'td.fr.' + d + '.ne', sx, sy);
+          if (!s && !w && (d = spill(tx - 1, ty + 1))) Assets.drawFrame(ctx, 'td.fr.' + d + '.sw', sx, sy);
+          if (!s && !e && (d = spill(tx + 1, ty + 1))) Assets.drawFrame(ctx, 'td.fr.' + d + '.se', sx, sy);
         }
         const belowT = tileAt(tx, ty + 1);
         if (under && recipe.torch && (belowT === T.CAVE || belowT === T.PLANKS) && hash(tx * 7, ty * 3) < 0.14) {
