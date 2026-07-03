@@ -897,6 +897,26 @@ def build_has_ui():
     cur = Image.open(os.path.join(ui_src, 'Cursors/Cursor_1.png')).convert('RGBA')
     cur.resize((cur.width * 2, cur.height * 2), Image.NEAREST).save(os.path.join(out, 'cursor.png'))
 
+    # framed HP/mana bars: ornate frame pieces plus fill strips (cropped to
+    # their pixels so CSS can stretch them edge to edge)
+    for dst, src in {'bar-frame-gold.png': 'Bar/bar_03.png',
+                     'bar-frame-silver.png': 'Bar/bar_12.png'}.items():
+        Image.open(os.path.join(ui_src, src)).convert('RGBA').save(os.path.join(out, dst))
+    for dst, src in {'bar-fill-red.png': 'Bar/bar_21.png',
+                     'bar-fill-blue.png': 'Bar/bar_24.png',
+                     'bar-fill-green.png': 'Bar/bar_18.png'}.items():
+        im = Image.open(os.path.join(ui_src, src)).convert('RGBA')
+        im.crop(im.getbbox()).save(os.path.join(out, dst))
+    # a compass-cornered frame for the minimap, a leather thumb for scrollbars
+    Image.open(os.path.join(ui_src, 'MiniMap/Map_2.png')).convert('RGBA').save(
+        os.path.join(out, 'minimap-frame.png'))
+    Image.open(os.path.join(ui_src, 'Scrolling/scrolling_v_00.png')).convert('RGBA').save(
+        os.path.join(out, 'scroll-thumb.png'))
+    # the pack's display face travels with the UI (licensed with the pack)
+    import shutil
+    shutil.copyfile(os.path.join(ui_src, 'Font/MiKrollFantasy.ttf'),
+                    os.path.join(out, 'MiKrollFantasy.ttf'))
+
     # spell icons from HAS Magic Book, item icons from HAS IconPack
     icons = os.path.join(out, 'icons')
     os.makedirs(icons, exist_ok=True)
