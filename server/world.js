@@ -256,13 +256,13 @@ function generate(seed = 1337) {
   const CX = W / 2;
   const CY = H / 2;
   flatten(CX, CY, 30);
-  for (let y = CY - 16; y <= CY + 16; y++) {
-    for (let x = CX - 16; x <= CX + 16; x++) set(x, y, TILE.FLOOR);
+  for (let y = CY - 9; y <= CY + 9; y++) {
+    for (let x = CX - 9; x <= CX + 9; x++) set(x, y, TILE.FLOOR);
   }
-  const smithyRoom = shopfront(CX - 9, CY - 8, 'smithy');
-  const innRoom = shopfront(CX + 8, CY - 8, 'inn');
-  const healerRoom = shopfront(CX - 9, CY + 8, 'healer');
-  shopfront(CX + 8, CY + 8, 'magetower');
+  const smithyRoom = shopfront(CX - 7, CY - 6, 'smithy');
+  const innRoom = shopfront(CX + 6, CY - 6, 'inn');
+  const healerRoom = shopfront(CX - 7, CY + 6, 'healer');
+  shopfront(CX + 6, CY + 6, 'magetower');
   set(CX, CY - 7, TILE.SHRINE);
   props.push({ x: CX + 6, y: CY - 2, name: 'prop.well' });
   props.push({ x: CX - 6, y: CY + 2, name: 'prop.table' });  // market stall
@@ -296,18 +296,18 @@ function generate(seed = 1337) {
     ],
   });
   // ---- the capital's ramparts: the crown city finally wears its walls ---------
-  for (let x = CX - 20; x <= CX + 20; x++) {
-    if (Math.abs(x - CX) <= 1) set(x, CY + 18, TILE.ROAD); // south gate
-    else set(x, CY + 18, TILE.WALL);
-    set(x, CY - 18, TILE.WALL); // north face runs into the castle precinct
+  for (let x = CX - 12; x <= CX + 12; x++) {
+    if (Math.abs(x - CX) <= 1) set(x, CY + 12, TILE.ROAD); // south gate
+    else set(x, CY + 12, TILE.WALL);
+    set(x, CY - 12, TILE.WALL); // north face runs into the castle precinct
   }
-  for (let y = CY - 18; y <= CY + 18; y++) {
+  for (let y = CY - 12; y <= CY + 12; y++) {
     if (Math.abs(y - CY) <= 1) {
-      set(CX - 20, y, TILE.ROAD); // west gate
-      set(CX + 20, y, TILE.ROAD); // east gate
+      set(CX - 12, y, TILE.ROAD); // west gate
+      set(CX + 12, y, TILE.ROAD); // east gate
     } else {
-      set(CX - 20, y, TILE.WALL);
-      set(CX + 20, y, TILE.WALL);
+      set(CX - 12, y, TILE.WALL);
+      set(CX + 12, y, TILE.WALL);
     }
   }
   // the plaza dressed for a capital: a winged fountain, braziers down the
@@ -315,22 +315,22 @@ function generate(seed = 1337) {
   props.push({ x: CX, y: CY - 2, name: 'prop.fountain' });
   props.push({ x: CX + 2, y: CY - 8, name: 'prop.statue' });
   props.push({ x: CX - 5, y: CY + 3, name: 'prop.kiosk' });
-  for (const [lx, ly] of [[CX - 2, CY + 5], [CX + 2, CY + 5], [CX - 2, CY + 10], [CX + 2, CY + 10],
-                          [CX - 2, CY + 15], [CX + 2, CY + 15], [CX - 10, CY - 2], [CX + 10, CY - 2]]) {
+  for (const [lx, ly] of [[CX - 2, CY + 4], [CX + 2, CY + 4], [CX - 2, CY + 8], [CX + 2, CY + 8],
+                          [CX - 7, CY - 2], [CX + 7, CY - 2]]) {
     props.push({ x: lx, y: ly, name: 'prop.lamp' });
   }
   // the outer ring: cottages, stalls and townsfolk between plaza and wall
-  props.push({ x: CX - 18, y: CY + 7, name: 'prop.cottage0' });
-  props.push({ x: CX + 18, y: CY - 6, name: 'prop.cottage1' });
-  props.push({ x: CX + 17, y: CY + 11, name: 'prop.cottage2' });
-  props.push({ x: CX - 17, y: CY - 9, name: 'prop.cottage3' });
-  props.push({ x: CX - 14, y: CY + 14, name: 'prop.table' });
-  props.push({ x: CX - 13, y: CY + 15, name: 'prop.stool' });
-  props.push({ x: CX + 14, y: CY + 14, name: 'prop.well' });
-  spawners.push({ kind: 'villager', count: 3, x: CX - 14, y: CY + 12, r: 5 });
-  spawners.push({ kind: 'chicken', count: 3, x: CX + 15, y: CY + 8, r: 4 });
+  props.push({ x: CX - 10, y: CY + 7, name: 'prop.cottage0' });
+  props.push({ x: CX + 10, y: CY - 5, name: 'prop.cottage1' });
+  props.push({ x: CX + 10, y: CY + 8, name: 'prop.cottage2' });
+  props.push({ x: CX - 10, y: CY - 6, name: 'prop.cottage3' });
+  props.push({ x: CX - 10, y: CY + 10, name: 'prop.table' });
+  props.push({ x: CX - 9, y: CY + 10, name: 'prop.stool' });
+  props.push({ x: CX + 10, y: CY + 10, name: 'prop.well' });
+  spawners.push({ kind: 'villager', count: 3, x: CX - 9, y: CY + 8, r: 3 });
+  spawners.push({ kind: 'chicken', count: 3, x: CX + 10, y: CY + 6, r: 2 });
   // the king's road runs out the south gate to meet the world
-  road(CX, CY + 21, CX, CY + 17);
+  road(CX, CY + 21, CX, CY + 11);
 
   const spawn = { x: CX, y: CY + 2 };
 
@@ -418,16 +418,16 @@ function generate(seed = 1337) {
     if (!spot) continue;
     const { x: cx, y: cy } = spot;
     flatten(cx, cy, 20);
-    for (let y = cy - 10; y <= cy + 10; y++) {
-      for (let x = cx - 12; x <= cx + 12; x++) set(x, y, TILE.FLOOR);
+    for (let y = cy - 7; y <= cy + 7; y++) {
+      for (let x = cx - 8; x <= cx + 8; x++) set(x, y, TILE.FLOOR);
     }
     // The wall, with a gate in each face.
-    for (let y = cy - 13; y <= cy + 13; y++) {
-      for (let x = cx - 15; x <= cx + 15; x++) {
-        const onEdge = x === cx - 15 || x === cx + 15 || y === cy - 13 || y === cy + 13;
+    for (let y = cy - 10; y <= cy + 10; y++) {
+      for (let x = cx - 11; x <= cx + 11; x++) {
+        const onEdge = x === cx - 11 || x === cx + 11 || y === cy - 10 || y === cy + 10;
         if (!onEdge) continue;
-        const gate = (Math.abs(x - cx) <= 1 && (y === cy - 13 || y === cy + 13)) ||
-          (Math.abs(y - cy) <= 1 && (x === cx - 15 || x === cx + 15));
+        const gate = (Math.abs(x - cx) <= 1 && (y === cy - 10 || y === cy + 10)) ||
+          (Math.abs(y - cy) <= 1 && (x === cx - 11 || x === cx + 11));
         set(x, y, gate ? TILE.ROAD : TILE.WALL);
       }
     }
@@ -438,9 +438,9 @@ function generate(seed = 1337) {
     // civic pride: a fountain, a statue, braziers at the gates
     props.push({ x: cx, y: cy + 1, name: 'prop.fountain' });
     props.push({ x: cx + 2, y: cy - 2, name: 'prop.statue' });
-    for (const [lx, ly] of [[cx - 2, cy + 11], [cx + 2, cy + 11],
-                            [cx - 2, cy - 11], [cx + 2, cy - 11],
-                            [cx - 13, cy], [cx + 13, cy]]) {
+    for (const [lx, ly] of [[cx - 2, cy + 8], [cx + 2, cy + 8],
+                            [cx - 2, cy - 8], [cx + 2, cy - 8],
+                            [cx - 9, cy], [cx + 9, cy]]) {
       props.push({ x: lx, y: ly, name: 'prop.lamp' });
     }
     props.push({ x: cx + 5, y: cy + 3, name: 'prop.well' });
@@ -469,21 +469,21 @@ function generate(seed = 1337) {
         { item: 'mana', name: 'Mana Potion', price: 35, desc: 'Restores 20-30 mana.' },
       ],
     });
-    spawners.push({ kind: 'villager', count: 4, x: cx, y: cy, r: 8 });
-    spawners.push({ kind: 'guard', count: 4, x: cx, y: cy, r: 11 });
-    road(cx, cy + 14, CX, CY + 21);
+    spawners.push({ kind: 'villager', count: 4, x: cx, y: cy, r: 6 });
+    spawners.push({ kind: 'guard', count: 4, x: cx, y: cy, r: 8 });
+    road(cx, cy + 11, CX, CY + 21);
     // every city gets its landmark hall, rising behind the north wall —
     // solid stone underneath, so nobody walks through it
     const hall = { Frosthelm: 'citytower', Sunwatch: 'cityrampart', Mirehold: 'citystronghold' }[def.name];
-    for (let y = cy - 17; y <= cy - 15; y++) {
+    for (let y = cy - 13; y <= cy - 11; y++) {
       for (let x = cx - 1; x <= cx + 1; x++) set(x, y, TILE.WALL);
     }
-    props.push({ x: cx, y: cy - 15, name: 'prop.' + hall });
-    cities.push({ name: def.name, x: cx, y: cy, r: 16 });
+    props.push({ x: cx, y: cy - 11, name: 'prop.' + hall });
+    cities.push({ name: def.name, x: cx, y: cy, r: 12 });
   }
   // The capital is the first city of all: guarded and safe within the plaza.
-  spawners.push({ kind: 'guard', count: 6, x: CX, y: CY, r: 16 });
-  cities.push({ name: 'Briarhaven', x: CX, y: CY, r: 21 });
+  spawners.push({ kind: 'guard', count: 6, x: CX, y: CY, r: 9 });
+  cities.push({ name: 'Briarhaven', x: CX, y: CY, r: 13 });
 
   // ---- The barrow-deeps: caverns beneath the world ------------------------------
   // Carved in the dead ocean strip along the top edge; reachable only through
@@ -620,20 +620,20 @@ function generate(seed = 1337) {
   // ---- The royal castle: a walled precinct north of Briarhaven's plaza. ---------
   // Its gate is a stair down into the crown's undercroft, the seventh and
   // richest of the deeps.
-  flatten(CX, CY - 19, 9);
-  for (let y = CY - 16; y <= CY - 13; y++) {
-    for (let x = CX - 3; x <= CX + 3; x++) set(x, y, TILE.FLOOR); // forecourt
+  flatten(CX, CY - 16, 6);
+  for (let y = CY - 11; y <= CY - 10; y++) {
+    for (let x = CX - 2; x <= CX + 2; x++) set(x, y, TILE.FLOOR); // forecourt
   }
-  for (let y = CY - 19; y <= CY - 17; y++) {
+  for (let y = CY - 14; y <= CY - 12; y++) {
     for (let x = CX - 1; x <= CX + 1; x++) set(x, y, TILE.WALL); // solid under the keep
   }
   // the precinct's flatten() grassed over the north rampart — re-stitch it
   // so the city wall runs shoulder-to-shoulder into the castle's flanks
-  for (let x = CX - 20; x <= CX + 20; x++) {
-    if (Math.abs(x - CX) > 1) set(x, CY - 18, TILE.WALL);
+  for (let x = CX - 12; x <= CX + 12; x++) {
+    if (Math.abs(x - CX) > 1) set(x, CY - 12, TILE.WALL);
   }
-  props.push({ x: CX, y: CY - 17, name: 'prop.citycastle' });
-  openMouth({ x: CX, y: CY - 16 }, 6, {
+  props.push({ x: CX, y: CY - 12, name: 'prop.citycastle' });
+  openMouth({ x: CX, y: CY - 11 }, 6, {
     cx: 1870,
     steps: 800,
     keepers: [['skeleton', 8, 'mid', 18], ['skelmage', 3, 'mid', 14], ['skeleton', 5, 'far', 8]],
