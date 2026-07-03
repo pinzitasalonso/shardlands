@@ -1534,8 +1534,13 @@ function drawRoof(b, cam, time) {
   // cobbles per building); the far slope sits in shadow.
   const tex = Assets.pattern(ctx, (b.x * 7 + b.y * 13) % 2 ? 'td.g.floor.0' : 'td.g.planks.0');
   const slope = (x, y, sw, sh, fill, shade) => {
+    // anchor the pattern to the roof, not the screen, or the shingles
+    // swim underfoot as the camera moves
+    ctx.save();
+    ctx.translate(x, y);
     ctx.fillStyle = tex || fill;
-    ctx.fillRect(x, y, sw, sh);
+    ctx.fillRect(0, 0, sw, sh);
+    ctx.restore();
     if (shade) {
       ctx.fillStyle = 'rgba(24, 12, 6, 0.3)';
       ctx.fillRect(x, y, sw, sh);
