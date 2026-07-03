@@ -467,6 +467,7 @@ HAS_SHEETS = {
     'TREES': 'HAS Overworld 2.1/Universal/Universal-Trees-And-Mountains.png',
     'BLDG': 'HAS Overworld 2.1/Universal/Universal-Buildings-and-walls.png',
     'DNG': 'HAS Dungeon (v.1.01)/Dungeon/Dungeon-Tileset.png',
+    'B1X1': 'HAS2020 (alpha 1)/Buildings/1x1/1x1BuildingsSpriteSheet.png',
 }
 
 # Ground variants (each biome LandTileset shares one template; the textured
@@ -506,6 +507,12 @@ HAS_OBJECTS = {
     'stone0': ('GB', 4, 0), 'twig': ('GB', 8, 1),
     'snowdecor0': ('IB', 2, 0), 'snowdecor1': ('IB', 4, 0),
     'sanddecor0': ('SB', 2, 0), 'sanddecor1': ('SB', 4, 0),
+    # town dressing: daisy beds, trimmed bushes, a brazier lamp that the
+    # client lights after dark, and small monuments from HAS2020
+    'flowers0': ('GB', 2, 0), 'flowers1': ('GB', 3, 0), 'flowers2': ('GB', 2, 1),
+    'bush0': ('GB', 7, 0), 'bush1': ('GB', 6, 1),
+    'lamp': ('DNG', 13, 6),
+    'statue': ('B1X1', 5, 2), 'signpost': ('B1X1', 1, 2), 'kiosk': ('B1X1', 5, 0),
     'swampdecor0': ('MB', 2, 0), 'mushroom': ('TREES', 1, 28),
     'table':  ('BLDG', 2, 4), 'stool': ('BLDG', 1, 4),
     'well':   ('DNG', 15, 1),  # a stout barrel-well until a better match
@@ -632,6 +639,10 @@ def build_topdown_heroic(frames, images_out):
                 'magetower': (0, 6), 'shop': (3, 2), 'lodge': (4, 6)}
     for k, (cx, cy) in TOWN2020.items():
         imgs[k] = b2020.crop((cx * 32, cy * 32, cx * 32 + 32, cy * 32 + 32))
+    # the winged fountain from the 1x2 set (two cells wide), a plaza ornament
+    f12 = Image.open(os.path.join(
+        HEROIC, 'HAS2020 (alpha 1)', 'Buildings', '1x2', '1x2BuildingsSpriteSheet.png')).convert('RGBA')
+    imgs['fountain'] = f12.crop((4 * 16, 0, 6 * 16, 32))
     sw = sum(im.width for im in imgs.values())
     sh = max(im.height for im in imgs.values())
     sheet = Image.new('RGBA', (sw, sh), (0, 0, 0, 0))
@@ -642,7 +653,7 @@ def build_topdown_heroic(frames, images_out):
         # the crown's own castle is grandest, without swallowing the skyline;
         # town shops bake at 5x so the sprite fully covers its 3-tile footprint
         z = 6 if k == 'citycastle' else 5 if k.startswith('city') else \
-            3 if k.startswith('cottage') else 5 if k in TOWN2020 else 4
+            3 if k.startswith('cottage') or k == 'fountain' else 5 if k in TOWN2020 else 4
         frames[f'td.o.{k}'] = {'img': 'structures', 'x': x, 'y': sh - im.height,
                                'w': im.width, 'h': im.height,
                                'ax': im.width // 2, 'ay': im.height - 2, 'scale': z}
