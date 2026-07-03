@@ -86,42 +86,55 @@ the client in chunks as you explore:
   on first login (passwords are scrypt-hashed). A rotating week-long session
   token means reopening the game walks you straight back into the world.
 
-## The map editor (internal tool)
+## The world builder
 
-The shard ships with a visual world editor. With the server running, open:
+The shard ships with a password-protected WYSIWYG world builder. With the
+server running, open:
 
 ```
 http://localhost:8080/editor.html
 ```
 
-It only answers from **localhost** — on a remote deployment it refuses unless
-you explicitly start the server with `EDITOR=1`.
+**Access:** set `EDITOR_PASSWORD=...` on the server and the builder asks for
+it (from anywhere, loopback included) at `/editor-login.html` — sessions last
+12 hours, five wrong tries per quarter-hour. With no password set it answers
+from **localhost only**. (The old `EDITOR=1` open-door flag is gone.)
 
 What you can do:
 
-- **Look around** — the whole 2048×2048 island top-down, in the minimap
-  palette. Mouse-wheel zooms toward the cursor (from full-island overview to
-  a single-tile grid), right-drag or hold space to pan, and the **Go to**
-  dropdown jumps straight to any city or village. Markers show everything in
-  the world: ▲ props, ● mob spawners, ◆ secrets, ■ vendors — dim if worldgen
-  placed them, bright if you did.
-- **Paint tiles** — pick the *Paint* tool, choose a tile from the palette
-  (grass, road, water, walls, …) and a brush size (1/3/5/9), then drag.
-- **Place things** — *Prop* drops wells/tables/stools/campfires; *Spawner*
-  places a mob camp (pick the kind, count and radius in the sidebar);
-  *Whisper* asks for a line of text travellers will hear at that spot;
-  *Cache* buries a treasure cache.
-- **Erase** — removes whatever is under the cursor: your own edits vanish
-  outright, and world-generated props/spawners are marked for removal.
-- **Undo** — `Ctrl+Z`, one paint stroke or placement at a time.
-- **Save to shard** — writes everything to `world/edits.json`.
+- **See the real game** — zoom in past ~20px/tile and the builder switches
+  from the overview palette to the game's own renderer: real terrain,
+  transitions, animated water, props as sprites, spawners as the creature
+  itself. What you see is exactly what players see.
+- **Paint tiles** — every terrain (grass, road, water, mountains, walls, …)
+  with a 1/3/5/9 brush.
+- **Place anything** — the *Props* catalog holds **every object sprite in
+  the packs** (~700, searchable, grouped: trees, mountains, plants,
+  furniture, town, faction, landmarks…); *Spawner* places any creature camp
+  (kind/count/radius, with a live preview); *Building* raises a complete
+  shopfront — lawn, footprint, doorstep and a furnished interior joined by
+  a door portal; *Portal* links any two points (two-way by default — doors,
+  cave mouths or standing stones), dungeons included; *Whisper* and *Cache*
+  as before.
+- **Erase** — your edits vanish outright; world-generated props, spawners
+  AND secrets are marked for removal.
+- **Save to the running world** — everything applies to the live server
+  immediately: mobs spawn, props appear, the minimap refreshes for every
+  connected player. No restart. The overlay persists in `data/edits.json`
+  (a mounted volume in prod, so it survives redeploys).
+- **Publish to GitHub** — commits the overlay to `world/edits.json` in the
+  repo (needs `GITHUB_TOKEN` + `GITHUB_REPO=owner/name`, optional
+  `GITHUB_BRANCH`, set on the server). *Download edits.json* grabs the file
+  for a manual commit instead.
 
-How it persists: the world stays 100% procedurally generated, and your edits
-are an **overlay** stamped on top of worldgen at every boot — so regenerating
-the world (or changing the seed) never destroys hand-made work. **Commit
-`world/edits.json`** to keep your changes. Tile paints go live for connected
-players the moment you save; new props, spawners and secrets appear on the
-next server restart.
+How it persists: the world stays 100% procedurally generated and your edits
+are an **overlay** stamped on top of worldgen at boot — regenerating the
+world never destroys hand-made work. At boot the server loads whichever of
+`data/edits.json` / `world/edits.json` is newer, so a published commit takes
+hold on the next deploy.
+
+To add or hand-edit the prop art itself, see `art/README.md` (the
+`--export-props` staging folder and the committed `art/props/` folder).
 
 ## Editing the sprites (Photoshop / Figma / any editor)
 

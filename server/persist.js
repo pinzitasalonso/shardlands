@@ -63,6 +63,7 @@ function saveTable(table, file, records) {
 }
 
 module.exports = {
+  DATA_DIR,
   usingSqlite: () => !!db,
   load: () => loadTable('players', PLAYERS_FILE),
   save: (records) => saveTable('players', PLAYERS_FILE, records),

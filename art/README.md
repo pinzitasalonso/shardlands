@@ -47,6 +47,27 @@ New creatures/tiles need a manifest entry, which comes from the recipes in
 `tiles` table in `main()`). Add a recipe there, then use this same override
 flow to refine the result by hand.
 
+## The world builder's prop catalog
+
+Every usable object sprite from the purchased packs is cut, deduplicated
+and packed into `client/assets/props-extra.png`, grouped by category for
+the in-game world builder's palettes (`manifest.propCategories`). Two
+folder tiers let you edit or extend it:
+
+- **Edit an existing prop** — run
+  `python3 tools/build-assets.py --export-props` to dump every catalog
+  entry as a loose PNG under `tools/asset-src/props/<category>/<name>.png`
+  (gitignored: they derive from the paid packs). Edit any of them in
+  Photoshop/Figma/Aseprite; the next plain build uses your version.
+- **Add your own prop** — drop an original PNG into
+  `art/props/<category>/<name>.png` (committed — your own work only).
+  16 px of source = one tile in-game; larger images span more tiles,
+  anchored bottom-centre. The folder name becomes (or joins) a palette
+  category, and the prop is placeable as `prop.<name>`.
+
+Names are `<category><n>` in scan order, so keep new catalog regions
+appended at the end in `PROP_REGIONS` — placed props reference names.
+
 ## Licensing
 
 Only freely licensed or original art may ship — see

@@ -11,7 +11,8 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { TILE, generate, applyEdits, isWalkable, tileAt, nearestWalkable } = require('./world');
+const { TILE, generate, applyEdits, sanitizeEdits, placeBuilding, EDIT_INTERIOR_X0,
+  isWalkable, tileAt, nearestWalkable } = require('./world');
 const persist = require('./persist');
 
 const TICK_MS = 100;
@@ -255,15 +256,33 @@ function hashPassword(password, salt) {
 class Game {
   constructor() {
     this.map = generate(1337);
-    // Hand-made edits from the visual map editor sit on top of worldgen.
-    this.editsPath = path.join(__dirname, '..', 'world', 'edits.json');
-    try {
-      const edits = JSON.parse(fs.readFileSync(this.editsPath, 'utf8'));
+    // The world builder's overlay sits on top of worldgen. It lives in the
+    // data dir (a mounted volume in prod, so it survives redeploys); the
+    // repo's world/edits.json is the published copy — whichever of the two
+    // is newer wins, so a GitHub publish followed by a redeploy takes hold.
+    this.editsPath = path.join(persist.DATA_DIR, 'edits.json');
+    const legacyEditsPath = path.join(__dirname, '..', 'world', 'edits.json');
+    const readEdits = (p) => {
+      try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch (e) {
+        if (e.code !== 'ENOENT') console.error(`${p} is broken, skipping it:`, e.message);
+        return null;
+      }
+    };
+    // Pristine worldgen state, snapshotted before any edits: the live
+    // editor needs it to un-remove things without a reboot.
+    this.pristineProps = this.map.props.map((p) => ({ ...p }));
+    this.pristineSpawners = this.map.spawners.map((s) => ({ ...s }));
+    this.pristineSecrets = this.map.secrets.map((s) => ({ ...s }));
+    const dataEdits = readEdits(this.editsPath);
+    const repoEdits = readEdits(legacyEditsPath);
+    const edits = (dataEdits && repoEdits)
+      ? ((repoEdits.savedAt || 0) > (dataEdits.savedAt || 0) ? repoEdits : dataEdits)
+      : (dataEdits || repoEdits);
+    this.appliedEdits = edits ? JSON.parse(JSON.stringify(edits)) : {};
+    if (edits) {
       const c = applyEdits(this.map, edits, { validKinds: new Set(Object.keys(MOB_KINDS)) });
       console.log(`map edits: ${c.tiles} tiles, ${c.props} props, ${c.spawners} spawners, ` +
-        `${c.secrets} secrets, ${c.removed} removals`);
-    } catch (e) {
-      if (e.code !== 'ENOENT') console.error('world/edits.json is broken, skipping it:', e.message);
+        `${c.secrets} secrets, ${c.buildings || 0} buildings, ${c.removed} removals`);
     }
     this.players = new Map(); // id -> player (online only)
     this.mobs = new Map();    // id -> mob
@@ -614,6 +633,15 @@ class Game {
     this.sendYou(p);
   }
 
+  chunkData(cx, cy) {
+    const buf = Buffer.alloc(CHUNK * CHUNK);
+    for (let y = 0; y < CHUNK; y++) {
+      const row = (cy * CHUNK + y) * this.map.w + cx * CHUNK;
+      for (let x = 0; x < CHUNK; x++) buf[y * CHUNK + x] = this.map.tiles[row + x];
+    }
+    return buf.toString('base64');
+  }
+
   handleChunks(p, list) {
     if (!Array.isArray(list)) return;
     const maxC = this.map.w / CHUNK;
@@ -622,12 +650,7 @@ class Game {
       const cx = pair[0] | 0;
       const cy = pair[1] | 0;
       if (cx < 0 || cy < 0 || cx >= maxC || cy >= maxC) continue;
-      const buf = Buffer.alloc(CHUNK * CHUNK);
-      for (let y = 0; y < CHUNK; y++) {
-        const row = (cy * CHUNK + y) * this.map.w + cx * CHUNK;
-        for (let x = 0; x < CHUNK; x++) buf[y * CHUNK + x] = this.map.tiles[row + x];
-      }
-      this.send(p.ws, { t: 'chunk', cx, cy, d: buf.toString('base64') });
+      this.send(p.ws, { t: 'chunk', cx, cy, d: this.chunkData(cx, cy) });
     }
   }
 
@@ -821,6 +844,7 @@ class Game {
 
   checkSecrets(p, t) {
     for (let i = 0; i < this.map.secrets.length; i++) {
+      if (this.map.secrets[i].dead) continue; // live-removed by the builder
       const s = this.map.secrets[i];
       if (s.type === 'portal' && s.x === p.x && s.y === p.y) {
         if (t < p.portalAt) return;
@@ -841,6 +865,163 @@ class Game {
         this.sys(p, s.text);
       }
     }
+  }
+
+  // ---- the world builder's live hand ----------------------------------------
+  //
+  // The editor always sends its full cumulative overlay; we diff it against
+  // what was last applied, so saving twice is a no-op and nothing ever
+  // materialises twice. Everything lands on the running world immediately —
+  // except building removal, whose ground truth is only known at reboot.
+  applyEditsLive(rawEdits) {
+    const clean = sanitizeEdits(this.map, rawEdits, { validKinds: new Set(Object.keys(MOB_KINDS)) });
+    const prev = this.appliedEdits || {};
+    const key = (o) => `${o.x},${o.y}`;
+    const keyN = (o) => `${o.x},${o.y},${o.name}`;
+    const keyS = (o) => `${o.type},${o.x},${o.y}`;
+    const diff = (a, b, k) => {
+      const bs = new Set((b || []).map(k));
+      return (a || []).filter((o) => !bs.has(k(o)));
+    };
+    const pk = ([x, y]) => `${x},${y}`;
+    const diffPairs = (a, b) => {
+      const bs = new Set((b || []).map(pk));
+      return (a || []).filter((p) => !bs.has(pk(p)));
+    };
+    const counts = { tiles: 0, props: 0, spawners: 0, secrets: 0, buildings: 0, removed: 0, restored: 0 };
+    const changedTiles = [];
+    const touchTile = (x, y, v) => {
+      this.map.tiles[y * this.map.w + x] = v;
+      changedTiles.push([x, y, v]);
+    };
+    let propsDirty = false;
+
+    // -- tiles: new paints, plus reverted paints go back to... nothing we can
+    // know cheaply, so tile removal isn't offered; the editor paints over.
+    for (const [x, y, v] of diff(clean.tiles, prev.tiles, (t) => `${t[0]},${t[1]},${t[2]}`)) {
+      touchTile(x, y, v);
+      counts.tiles++;
+    }
+
+    // -- buildings: stamp the new ones live (slot index = position in the
+    // full list, same rule as boot, so reboots land in the same rooms)
+    (clean.buildings || []).forEach((b, i) => {
+      const had = (prev.buildings || []).some((o) => keyN(o) === keyN(b));
+      if (had) return;
+      placeBuilding(this.map, b.x, b.y, b.name, EDIT_INTERIOR_X0 + i * 16, (x, y, v) => {
+        changedTiles.push([x, y, v]);
+      });
+      propsDirty = true;
+      counts.buildings++;
+    });
+
+    // -- props: additions, retractions of overlay props, worldgen removals
+    // and worldgen un-removals (restored from the pristine snapshot)
+    for (const p of diff(clean.props, prev.props, keyN)) {
+      this.map.props.push({ ...p });
+      propsDirty = true;
+      counts.props++;
+    }
+    for (const p of diff(prev.props, clean.props, keyN)) {
+      const i = this.map.props.findIndex((o) => keyN(o) === keyN(p));
+      if (i >= 0) { this.map.props.splice(i, 1); propsDirty = true; counts.removed++; }
+    }
+    for (const [x, y] of diffPairs(clean.removeProps, prev.removeProps)) {
+      const i = this.map.props.findIndex((o) => o.x === x && o.y === y);
+      if (i >= 0) { this.map.props.splice(i, 1); propsDirty = true; counts.removed++; }
+    }
+    for (const [x, y] of diffPairs(prev.removeProps, clean.removeProps)) {
+      const orig = this.pristineProps.find((o) => o.x === x && o.y === y);
+      if (orig && !this.map.props.some((o) => o.x === x && o.y === y)) {
+        this.map.props.push({ ...orig });
+        propsDirty = true;
+        counts.restored++;
+      }
+    }
+
+    // -- spawners: materialise additions now, despawn removals' flocks
+    const materialize = (desc) => {
+      const sp = { ...desc, alive: new Set() };
+      this.map.spawners.push(sp);
+      for (let i = 0; i < sp.count; i++) this.spawnMob(sp);
+      counts.spawners++;
+    };
+    const dematerialize = (x, y) => {
+      const i = this.map.spawners.findIndex((s) => s.x === x && s.y === y);
+      if (i < 0) return false;
+      for (const id of this.map.spawners[i].alive || []) this.mobs.delete(id);
+      this.map.spawners.splice(i, 1);
+      return true;
+    };
+    for (const s of diff(clean.spawners, prev.spawners,
+      (o) => `${o.x},${o.y},${o.kind},${o.count},${o.r}`)) {
+      dematerialize(s.x, s.y); // same spot with new settings = replace
+      materialize(s);
+    }
+    for (const s of diff(prev.spawners, clean.spawners,
+      (o) => `${o.x},${o.y},${o.kind},${o.count},${o.r}`)) {
+      if (!(clean.spawners || []).some((o) => o.x === s.x && o.y === s.y)) {
+        if (dematerialize(s.x, s.y)) counts.removed++;
+      }
+    }
+    for (const [x, y] of diffPairs(clean.removeSpawners, prev.removeSpawners)) {
+      if (dematerialize(x, y)) counts.removed++;
+    }
+    for (const [x, y] of diffPairs(prev.removeSpawners, clean.removeSpawners)) {
+      const orig = this.pristineSpawners.find((s) => s.x === x && s.y === y);
+      if (orig && !this.map.spawners.some((s) => s.x === x && s.y === y)) {
+        materialize({ ...orig });
+        counts.restored++;
+      }
+    }
+
+    // -- secrets: push additions; removals are TOMBSTONES, never splices —
+    // treasure maps and stocked caches hold indexes into map.secrets.
+    for (const sc of diff(clean.secrets, prev.secrets, keyS)) {
+      this.map.secrets.push({ ...sc });
+      if (sc.type === 'cache') this.stockCache(sc, this.map.secrets.length - 1);
+      counts.secrets++;
+    }
+    for (const sc of diff(prev.secrets, clean.secrets, keyS)) {
+      const s = this.map.secrets.find((o) => keyS(o) === keyS(sc) && !o.dead);
+      if (s) { s.dead = true; counts.removed++; }
+    }
+    for (const [x, y] of diffPairs(clean.removeSecrets, prev.removeSecrets)) {
+      const s = this.map.secrets.find((o) => o.x === x && o.y === y && !o.dead);
+      if (s) { s.dead = true; counts.removed++; }
+    }
+    for (const [x, y] of diffPairs(prev.removeSecrets, clean.removeSecrets)) {
+      const s = this.map.secrets.find((o) => o.x === x && o.y === y && o.dead);
+      if (s) { delete s.dead; counts.restored++; }
+    }
+
+    // -- tell the world: cheap tile pings for small paints, whole chunks for
+    // floods, one props refresh, one minimap refresh
+    if (changedTiles.length <= 800) {
+      for (const [x, y, v] of changedTiles) {
+        this.broadcast({ t: 'tile', x, y, tile: v });
+      }
+    } else {
+      const chunks = new Set(changedTiles.map(([x, y]) => `${x >> 6},${y >> 6}`));
+      for (const c of chunks) {
+        const [cx, cy] = c.split(',').map(Number);
+        this.broadcast({ t: 'chunk', cx, cy, d: this.chunkData(cx, cy) });
+      }
+    }
+    if (propsDirty) this.broadcast({ t: 'props', props: this.map.props });
+    if (changedTiles.length) {
+      this.miniData = this.buildMini();
+      this.broadcast({ t: 'mini', mini: this.miniData });
+    }
+
+    // -- persist the sanitized overlay atomically; it IS the new baseline
+    clean.savedAt = Date.now();
+    this.appliedEdits = JSON.parse(JSON.stringify(clean));
+    fs.mkdirSync(path.dirname(this.editsPath), { recursive: true });
+    const tmp = this.editsPath + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(clean, null, 1));
+    fs.renameSync(tmp, this.editsPath);
+    return counts;
   }
 
   handleSay(p, text) {
@@ -1194,7 +1375,7 @@ class Game {
       if (Math.random() > entry[0]) continue;
       if (entry[1] === 'tmap') {
         const cacheIdxs = this.map.secrets
-          .map((sc, i) => (sc.type === 'cache' ? i : -1)).filter((i) => i >= 0);
+          .map((sc, i) => (sc.type === 'cache' && !sc.dead ? i : -1)).filter((i) => i >= 0);
         if (!cacheIdxs.length) continue;
         const m = cacheIdxs[rand(0, cacheIdxs.length - 1)];
         this.drops.set(this.nextId, {
