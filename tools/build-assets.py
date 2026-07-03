@@ -549,18 +549,17 @@ def build_topdown_heroic(frames, images_out):
 
     # dungeon brick wall cells + a torch, straight from the dungeon tileset
     dng = sheets['DNG'] if False else Image.open(os.path.join(HEROIC, HAS_SHEETS['DNG'])).convert('RGBA')
-    extra = Image.new('RGBA', (7 * TD, 2 * TD), (0, 0, 0, 0))
-    # real HAS facade pieces for the townhouses: brick fill, arched windows,
-    # and a proper wooden door (16x32)
-    extra.paste(dng.crop((1 * 16, 4 * 16, 2 * 16, 5 * 16)), (4 * TD, 0))
-    frames['td.f.wall'] = {'img': 'extras16', 'x': 4 * TD, 'y': 0, 'w': TD, 'h': TD,
-                           'ax': 0, 'ay': 0, 'scale': TD_SCALE}
-    extra.paste(dng.crop((1 * 16, 2 * 16, 2 * 16, 3 * 16)), (5 * TD, 0))
-    frames['td.f.win'] = {'img': 'extras16', 'x': 5 * TD, 'y': 0, 'w': TD, 'h': TD,
-                          'ax': TD // 2, 'ay': 0, 'scale': TD_SCALE}
-    extra.paste(dng.crop((7 * 16, 3 * 16, 8 * 16, 5 * 16)), (6 * TD, 0))
-    frames['td.f.door'] = {'img': 'extras16', 'x': 6 * TD, 'y': 0, 'w': TD, 'h': 2 * TD,
-                           'ax': TD // 2, 'ay': 2 * TD, 'scale': 2}
+    extra = Image.new('RGBA', (9 * TD, 2 * TD), (0, 0, 0, 0))
+    # Facade pieces, laid out exactly as the keep block intends: windows are
+    # TWO cells tall (top + bottom halves), plain columns beside them, and
+    # the pack's own 16x32 door — all drawn per tile column at 3x.
+    for i, (name, cx, cy) in enumerate([('wt', 1, 2), ('wb', 1, 3), ('pt', 3, 2), ('pb', 3, 3)]):
+        extra.paste(dng.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16)), ((4 + i) * TD, 0))
+        frames[f'td.f.{name}'] = {'img': 'extras16', 'x': (4 + i) * TD, 'y': 0,
+                                  'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+    extra.paste(dng.crop((7 * 16, 3 * 16, 8 * 16, 5 * 16)), (8 * TD, 0))
+    frames['td.f.door'] = {'img': 'extras16', 'x': 8 * TD, 'y': 0, 'w': TD, 'h': 2 * TD,
+                           'ax': TD // 2, 'ay': 2 * TD, 'scale': TD_SCALE}
     for i, (cx, cy) in enumerate([(1, 5), (2, 5)]):
         extra.paste(dng.crop((cx * TD, cy * TD, cx * TD + TD, cy * TD + TD)), (i * TD, 0))
         frames[f'td.g.ubrick.{i}'] = {'img': 'extras16', 'x': i * TD, 'y': 0,

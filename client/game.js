@@ -398,6 +398,12 @@ function handleFx(msg) {
 const keys = new Set();
 const chatInput = document.getElementById('chat-input');
 
+// On phones the chat log is a one-line ticker; tapping it unfolds history.
+document.getElementById('chat-log').addEventListener('click', function () {
+  this.classList.toggle('expanded');
+  this.scrollTop = this.scrollHeight;
+});
+
 document.addEventListener('keydown', (ev) => {
   if (document.activeElement === chatInput) {
     if (ev.key === 'Enter') {
@@ -1540,13 +1546,12 @@ function drawRoof(b, cam, time) {
   const tl = worldToScreen(b.x - e, b.y - e, cam);
   const br = worldToScreen(b.x + b.w + e, b.y + b.h, cam);
   const w = br.x - tl.x;
-  const facadeH = Math.round(TP * 1.35);
+  const facadeH = TP * 2; // two art rows: the block's intended proportions
   const fy = br.y - facadeH;         // where roof meets wall
   const roofH = fy - tl.y;
   const ridgeY = Math.round(tl.y + roofH * 0.42);
 
   const roofTex = Assets.pattern(ctx, (b.x * 7 + b.y * 13) % 2 ? 'td.g.floor.0' : 'td.g.road.0');
-  const wallTex = Assets.pattern(ctx, 'td.f.wall'); // HAS brick face
   // patterns anchor to the building, not the screen, or textures swim
   const fill = (x, y, sw, sh, tex, fallback) => {
     ctx.save();
@@ -1556,27 +1561,26 @@ function drawRoof(b, cam, time) {
     ctx.restore();
   };
 
-  // ---- the facade: HAS brick face, arched windows, the pack's own door ----
-  fill(tl.x, fy, w, facadeH, wallTex, '#9a6a58');
-  ctx.fillStyle = 'rgba(30, 15, 8, 0.25)'; // wall sits in the roof's shade
-  ctx.fillRect(tl.x, fy, w, 8);
+  // ---- the facade: the keep block's own column arrangement, per tile ----
+  // Window columns alternate with plain brick columns; each is two stacked
+  // 16px cells drawn at 3x on the exact tile grid, so courses, arches and
+  // the door all line up the way the sheet intends.
+  const southDoor = b.dy === b.y + b.h - 1;
+  fill(tl.x, fy, w, facadeH, null, '#7a4a3e'); // backing for the eave slivers
+  for (let cx = b.x; cx < b.x + b.w; cx++) {
+    const s = worldToScreen(cx, 0, cam);
+    if (cx === b.dx && southDoor) {
+      Assets.drawFrame(ctx, 'td.f.door', s.x + HT, br.y);
+      continue;
+    }
+    const win = (cx - b.x) % 2 === 1;
+    Assets.drawFrame(ctx, win ? 'td.f.wt' : 'td.f.pt', s.x, fy);
+    Assets.drawFrame(ctx, win ? 'td.f.wb' : 'td.f.pb', s.x, fy + TP);
+  }
+  ctx.fillStyle = 'rgba(30, 15, 8, 0.28)'; // the wall sits in the roof's shade
+  ctx.fillRect(tl.x, fy, w, 7);
   ctx.strokeStyle = 'rgba(30, 20, 10, 0.6)';
   ctx.strokeRect(tl.x + 0.5, fy + 0.5, w - 1, facadeH - 1);
-
-  // arched windows on every other tile column, skipping the door's column
-  for (let cx = b.x; cx < b.x + b.w; cx++) {
-    if ((cx - b.x) % 2 === 0 || cx === b.dx) continue;
-    const s = worldToScreen(cx + 0.5, 0, cam);
-    Assets.drawFrame(ctx, 'td.f.win', s.x, fy + Math.round(facadeH * 0.15));
-  }
-
-  // the door, at street level (south doors live on the facade; doors on
-  // other faces get their marker drawn on their own tile below)
-  const southDoor = b.dy === b.y + b.h - 1;
-  if (b.dx !== undefined && southDoor) {
-    const s = worldToScreen(b.dx + 0.5, 0, cam);
-    Assets.drawFrame(ctx, 'td.f.door', s.x, br.y);
-  }
 
   // ---- the roof: far slope shaded above the ridge, near slope below ----
   const shingles = (x, y, sw, sh, shade) => {
