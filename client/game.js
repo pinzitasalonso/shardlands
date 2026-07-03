@@ -33,16 +33,16 @@ const MOB_STYLE = {
   ettin: { color: '#a07040', size: 1.0, name: 'an ettin' },
   dragon: { color: '#c03828', size: 1.3, name: 'a dragon' },
   wolf: { color: '#6a625a', size: 0.6, name: 'a wolf' },
-  deer: { color: '#a8835a', size: 0.6, name: 'a deer' },
-  sheep: { color: '#e8e4da', size: 0.5, name: 'a sheep' },
-  pig: { color: '#d8a8a0', size: 0.5, name: 'a pig' },
-  chicken: { color: '#e8d8b0', size: 0.3, name: 'a chicken' },
+  deer: { color: '#a8835a', size: 0.6, name: 'a deer' , neutral: true },
+  sheep: { color: '#e8e4da', size: 0.5, name: 'a sheep' , neutral: true },
+  pig: { color: '#d8a8a0', size: 0.5, name: 'a pig' , neutral: true },
+  chicken: { color: '#e8d8b0', size: 0.3, name: 'a chicken' , neutral: true },
   snake: { color: '#6a8a4a', size: 0.4, name: 'a bog serpent' },
   crab: { color: '#b06a4a', size: 0.4, name: 'a marsh crab' },
   boar: { color: '#6a5240', size: 0.6, name: 'a wild boar' },
-  villager: { color: '#b0a890', size: 0.6, name: 'a villager', sprites: ['villager', 'villager2', 'villager3'] },
-  guard: { color: '#8a93a5', size: 0.7, name: 'a town guard' },
-  whitestag: { color: '#f0f0e8', size: 0.7, name: 'the White Stag', sprite: 'deer', spriteScale: 1.3, boss: true },
+  villager: { color: '#b0a890', size: 0.6, name: 'a villager', sprites: ['villager', 'villager2', 'villager3'] , friendly: true },
+  guard: { color: '#8a93a5', size: 0.7, name: 'a town guard' , friendly: true },
+  whitestag: { color: '#f0f0e8', size: 0.7, name: 'the White Stag', sprite: 'deer', spriteScale: 1.3, boss: true , neutral: true },
   goblinking: { color: '#5aa040', size: 0.9, name: 'Skarg, the Goblin King', sprite: 'goblin', spriteScale: 1.5, boss: true },
   bonelord: { color: '#d8d4c8', size: 1.1, name: 'the Bone Lord', spriteScale: 1.15, boss: true },
   wolfking: { color: '#6a625a', size: 0.9, name: 'Greyfang, the Wolf King', sprite: 'wolf', spriteScale: 1.6, boss: true },
@@ -52,9 +52,9 @@ const MOB_STYLE = {
   harpy: { color: '#b08a5a', size: 0.7, name: 'a harpy' },
   wolfrider: { color: '#8a7a5a', size: 0.7, name: 'a goblin wolf-rider' },
   vampire: { color: '#a03040', size: 1.0, name: 'the Crimson Count', boss: true },
-  dwarf: { color: '#c8a878', size: 0.6, name: 'a dwarf miner' },
-  dwarfguard: { color: '#b04838', size: 0.7, name: 'a dwarf warden' },
-  dwarfpriest: { color: '#e8e0d0', size: 0.6, name: 'a rune-priest' },
+  dwarf: { color: '#c8a878', size: 0.6, name: 'a dwarf miner' , friendly: true },
+  dwarfguard: { color: '#b04838', size: 0.7, name: 'a dwarf warden' , friendly: true },
+  dwarfpriest: { color: '#e8e0d0', size: 0.6, name: 'a rune-priest' , friendly: true },
   orcbrute: { color: '#4a7a30', size: 0.9, name: 'an orc brute' },
   orcwarlord: { color: '#4a7a30', size: 1.1, name: 'Gruk, Warlord of the Wastes', boss: true },
   elfranger: { color: '#5a8a4a', size: 0.7, name: 'an elf ranger' },
@@ -1848,7 +1848,12 @@ function drawMob(m, cam, time) {
   }
 
   if (!style.sprite || style.boss) drawHpBar(s.x, labelY + 4, m.hp, m.maxhp);
-  ctx.fillStyle = style.boss ? '#ffd060' : 'rgba(220, 214, 200, 0.85)';
+  // UO-style name plates: gold for the crowned, blue for friends of the
+  // realm, pale tan for harmless beasts, red for everything that bites.
+  ctx.fillStyle = style.boss ? '#ffd060'
+    : style.friendly ? 'rgba(140, 199, 255, 0.92)'
+    : style.neutral ? 'rgba(208, 202, 173, 0.85)'
+    : 'rgba(255, 150, 132, 0.92)';
   ctx.font = style.boss ? 'bold 12px Georgia' : '11px Georgia';
   ctx.textAlign = 'center';
   ctx.fillText(m.name || style.name, s.x, labelY);

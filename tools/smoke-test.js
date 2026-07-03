@@ -778,6 +778,46 @@ assert(game.map.spawners.filter((sp) => sp.kind === 'orcwarlord').length === 1,
 assert(game.map.spawners.some((sp) => sp.kind === 'lizardman' && sp.y < 64),
   'lizardmen hold the sunken warren');
 
+// -- the watch can be fought, and the watch answers as one ---------------------------
+p.dead = false;
+p.hp = 200;
+p.x = game.map.spawn.x;
+p.y = game.map.spawn.y;
+const watchSp = { alive: new Set(), x: p.x, y: p.y, r: 4, kind: 'guard' };
+const g1 = { id: 999986, kind: 'guard', x: p.x + 1, y: p.y, hp: 160, maxhp: 160,
+  homeX: p.x + 1, homeY: p.y, target: 0, foe: 0, moveAt: 0, swingAt: Infinity,
+  chatAt: Infinity, spawner: watchSp };
+const g2 = { id: 999985, kind: 'guard', x: p.x + 6, y: p.y, hp: 160, maxhp: 160,
+  homeX: p.x + 6, homeY: p.y, target: 0, foe: 0, moveAt: 0, swingAt: Infinity,
+  chatAt: Infinity, spawner: watchSp };
+game.mobs.set(g1.id, g1);
+game.mobs.set(g2.id, g2);
+watchSp.alive.add(g1.id);
+watchSp.alive.add(g2.id);
+ws.sent.length = 0;
+game.handleAttack(p, g1.id);
+assert.strictEqual(p.target, g1.id, 'the watch can be challenged');
+game.damageMob(p, g1, 5);
+assert.strictEqual(g1.target, p.id, 'the struck guard fights back');
+assert.strictEqual(g2.target, p.id, 'strike one guard and the whole watch answers');
+assert(ws.sent.some((m) => m.t === 'sys' && /Criminal/.test(m.text)), 'the cry goes up');
+// the walls are no sanctuary from the law: the guard closes in anyway
+const gapBefore = Math.abs(g2.x - p.x);
+game.mobTick(g2, Date.now());
+assert.strictEqual(g2.target, p.id, 'the law hunts inside the walls');
+assert(Math.abs(g2.x - p.x) < gapBefore, 'and closes the distance');
+// but the townsfolk stay protected
+const civi = [...game.mobs.values()].find((m) => m.kind === 'villager');
+ws.sent.length = 0;
+game.handleAttack(p, civi.id);
+assert(ws.sent.some((m) => m.t === 'sys' && /crown's protection/.test(m.text)),
+  'villagers remain under the crown\'s protection');
+game.mobs.delete(g1.id);
+game.mobs.delete(g2.id);
+p.target = 0;
+// pardon the tester: stand the real watch down before the next scenes
+for (const m of game.mobs.values()) if (MOB_KINDS[m.kind] && MOB_KINDS[m.kind].guard) m.target = 0;
+
 // -- the new words of power: frost, the arcing bolt, and borrowed speed --------------
 p.skills.magery = 100; // at GM magery the fizzle roll (d100 > magery+35) cannot fail
 p.mana = 200;

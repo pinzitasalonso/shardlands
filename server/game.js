@@ -57,7 +57,7 @@ const MOB_KINDS = {
   villager: { name: 'a villager', hp: 30, dmg: [0, 1], skill: 5, gold: 0, speedMs: 900, aggro: 0, peaceful: true },
   // City guards never trouble travellers, but anything hostile that slips
   // inside the walls answers to them.
-  guard: { name: 'a town guard', hp: 160, dmg: [10, 18], skill: 85, gold: 0, speedMs: 320, aggro: 0, peaceful: true, guard: true },
+  guard: { name: 'a town guard', hp: 160, dmg: [10, 18], skill: 85, gold: 60, speedMs: 320, aggro: 0, peaceful: true, guard: true },
   // Crowned terrors. Slain ones return after a long while.
   goblinking: { name: 'Skarg, the Goblin King', hp: 130, dmg: [6, 12], skill: 60, gold: 220, speedMs: 320, aggro: 9, boss: true },
   vyrmaur: { name: 'Vyrmaur the Undying', hp: 900, dmg: [22, 40], skill: 110, gold: 1500, speedMs: 380, aggro: 12, boss: true },
@@ -79,7 +79,7 @@ const MOB_KINDS = {
   // The mountain clans: miners work the high quarries under the halberds
   // of their wardens. Peaceful — but the wardens answer anything hostile.
   dwarf: { name: 'a dwarf miner', hp: 40, dmg: [3, 7], skill: 40, gold: 0, speedMs: 600, aggro: 0, peaceful: true },
-  dwarfguard: { name: 'a dwarf warden', hp: 150, dmg: [9, 16], skill: 80, gold: 0, speedMs: 400, aggro: 0, peaceful: true, guard: true },
+  dwarfguard: { name: 'a dwarf warden', hp: 150, dmg: [9, 16], skill: 80, gold: 55, speedMs: 400, aggro: 0, peaceful: true, guard: true },
   dwarfpriest: { name: 'a rune-priest', hp: 60, dmg: [2, 5], skill: 50, gold: 0, speedMs: 650, aggro: 0, peaceful: true },
   // The warlord's own: harder company than the common camps, and Gruk
   // himself under the white-crested banner.
@@ -888,11 +888,14 @@ class Game {
     if (p.dead) return this.sys(p, 'You are a ghost. Seek the shrine.');
     const mob = this.mobs.get(mobId);
     if (!mob) return;
-    if (MOB_KINDS[mob.kind].peaceful) {
+    const def = MOB_KINDS[mob.kind];
+    // Townsfolk are protected. Guards are not — they can protect themselves,
+    // and every guard in earshot will make that point together.
+    if (def.peaceful && !def.guard) {
       return this.sys(p, 'The townsfolk are under the crown\'s protection.');
     }
     p.target = mobId;
-    this.sys(p, `You attack ${mob.name || MOB_KINDS[mob.kind].name}.`);
+    this.sys(p, `You attack ${mob.name || def.name}.`);
   }
 
   handleCast(p, spellId, targetId) {
@@ -934,18 +937,19 @@ class Game {
       const mob = this.mobs.get(targetId || p.target);
       if (!mob || dist(p, mob) > 10) {
         this.sys(p, 'No target in range.');
-      } else if (MOB_KINDS[mob.kind].peaceful) {
+      } else if (MOB_KINDS[mob.kind].peaceful && !MOB_KINDS[mob.kind].guard) {
         this.sys(p, 'The townsfolk are under the crown\'s protection.');
       } else {
         mob.poison = { left: 5, dmg: rand(spell.dot[0], spell.dot[1]), nextAt: t + 2000, by: p.id };
         this.fxNear(mob, { t: 'fx', kind: 'poison', x: mob.x, y: mob.y });
         this.sys(p, `${mob.name || MOB_KINDS[mob.kind].name} turns a sickly green.`);
+        if (MOB_KINDS[mob.kind].guard) this.raiseTheWatch(p, mob);
       }
     } else {
       const mob = this.mobs.get(targetId || p.target);
       if (!mob || dist(p, mob) > 10) {
         this.sys(p, 'No target in range.');
-      } else if (MOB_KINDS[mob.kind].peaceful) {
+      } else if (MOB_KINDS[mob.kind].peaceful && !MOB_KINDS[mob.kind].guard) {
         this.sys(p, 'The townsfolk are under the crown\'s protection.');
       } else {
         const dmg = rand(spell.dmg[0], spell.dmg[1]) + Math.floor(p.skills.magery / (spellId === 'energybolt' ? 8 : 12));
@@ -1096,9 +1100,28 @@ class Game {
 
   // ---- combat ---------------------------------------------------------------
 
+  // Striking the watch is a crime: every guard in earshot drops what it is
+  // doing and answers. They give up (and go home, and forgive) only if the
+  // criminal flees far past the walls — the usual leash applies.
+  raiseTheWatch(attacker, struck) {
+    let raised = 0;
+    for (const m of this.mobs.values()) {
+      if (!MOB_KINDS[m.kind].guard) continue;
+      if (Math.abs(m.x - struck.x) > 30 || Math.abs(m.y - struck.y) > 30) continue;
+      m.target = attacker.id;
+      m.evading = false;
+      raised++;
+    }
+    if (raised > 1 && now() >= (attacker.crimeNagAt || 0)) {
+      attacker.crimeNagAt = now() + 8000;
+      this.sys(attacker, 'The watch cries out: "Criminal! To arms!"');
+    }
+  }
+
   damageMob(attacker, mob, dmg) {
     mob.hp -= dmg;
     const def = MOB_KINDS[mob.kind];
+    if (def.guard) this.raiseTheWatch(attacker, mob);
     if (def.aggro === 0 && !def.peaceful) {
       // Prey bolts rather than bites.
       mob.fleeUntil = now() + 6000;
@@ -1529,9 +1552,11 @@ class Game {
     }
 
     // Acquire or validate a target. The walls of a city are sanctuary:
-    // nothing hunts a traveller standing inside them.
+    // nothing hunts a traveller standing inside them — except the watch,
+    // for whom the walls are precisely the jurisdiction.
     let target = mob.target ? this.players.get(mob.target) : null;
-    if (target && (target.dead || dist(mob, target) > 14 || this.inCity(target.x, target.y))) {
+    if (target && (target.dead || dist(mob, target) > 14 ||
+        (this.inCity(target.x, target.y) && !def.guard))) {
       mob.target = 0;
       target = null;
     }
