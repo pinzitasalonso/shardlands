@@ -297,8 +297,10 @@ button { font-family: inherit; cursor: pointer; }
   z-index: 10;
 }
 
-@media (max-width: 1180px) {
-  #actions { left: 50vw; bottom: 232px; }
+/* the hotbar has grown; below ~1500px it would slide under the chat card,
+   so it rises above it instead */
+@media (max-width: 1500px) {
+  #actions { left: 50vw; bottom: 240px; }
 }
 
 #actions button {
@@ -709,3 +711,7 @@ body, button { cursor: url('assets/ui/cursor.png') 2 2, auto; }
     border-image-width: 8px;
   }
 }
+
+/* pixel icons from the HAS packs */
+.slot-img { width: 32px; height: 32px; image-rendering: pixelated; margin-top: 5px; pointer-events: none; }
+.px-icon { width: 22px; height: 22px; image-rendering: pixelated; vertical-align: middle; }

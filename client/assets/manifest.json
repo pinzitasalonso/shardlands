@@ -10,6 +10,7 @@
   "swamptrees": "swamptrees.png",
   "ground16": "ground16.png",
   "objects16": "objects16.png",
+  "extras16": "extras16.png",
   "goblin": "creatures/goblin.png",
   "skeleton": "creatures/skeleton.png",
   "skelmage": "creatures/skelmage.png",
@@ -1123,6 +1124,36 @@
    "ax": 0,
    "ay": 0,
    "scale": 3
+  },
+  "td.g.ubrick.0": {
+   "img": "extras16",
+   "x": 0,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.ubrick.1": {
+   "img": "extras16",
+   "x": 16,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.o.torch": {
+   "img": "extras16",
+   "x": 32,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 8,
+   "ay": 16,
+   "scale": 3
   }
  },
  "tiles": {
@@ -1469,6 +1500,13 @@
     "td.g.cave.0",
     "td.g.cave.1"
    ]
+  },
+  "u3": {
+   "ground": [
+    "td.g.ubrick.0",
+    "td.g.ubrick.1"
+   ],
+   "torch": true
   }
  },
  "creatures": {
