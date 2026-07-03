@@ -743,6 +743,26 @@
    "ay": 0,
    "scale": 3
   },
+  "td.g.floor.2": {
+   "img": "ground16",
+   "x": 32,
+   "y": 112,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.floor.3": {
+   "img": "ground16",
+   "x": 48,
+   "y": 112,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
   "td.g.planks.0": {
    "img": "ground16",
    "x": 0,
@@ -766,6 +786,26 @@
   "td.g.cave.1": {
    "img": "ground16",
    "x": 16,
+   "y": 144,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.cave.2": {
+   "img": "ground16",
+   "x": 32,
+   "y": 144,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.cave.3": {
+   "img": "ground16",
+   "x": 48,
    "y": 144,
    "w": 16,
    "h": 16,
@@ -2241,7 +2281,9 @@
   "5": {
    "ground": [
     "td.g.floor.0",
-    "td.g.floor.1"
+    "td.g.floor.1",
+    "td.g.floor.2",
+    "td.g.floor.3"
    ]
   },
   "6": {
@@ -2282,7 +2324,9 @@
   "8": {
    "ground": [
     "td.g.floor.0",
-    "td.g.floor.1"
+    "td.g.floor.1",
+    "td.g.floor.2",
+    "td.g.floor.3"
    ],
    "effect": "shrine"
   },
@@ -2348,7 +2392,9 @@
   "14": {
    "ground": [
     "td.g.cave.0",
-    "td.g.cave.1"
+    "td.g.cave.1",
+    "td.g.cave.2",
+    "td.g.cave.3"
    ]
   },
   "u3": {
