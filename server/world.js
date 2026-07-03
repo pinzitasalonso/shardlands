@@ -464,6 +464,8 @@ function generate(seed = 1337) {
     set(mouth.x, mouth.y, TILE.CAVE);
     secrets.push({ type: 'portal', x: mouth.x, y: mouth.y, tx: entry.x, ty: entry.y, cave: true });
     secrets.push({ type: 'portal', x: entry.x, y: entry.y, tx: mouth.x, ty: mouth.y, cave: true });
+    // mark the way home: stairs on the arrival tile, torchlight beside it
+    props.push({ x: entry.x, y: entry.y, name: 'prop.stairsup' });
     secrets.push({ type: 'whisper', x: mouth.x - 1, y: mouth.y, text: whisperText });
   };
 
@@ -540,7 +542,7 @@ function generate(seed = 1337) {
     for (let x = CX - 3; x <= CX + 3; x++) set(x, y, TILE.FLOOR); // forecourt
   }
   for (let y = CY - 21; y <= CY - 17; y++) {
-    for (let x = CX - 4; x <= CX + 4; x++) set(x, y, TILE.WALL); // solid under the keep
+    for (let x = CX - 5; x <= CX + 5; x++) set(x, y, TILE.WALL); // solid under the keep
   }
   props.push({ x: CX, y: CY - 17, name: 'prop.citycastle' });
   openMouth({ x: CX, y: CY - 16 }, 6, {

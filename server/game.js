@@ -738,7 +738,10 @@ class Game {
           : 'The shrine hums softly. /home will carry you back here.');
       }
     }
-    if (!p.dead) this.checkSecrets(p, t);
+    // Ghosts may use the portals too — a shade must be able to climb out
+    // of the deeps to reach a shrine — but the world only whispers to,
+    // and buries treasure for, the living (handled in checkSecrets).
+    this.checkSecrets(p, t);
   }
 
   cityAt(x, y) {
@@ -764,7 +767,7 @@ class Game {
         this.sys(p, 'The standing stones flare with old magic, and the world lurches.');
         return;
       }
-      if (s.type === 'whisper' && !p.whispered.has(i) &&
+      if (s.type === 'whisper' && !p.dead && !p.whispered.has(i) &&
           Math.abs(s.x - p.x) <= 2 && Math.abs(s.y - p.y) <= 2) {
         p.whispered.add(i);
         this.sys(p, s.text);

@@ -549,7 +549,18 @@ def build_topdown_heroic(frames, images_out):
 
     # dungeon brick wall cells + a torch, straight from the dungeon tileset
     dng = sheets['DNG'] if False else Image.open(os.path.join(HEROIC, HAS_SHEETS['DNG'])).convert('RGBA')
-    extra = Image.new('RGBA', (3 * TD, TD), (0, 0, 0, 0))
+    extra = Image.new('RGBA', (7 * TD, 2 * TD), (0, 0, 0, 0))
+    # real HAS facade pieces for the townhouses: brick fill, arched windows,
+    # and a proper wooden door (16x32)
+    extra.paste(dng.crop((1 * 16, 4 * 16, 2 * 16, 5 * 16)), (4 * TD, 0))
+    frames['td.f.wall'] = {'img': 'extras16', 'x': 4 * TD, 'y': 0, 'w': TD, 'h': TD,
+                           'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+    extra.paste(dng.crop((1 * 16, 2 * 16, 2 * 16, 3 * 16)), (5 * TD, 0))
+    frames['td.f.win'] = {'img': 'extras16', 'x': 5 * TD, 'y': 0, 'w': TD, 'h': TD,
+                          'ax': TD // 2, 'ay': 0, 'scale': TD_SCALE}
+    extra.paste(dng.crop((7 * 16, 3 * 16, 8 * 16, 5 * 16)), (6 * TD, 0))
+    frames['td.f.door'] = {'img': 'extras16', 'x': 6 * TD, 'y': 0, 'w': TD, 'h': 2 * TD,
+                           'ax': TD // 2, 'ay': 2 * TD, 'scale': 2}
     for i, (cx, cy) in enumerate([(1, 5), (2, 5)]):
         extra.paste(dng.crop((cx * TD, cy * TD, cx * TD + TD, cy * TD + TD)), (i * TD, 0))
         frames[f'td.g.ubrick.{i}'] = {'img': 'extras16', 'x': i * TD, 'y': 0,
@@ -557,6 +568,10 @@ def build_topdown_heroic(frames, images_out):
     extra.paste(dng.crop((12 * 16, 7 * 16, 12 * 16 + 16, 7 * 16 + 16)), (2 * TD, 0))
     frames['td.o.torch'] = {'img': 'extras16', 'x': 2 * TD, 'y': 0, 'w': TD, 'h': TD,
                             'ax': TD // 2, 'ay': TD, 'scale': TD_SCALE}
+    # the way back up: dungeon staircase treads mark every arrival tile
+    extra.paste(dng.crop((5 * 16, 8 * 16, 5 * 16 + 16, 8 * 16 + 16)), (3 * TD, 0))
+    frames['td.o.stairsup'] = {'img': 'extras16', 'x': 3 * TD, 'y': 0, 'w': TD, 'h': TD,
+                               'ax': TD // 2, 'ay': TD, 'scale': TD_SCALE}
     extra.save(os.path.join(OUT, 'extras16.png'))
     images_out['extras16'] = 'extras16.png'
 
@@ -583,7 +598,7 @@ def build_topdown_heroic(frames, images_out):
         sheet.paste(im, (x, sh - im.height))
         # city halls tower over houses (5x); treasures loom (4x); cottages 3x
         # the crown's own castle dwarfs everything; other halls are grand
-        z = 6 if k == 'citycastle' else 5 if k.startswith('city') else 3 if k.startswith('cottage') else 4
+        z = 7 if k == 'citycastle' else 5 if k.startswith('city') else 3 if k.startswith('cottage') else 4
         frames[f'td.o.{k}'] = {'img': 'structures', 'x': x, 'y': sh - im.height,
                                'w': im.width, 'h': im.height,
                                'ax': im.width // 2, 'ay': im.height - 2, 'scale': z}

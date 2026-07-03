@@ -718,5 +718,17 @@ assert.strictEqual(game.map.props.length, propCountBefore, 'one prop removed, on
 assert(game.map.secrets.some((s) => s.type === 'whisper' && s.text === 'The editor was here.'),
   'edited whisper joined the world');
 
+// -- the dead can climb out of the deeps ---------------------------------------------
+const upStair = game.map.secrets.find((s) => s.type === 'portal' && s.cave && s.y < 64);
+p.dead = true;
+p.x = upStair.x + 1;
+p.y = upStair.y;
+p.moveAt = 0;
+p.portalAt = 0;
+game.handleMove(p, -1, 0);
+assert(p.y >= 64, 'a ghost takes the stair back to the surface');
+p.dead = false;
+p.hp = 50;
+
 console.log('smoke test: all assertions passed');
 process.exit(0);
