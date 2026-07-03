@@ -17,6 +17,13 @@ Generated atlases are produced by `tools/build-assets.py` from these sources:
   ship with **HAS UI** by **Aleksandr Makarov** (@IKnowKingRabbit), same
   license terms as below.
 
+## World-builder prop catalog (`props-extra.png`)
+- Object sprites cut from across the **Heroic Asset Series** packs
+  (Overworld, Dungeon, Buildings Pack, HAS2020, Dwarves, Orcs Empire,
+  WoodElves) by **Aleksandr Makarov** (@IKnowKingRabbit), composed into a
+  single game atlas per the pack license. Original additions may live in
+  `art/props/` and belong to this project.
+
 ## Top-down terrain and scenery (`ground16.png`, `objects16.png`)
 - Sliced from the **Heroic Asset Series** (HAS Overworld 2.1, HAS Dungeon)
   by **Aleksandr Makarov** (@IKnowKingRabbit) -- purchased packs, used and

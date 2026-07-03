@@ -66,6 +66,69 @@ function makeNoise(rng, cell) {
   };
 }
 
+// Buildings the world builder may place. Kept in worldgen's vocabulary so
+// the editor, applyEdits and the live server all agree on one list.
+const BUILDING_KINDS = ['smithy', 'inn', 'healer', 'magetower', 'shop', 'lodge'];
+
+// Interior rooms live on row 54 of the dead strip. Worldgen allocates
+// slots from x=24 rightward (~35 rooms); edit-placed buildings allocate
+// from here rightward. The barrow-deeps stay in rows 8-44, so the row is
+// otherwise untouched ocean.
+const EDIT_INTERIOR_X0 = 1200;
+const EDIT_INTERIOR_MAX = 50;
+
+// Stamp a complete shopfront onto a world: snug lawn, two-tile solid base,
+// worn doorstep, the sprite prop, and a furnished interior room in the
+// dead strip joined by a door-portal pair. `ctx` is anything shaped like
+// { w, h, tiles, props, secrets } — worldgen's locals during generation,
+// or the live map at edit time. `onTile` (optional) hears every tile
+// write so a running server can broadcast them. Returns the room centre.
+function placeBuilding(ctx, bx, by, name, interiorX, onTile) {
+  const set = (x, y, t) => {
+    if (x < 0 || y < 0 || x >= ctx.w || y >= ctx.h) return;
+    ctx.tiles[y * ctx.w + x] = t;
+    if (onTile) onTile(x, y, t);
+  };
+  for (let y = by - 1; y <= by + 1; y++) {
+    for (let x = bx - 1; x <= bx + 2; x++) set(x, y, TILE.GRASS);
+  }
+  set(bx, by, TILE.WALL);
+  set(bx + 1, by, TILE.WALL);
+  ctx.props.push({ x: bx, y: by, name: 'prop.' + name });
+  // the interior: stone shell, plank floor, a hearth against the north wall
+  const ix = interiorX;
+  const iy = 54;
+  for (let y = iy - 3; y <= iy + 3; y++) {
+    for (let x = ix - 4; x <= ix + 4; x++) {
+      const edge = y === iy - 3 || y === iy + 3 || x === ix - 4 || x === ix + 4;
+      set(x, y, edge ? TILE.ROCK : TILE.PLANKS);
+    }
+  }
+  const door = { x: bx, y: by + 1 };
+  const entry = { x: ix, y: iy + 2 };
+  set(door.x, door.y, TILE.ROAD); // a worn doorstep marks the way in
+  ctx.secrets.push({ type: 'portal', x: door.x, y: door.y, tx: entry.x, ty: entry.y, door: true });
+  ctx.secrets.push({ type: 'portal', x: entry.x, y: entry.y, tx: door.x, ty: door.y, door: true });
+  ctx.props.push({ x: ix, y: iy - 2, name: 'fx.campfire' });
+  ctx.props.push({ x: ix - 2, y: iy, name: 'prop.table' });
+  ctx.props.push({ x: ix - 1, y: iy + 1, name: 'prop.stool' });
+  if (name === 'inn' || name === 'lodge') {
+    // a common room seats more than one traveller
+    ctx.props.push({ x: ix + 2, y: iy, name: 'prop.table' });
+    ctx.props.push({ x: ix + 2, y: iy + 1, name: 'prop.stool' });
+    ctx.props.push({ x: ix - 2, y: iy - 1, name: 'prop.stool' });
+  }
+  if (name === 'smithy' || name === 'shop') {
+    ctx.props.push({ x: ix + 2, y: iy - 1, name: 'prop.chest' });
+  }
+  // every lawn is kept: daisy beds by the door, trimmed bushes behind
+  ctx.props.push({ x: bx - 1, y: by + 1, name: 'prop.flowers' + ((bx + by) % 3) });
+  ctx.props.push({ x: bx + 2, y: by + 1, name: 'prop.flowers' + ((bx * 3 + by) % 3) });
+  ctx.props.push({ x: bx - 1, y: by - 1, name: 'prop.bush' + (bx % 2) });
+  ctx.props.push({ x: bx + 2, y: by - 1, name: 'prop.bush' + ((bx + 1) % 2) });
+  return { x: ix, y: iy };
+}
+
 function generate(seed = 1337) {
   const rng = mulberry32(seed);
   const continent = makeNoise(rng, 256);
@@ -163,58 +226,14 @@ function generate(seed = 1337) {
 
   const props = []; // decorative furniture, rendered by the client
 
-  // A pre-drawn building sprite with a solid 3x2 footprint beneath it, so
-  // nobody walks through the artwork. The prop anchors at (bx, by). Every
-  // building sits on a little lawn — the wall tiles under it ground on
-  // grass anyway, so the pad keeps what peeks past the sprite coherent.
-  //
-  // Each building also has an inside: a room carved in the dead strip
-  // beneath the world, reached exactly like a dungeon — step on the worn
-  // doorstep and the world lurches; step back on the door mat to leave.
-  // Returns the room centre so callers can put shopkeepers indoors.
+  // Worldgen consumes interior slots from x=24 rightward; the world
+  // builder's edit-placed buildings consume from EDIT_INTERIOR_X0 (far
+  // side of the strip) so the two can never collide.
   let interiorX = 24;
-  // Native pack scale: a 32px shop covers exactly two tiles (bx and bx+1),
-  // grid-aligned, on a snug lawn with a solid base row beneath the art.
   const shopfront = (bx, by, name) => {
-    for (let y = by - 1; y <= by + 1; y++) {
-      for (let x = bx - 1; x <= bx + 2; x++) set(x, y, TILE.GRASS);
-    }
-    set(bx, by, TILE.WALL);
-    set(bx + 1, by, TILE.WALL);
-    props.push({ x: bx, y: by, name: 'prop.' + name });
-    // the interior: stone shell, plank floor, a hearth against the north wall
-    const ix = interiorX;
-    const iy = 54; // its own row of the strip, well clear of the barrow-deeps
+    const r = placeBuilding({ w: W, h: H, tiles, props, secrets }, bx, by, name, interiorX);
     interiorX += 16; // roomy gaps, so one hearth's light never shows the next room
-    for (let y = iy - 3; y <= iy + 3; y++) {
-      for (let x = ix - 4; x <= ix + 4; x++) {
-        const edge = y === iy - 3 || y === iy + 3 || x === ix - 4 || x === ix + 4;
-        set(x, y, edge ? TILE.ROCK : TILE.PLANKS);
-      }
-    }
-    const door = { x: bx, y: by + 1 };
-    const entry = { x: ix, y: iy + 2 };
-    set(door.x, door.y, TILE.ROAD); // a worn doorstep marks the way in
-    secrets.push({ type: 'portal', x: door.x, y: door.y, tx: entry.x, ty: entry.y, door: true });
-    secrets.push({ type: 'portal', x: entry.x, y: entry.y, tx: door.x, ty: door.y, door: true });
-    props.push({ x: ix, y: iy - 2, name: 'fx.campfire' });
-    props.push({ x: ix - 2, y: iy, name: 'prop.table' });
-    props.push({ x: ix - 1, y: iy + 1, name: 'prop.stool' });
-    if (name === 'inn' || name === 'lodge') {
-      // a common room seats more than one traveller
-      props.push({ x: ix + 2, y: iy, name: 'prop.table' });
-      props.push({ x: ix + 2, y: iy + 1, name: 'prop.stool' });
-      props.push({ x: ix - 2, y: iy - 1, name: 'prop.stool' });
-    }
-    if (name === 'smithy' || name === 'shop') {
-      props.push({ x: ix + 2, y: iy - 1, name: 'prop.chest' });
-    }
-    // every lawn is kept: daisy beds by the door, trimmed bushes behind
-    props.push({ x: bx - 1, y: by + 1, name: 'prop.flowers' + ((bx + by) % 3) });
-    props.push({ x: bx + 2, y: by + 1, name: 'prop.flowers' + ((bx * 3 + by) % 3) });
-    props.push({ x: bx - 1, y: by - 1, name: 'prop.bush' + (bx % 2) });
-    props.push({ x: bx + 2, y: by - 1, name: 'prop.bush' + ((bx + 1) % 2) });
-    return { x: ix, y: iy };
+    return r;
   };
 
   const building = (x0, y0, w, h, doorX, doorY) => {
@@ -1184,54 +1203,104 @@ function nearestWalkable(map, x, y) {
 // Shape: { tiles: [[x,y,tile]], props: [{x,y,name}], removeProps: [[x,y]],
 //          spawners: [{kind,count,x,y,r}], removeSpawners: [[x,y]],
 //          secrets: [{type:'whisper'|'cache', x, y, text?, loot?}] }
-function applyEdits(map, edits, { validKinds } = {}) {
-  const counts = { tiles: 0, props: 0, spawners: 0, secrets: 0, removed: 0 };
-  if (!edits || typeof edits !== 'object') return counts;
+// Validate and normalise a raw overlay into exactly the shape applyEdits
+// consumes. The boot path and the live-apply path both feed through this,
+// so their validation can never drift apart. Keys are set only when they
+// carry entries, keeping the saved file lean; v1 files pass unchanged.
+function sanitizeEdits(map, edits, { validKinds } = {}) {
+  const out = { v: 2 };
+  if (!edits || typeof edits !== 'object') return out;
+  if (Number.isFinite(edits.savedAt)) out.savedAt = edits.savedAt;
   const okXY = (x, y) => Number.isInteger(x) && Number.isInteger(y) &&
     x >= 0 && y >= 0 && x < map.w && y < map.h;
-  for (const [x, y] of edits.removeProps || []) {
+  const pairs = (list) => (Array.isArray(list) ? list : [])
+    .filter((p) => Array.isArray(p) && okXY(p[0] | 0, p[1] | 0))
+    .map((p) => [p[0] | 0, p[1] | 0]);
+  const keep = (key, list) => { if (list.length) out[key] = list; };
+
+  keep('removeProps', pairs(edits.removeProps));
+  keep('removeSpawners', pairs(edits.removeSpawners));
+  keep('removeSecrets', pairs(edits.removeSecrets));
+  keep('tiles', (Array.isArray(edits.tiles) ? edits.tiles : [])
+    .filter((t) => Array.isArray(t) && okXY(t[0], t[1]) &&
+      Number.isInteger(t[2]) && t[2] >= 0 && t[2] <= TILE.CAVE)
+    .map((t) => [t[0], t[1], t[2]]));
+  keep('props', (Array.isArray(edits.props) ? edits.props : [])
+    .filter((p) => p && okXY(p.x, p.y) && typeof p.name === 'string' && p.name.length <= 64)
+    .map((p) => ({ x: p.x, y: p.y, name: p.name })));
+  keep('spawners', (Array.isArray(edits.spawners) ? edits.spawners : [])
+    .filter((s) => s && okXY(s.x, s.y) && (!validKinds || validKinds.has(s.kind)))
+    .map((s) => {
+      const o = { kind: s.kind, count: Math.max(1, Math.min(12, s.count | 0)),
+        x: s.x, y: s.y, r: Math.max(1, Math.min(24, s.r | 0)) };
+      if (s.nightOnly === true) o.nightOnly = true;
+      return o;
+    }));
+  keep('secrets', (Array.isArray(edits.secrets) ? edits.secrets : [])
+    .map((sc) => {
+      if (!sc || !okXY(sc.x, sc.y)) return null;
+      if (sc.type === 'whisper' && typeof sc.text === 'string' && sc.text.trim()) {
+        return { type: 'whisper', x: sc.x, y: sc.y, text: sc.text.slice(0, 200) };
+      }
+      if (sc.type === 'cache') {
+        return { type: 'cache', x: sc.x, y: sc.y,
+          loot: Array.isArray(sc.loot) && sc.loot.length ? sc.loot : [['gold', 50, 150], ['heal', 0, 1]] };
+      }
+      if (sc.type === 'portal' && okXY(sc.tx, sc.ty)) {
+        const o = { type: 'portal', x: sc.x, y: sc.y, tx: sc.tx, ty: sc.ty };
+        if (sc.door) o.door = true;
+        if (sc.cave) o.cave = true;
+        return o;
+      }
+      return null;
+    })
+    .filter(Boolean));
+  keep('buildings', (Array.isArray(edits.buildings) ? edits.buildings : [])
+    .filter((b) => b && okXY(b.x, b.y) && BUILDING_KINDS.includes(b.name))
+    .map((b) => ({ x: b.x, y: b.y, name: b.name }))
+    .slice(0, EDIT_INTERIOR_MAX));
+  return out;
+}
+
+function applyEdits(map, edits, opts = {}) {
+  const counts = { tiles: 0, props: 0, spawners: 0, secrets: 0, buildings: 0, removed: 0 };
+  const clean = sanitizeEdits(map, edits, opts);
+  for (const [x, y] of clean.removeProps || []) {
     const i = map.props.findIndex((p) => p.x === x && p.y === y);
     if (i >= 0) { map.props.splice(i, 1); counts.removed++; }
   }
-  for (const [x, y] of edits.removeSpawners || []) {
+  for (const [x, y] of clean.removeSpawners || []) {
     const i = map.spawners.findIndex((s) => s.x === x && s.y === y);
     if (i >= 0) { map.spawners.splice(i, 1); counts.removed++; }
   }
-  for (const [x, y, v] of edits.tiles || []) {
-    if (okXY(x, y) && Number.isInteger(v) && v >= 0 && v <= TILE.CAVE) {
-      map.tiles[y * map.w + x] = v;
-      counts.tiles++;
-    }
+  for (const [x, y] of clean.removeSecrets || []) {
+    // boot-time only: nothing holds indexes into map.secrets yet
+    const i = map.secrets.findIndex((s) => s.x === x && s.y === y);
+    if (i >= 0) { map.secrets.splice(i, 1); counts.removed++; }
   }
-  for (const p of edits.props || []) {
-    if (okXY(p.x, p.y) && typeof p.name === 'string') {
-      map.props.push({ x: p.x, y: p.y, name: p.name });
-      counts.props++;
-    }
+  // buildings stamp before hand paints, so manual touch-ups win
+  (clean.buildings || []).forEach((b, i) => {
+    placeBuilding(map, b.x, b.y, b.name, EDIT_INTERIOR_X0 + i * 16);
+    counts.buildings++;
+  });
+  for (const [x, y, v] of clean.tiles || []) {
+    map.tiles[y * map.w + x] = v;
+    counts.tiles++;
   }
-  for (const s of edits.spawners || []) {
-    if (!okXY(s.x, s.y)) continue;
-    if (validKinds && !validKinds.has(s.kind)) continue;
-    map.spawners.push({
-      kind: s.kind,
-      count: Math.max(1, Math.min(12, s.count | 0)),
-      x: s.x, y: s.y,
-      r: Math.max(1, Math.min(24, s.r | 0)),
-    });
+  for (const p of clean.props || []) {
+    map.props.push(p);
+    counts.props++;
+  }
+  for (const s of clean.spawners || []) {
+    map.spawners.push(s);
     counts.spawners++;
   }
-  for (const sc of edits.secrets || []) {
-    if (!okXY(sc.x, sc.y)) continue;
-    if (sc.type === 'whisper' && typeof sc.text === 'string' && sc.text.trim()) {
-      map.secrets.push({ type: 'whisper', x: sc.x, y: sc.y, text: sc.text.slice(0, 200) });
-      counts.secrets++;
-    } else if (sc.type === 'cache') {
-      map.secrets.push({ type: 'cache', x: sc.x, y: sc.y,
-        loot: Array.isArray(sc.loot) && sc.loot.length ? sc.loot : [['gold', 50, 150], ['heal', 0, 1]] });
-      counts.secrets++;
-    }
+  for (const sc of clean.secrets || []) {
+    map.secrets.push(sc);
+    counts.secrets++;
   }
   return counts;
 }
 
-module.exports = { TILE, generate, applyEdits, isWalkable, tileAt, nearestWalkable, W, H };
+module.exports = { TILE, generate, applyEdits, sanitizeEdits, placeBuilding,
+  BUILDING_KINDS, EDIT_INTERIOR_X0, isWalkable, tileAt, nearestWalkable, W, H };

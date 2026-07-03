@@ -1489,6 +1489,8 @@ def main():
     tiles_td = build_topdown(frames, td_images)
     if os.path.isdir(HEROIC):
         build_has_spellfx(frames, td_images)
+    prop_categories = build_prop_catalog(frames, td_images,
+                                         export='--export-props' in sys.argv)
 
     manifest = {
         'tileW': 64, 'tileH': 32,
@@ -1507,6 +1509,7 @@ def main():
         'tiles': tiles,
         'tilesTD': tiles_td,
         'creatures': creatures,
+        'propCategories': prop_categories,
     }
     with open(os.path.join(OUT, 'manifest.json'), 'w') as f:
         json.dump(manifest, f, indent=1)
@@ -1529,6 +1532,201 @@ def asset_pngs():
             if fn.endswith('.png'):
                 full = os.path.join(dirpath, fn)
                 yield os.path.relpath(full, OUT), full
+
+
+# ---- the world builder's prop catalog ------------------------------------------
+#
+# Every usable piece of object art in the packs, cut on the 16px grid (or at
+# its natural multi-cell size), deduplicated, and grouped for the editor's
+# palettes. Names are `<category><n>` in scan order — append new regions at
+# the END of their category so placed props keep their names across rebuilds.
+#
+# The editing workflow has two folder tiers:
+#   tools/asset-src/props/<category>/<name>.png   (gitignored staging)
+#       --export-props fills it with every catalog cut; edit a PNG there and
+#       the next build uses your version instead of the sheet cell.
+#   art/props/<category>/<name>.png               (committed; your own art)
+#       anything dropped here is packed too — new props, original work only.
+
+STAGING_PROPS = os.path.join(os.path.dirname(HEROIC), 'props')
+ART_PROPS = os.path.join(ROOT, 'art', 'props')
+
+# (category, sheet path under HEROIC, px, py, pw, ph, cellW, cellH, skipFragments)
+PROP_REGIONS = [
+    ('trees', 'HAS Overworld 2.1/Universal/Universal-Trees-And-Mountains.png',
+     0, 0, 832, 352, 16, 16, True),
+    ('mountains', 'HAS Overworld 2.1/Universal/Universal-Trees-And-Mountains.png',
+     0, 352, 832, 48, 16, 16, True),
+    # the four big two-cell peaks
+    ('mountains', 'HAS Overworld 2.1/Universal/Universal-Trees-And-Mountains.png',
+     0, 400, 64, 32, 32, 32, False),
+    ('mountains', 'HAS Overworld 2.1/Universal/Universal-Trees-And-Mountains.png',
+     208, 400, 64, 32, 32, 32, False),
+    ('mountains', 'HAS Overworld 2.1/Universal/Universal-Trees-And-Mountains.png',
+     416, 400, 64, 32, 32, 32, False),
+    ('mountains', 'HAS Overworld 2.1/Universal/Universal-Trees-And-Mountains.png',
+     624, 400, 64, 32, 32, 32, False),
+    ('plants', 'HAS Overworld 2.1/Universal/Universal-Trees-And-Mountains.png',
+     0, 432, 832, 64, 16, 16, True),
+    ('plants', 'HAS Overworld 2.1/GrassBiome/GB-LandTileset.png', 32, 0, 192, 32, 16, 16, False),
+    ('plants', 'HAS Overworld 2.1/IceBiome/IB-LandTileset.png', 32, 0, 192, 32, 16, 16, False),
+    ('plants', 'HAS Overworld 2.1/MarshBiome/MB-LandTileset.png', 32, 0, 192, 32, 16, 16, False),
+    ('plants', 'HAS Overworld 2.1/SandBiome/SB-LandTileset.png', 32, 0, 192, 32, 16, 16, False),
+    ('plants', 'HAS Overworld 2.1/DirtBiome/DB-LandTileset.png', 32, 0, 192, 32, 16, 16, False),
+    ('furniture', 'HAS Dungeon (v.1.01)/Dungeon/Dungeon-Tileset.png',
+     192, 0, 64, 288, 16, 16, False),
+    ('town', 'HAS2020 (alpha 1)/Buildings/1x1/1x1BuildingsSpriteSheet.png',
+     0, 0, 224, 64, 16, 16, False),
+    ('town', 'HAS2020 (alpha 1)/Buildings/1x2/1x2BuildingsSpriteSheet.png',
+     0, 0, 224, 32, 16, 32, False),
+    ('town', 'HAS2020 (alpha 1)/Buildings/2x1/2x1BuildingsSpriteSheet.png',
+     0, 0, 224, 32, 32, 16, False),
+    ('town', 'HAS2020 (alpha 1)/Buildings/2x2/2x2BuildingsSpriteSheet.png',
+     0, 0, 224, 352, 32, 32, False),
+    ('town', 'HAS2020 (alpha 1)/Buildings/2x3/2x3BuildingsSpriteSheet.png',
+     0, 0, 192, 32, 32, 32, False),
+    ('town', 'HAS2020 (alpha 1)/Buildings/3x3/3x3BuildingsSpriteSheet.png',
+     0, 0, 144, 48, 48, 48, False),
+    ('town', 'HAS2020 (alpha 1)/Buildings/3x4/3x4BuildingsSpriteSheet.png',
+     0, 0, 64, 48, 64, 48, False),
+    ('faction', 'HAS Dwarves (v.1.1)/Buildings/DwarvesDwellingsSpriteSheet.png',
+     0, 0, 160, 96, 32, 32, False),
+    ('faction', 'HAS Orcs Empire (1.0)/OrcBuildings.png', 0, 0, 128, 96, 32, 32, False),
+    ('faction', 'HASWoodElves(v.1.0)/Buildings/BuildingSpriteSheet.png',
+     0, 0, 256, 128, 32, 32, False),
+]
+
+# whole-file entries: (category, glob under HEROIC)
+PROP_FILES = [
+    ('landmarks', 'HAS Buildings Pack 1.01/HAS Buildings Pack/Towns/*.png'),
+    ('landmarks', 'HAS Buildings Pack 1.01/HAS Buildings Pack/Treasures/*.png'),
+    ('landmarks', 'HAS Buildings Pack 1.01/HAS Buildings Pack/Mines/*/*.png'),
+    ('towns', 'HAS2020 (alpha 1)/Buildings/Towns/*/*TownsSpriteSheet.png'),
+    ('dwellings', 'HAS2020 (alpha 1)/Buildings/Dwellings/*/*DwellingsSpriteSheet.png'),
+]
+# towns/dwellings sheets are strips of fixed-size cells
+PROP_FILE_CELLS = { 'towns': (64, 64), 'dwellings': (32, 32) }
+
+
+def _fragmentish(im):
+    """True when the art runs off three or more cell edges — an interlocking
+    fill piece, not a standalone object."""
+    px = im.load()
+    w, h = im.size
+    a = lambda x, y: px[x, y][3] > 8
+    touches = 0
+    touches += any(a(x, 0) for x in range(w))
+    touches += any(a(x, h - 1) for x in range(w))
+    touches += any(a(0, y) for y in range(h))
+    touches += any(a(w - 1, y) for y in range(h))
+    return touches >= 3
+
+
+def build_prop_catalog(frames, images_out, export=False):
+    """Cut, dedupe, override, pack. Returns {category: [names]}."""
+    import glob as _g
+    import hashlib
+    cuts = []          # (category, name, PIL image)
+    seq = {}
+    seen = set()
+
+    def add(category, im, source_key):
+        if im.getbbox() is None:
+            return
+        digest = hashlib.md5(im.tobytes()).hexdigest()
+        if digest in seen:
+            return
+        seen.add(digest)
+        n = seq.get(category, 0)
+        seq[category] = n + 1
+        name = f'{category}{n}'
+        if export:
+            d = os.path.join(STAGING_PROPS, category)
+            os.makedirs(d, exist_ok=True)
+            im.save(os.path.join(d, f'{name}.png'))
+        # a staged edit of this exact name beats the sheet cell
+        staged = os.path.join(STAGING_PROPS, category, f'{name}.png')
+        if os.path.isfile(staged) and not export:
+            im = Image.open(staged).convert('RGBA')
+        cuts.append((category, name, im))
+
+    if os.path.isdir(HEROIC):
+        sheet_cache = {}
+        for (category, rel, px0, py0, pw, ph, cw, ch, skip_frag) in PROP_REGIONS:
+            p = os.path.join(HEROIC, rel)
+            if p not in sheet_cache:
+                sheet_cache[p] = Image.open(p).convert('RGBA')
+            sheet = sheet_cache[p]
+            for y in range(py0, min(py0 + ph, sheet.height), ch):
+                for x in range(px0, min(px0 + pw, sheet.width), cw):
+                    cell = sheet.crop((x, y, x + cw, y + ch))
+                    if cell.getbbox() is None:
+                        continue
+                    if skip_frag and _fragmentish(cell):
+                        continue
+                    add(category, cell, (rel, x, y))
+        for (category, pattern) in PROP_FILES:
+            for p in sorted(_g.glob(os.path.join(HEROIC, pattern))):
+                if 'Animated' in p or 'Backups' in p:
+                    continue
+                im = Image.open(p).convert('RGBA')
+                cell = PROP_FILE_CELLS.get(category)
+                if cell:
+                    cw, ch = cell
+                    for y in range(0, im.height - im.height % ch, ch):
+                        for x in range(0, im.width - im.width % cw, cw):
+                            add(category, im.crop((x, y, x + cw, y + ch)), (p, x, y))
+                else:
+                    add(category, im, (p, 0, 0))
+
+    # the keeper's own art, committed in the repo, always packed last
+    if os.path.isdir(ART_PROPS):
+        for category in sorted(os.listdir(ART_PROPS)):
+            d = os.path.join(ART_PROPS, category)
+            if not os.path.isdir(d):
+                continue
+            for f in sorted(os.listdir(d)):
+                if not f.endswith('.png'):
+                    continue
+                name = os.path.splitext(f)[0]
+                im = Image.open(os.path.join(d, f)).convert('RGBA')
+                if im.getbbox() is None:
+                    continue
+                cuts.append((category, name, im))
+
+    if not cuts:
+        return {}
+
+    # shelf-pack into one atlas
+    ATLAS_W = 1024
+    shelf_x = 0
+    shelf_y = 0
+    shelf_h = 0
+    placements = []
+    for (category, name, im) in sorted(cuts, key=lambda c: -c[2].height):
+        w, h = im.size
+        if shelf_x + w > ATLAS_W:
+            shelf_y += shelf_h
+            shelf_x = 0
+            shelf_h = 0
+        placements.append((category, name, im, shelf_x, shelf_y))
+        shelf_x += w
+        shelf_h = max(shelf_h, h)
+    atlas = Image.new('RGBA', (ATLAS_W, shelf_y + shelf_h), (0, 0, 0, 0))
+    categories = {}
+    for (category, name, im, x, y) in placements:
+        atlas.paste(im, (x, y))
+        frames[f'td.o.{name}'] = {'img': 'props-extra', 'x': x, 'y': y,
+                                  'w': im.width, 'h': im.height,
+                                  'ax': im.width // 2, 'ay': im.height - 2,
+                                  'scale': TD_SCALE}
+        categories.setdefault(category, []).append(name)
+    atlas.save(os.path.join(OUT, 'props-extra.png'))
+    images_out['props-extra'] = 'props-extra.png'
+    total = sum(len(v) for v in categories.values())
+    print(f'prop catalog: {total} props in {len(categories)} categories '
+          f'({atlas.width}x{atlas.height} atlas)')
+    return categories
 
 
 def apply_overrides():

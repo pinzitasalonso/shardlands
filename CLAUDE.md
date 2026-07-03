@@ -13,6 +13,7 @@
   `art/README.md` (`--export` dumps editable copies + grid guides).
 - Art licensing: see `client/assets/CREDITS.md` — never use actual
   Ultima Online assets (EA copyright); free-licensed art only.
-- Map editor (internal): run the server and open `/editor.html` from
-  localhost (or set `EDITOR=1`). Edits save to `world/edits.json` — an
-  overlay applied on top of worldgen at boot, so commit that file.
+- World builder: run the server and open `/editor.html` (localhost, or set
+  `EDITOR_PASSWORD` for remote access). Saves apply LIVE to the running
+  world and persist in `data/edits.json`; the Publish button commits
+  `world/edits.json` to GitHub (needs GITHUB_TOKEN + GITHUB_REPO).

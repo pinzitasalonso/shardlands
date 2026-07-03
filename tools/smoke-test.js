@@ -859,5 +859,89 @@ assert(p.hasteUntil > Date.now(), 'haste quickens the caster');
 game.mobs.clear();
 for (const [id, m] of savedMobs) game.mobs.set(id, m);
 
+// -- the world builder edits the running world ---------------------------------------
+const { EDIT_INTERIOR_X0 } = require('../server/world');
+assert(/[\\/]data[\\/]/.test(game.editsPath + '/'), 'edits live on the data volume');
+const spot = { x: game.map.spawn.x + 30, y: game.map.spawn.y + 30 };
+const overlay1 = {
+  tiles: [[spot.x, spot.y, TILE.ROAD], [-9, 2, TILE.ROAD]],
+  props: [{ x: spot.x + 1, y: spot.y, name: 'prop.trees0' }],
+  spawners: [{ kind: 'wolf', count: 2, x: spot.x + 4, y: spot.y, r: 4 },
+             { kind: 'notakind', count: 2, x: 1, y: 1, r: 3 }],
+  secrets: [
+    { type: 'portal', x: spot.x - 2, y: spot.y, tx: spot.x - 2, ty: spot.y + 5, door: true },
+    { type: 'portal', x: 99999, y: 0, tx: 0, ty: 0 },
+    { type: 'whisper', x: spot.x, y: spot.y + 2, text: 'Built by hand.' }],
+  buildings: [{ x: spot.x + 8, y: spot.y, name: 'inn' },
+              { x: 5, y: 5, name: 'notabuilding' }],
+};
+ws.sent.length = 0;
+const mobsBefore = game.mobs.size;
+const c1 = game.applyEditsLive(overlay1);
+assert.strictEqual(c1.tiles, 1, 'in-bounds tile painted, out-of-bounds refused');
+assert.strictEqual(c1.props, 1, 'catalog prop placed');
+assert.strictEqual(c1.spawners, 1, 'real kind spawns, fake kind refused');
+assert.strictEqual(c1.secrets, 2, 'good portal and whisper in, bad portal out');
+assert.strictEqual(c1.buildings, 1, 'inn raised, nonsense refused');
+assert.strictEqual(game.mobs.size, mobsBefore + 2, 'the wolves are alive right now');
+assert(ws.sent.some((m) => m.t === 'tile'), 'players saw the tile change');
+assert(ws.sent.some((m) => m.t === 'props'), 'players got the redressed props');
+assert(ws.sent.some((m) => m.t === 'mini'), 'players got the fresh minimap');
+assert(game.map.props.some((pr) => pr.name === 'prop.inn' && pr.x === spot.x + 8),
+  'the inn sprite stands');
+const builtDoor = game.map.secrets.find((s) => s.type === 'portal' && s.door &&
+  s.x === spot.x + 8 && s.y === spot.y + 1);
+assert(builtDoor && builtDoor.tx === EDIT_INTERIOR_X0 && builtDoor.ty > 44 && builtDoor.ty < 64,
+  'its doorstep leads to the edit-interior strip');
+
+// saving the same overlay again must change nothing (idempotent deltas)
+ws.sent.length = 0;
+const c2 = game.applyEditsLive(overlay1);
+assert.strictEqual(c2.tiles + c2.props + c2.spawners + c2.secrets + c2.buildings + c2.removed, 0,
+  'a repeat save is a no-op');
+assert.strictEqual(game.mobs.size, mobsBefore + 2, 'nothing double-materialised');
+
+// live removal of a worldgen secret is a tombstone, never a splice
+const victim = game.map.secrets.find((s) => s.type === 'whisper' && !s.dead && s.y >= 64);
+const victimIdx = game.map.secrets.indexOf(victim);
+const overlay2 = { ...overlay1, removeSecrets: [[victim.x, victim.y]] };
+game.applyEditsLive(overlay2);
+assert(victim.dead === true, 'the whisper is silenced');
+assert.strictEqual(game.map.secrets.indexOf(victim), victimIdx,
+  'and every treasure-map index survives');
+
+// dropping the spawner from the overlay despawns its flock
+const overlay3 = { ...overlay2, spawners: [] };
+game.applyEditsLive(overlay3);
+assert.strictEqual(game.mobs.size, mobsBefore, 'the wolves went with their spawner');
+
+// walk in through the freshly built door
+p.dead = false;
+p.hp = 50;
+p.x = builtDoor.x + 1;
+p.y = builtDoor.y;
+p.moveAt = 0;
+p.portalAt = 0;
+game.handleMove(p, -1, 0);
+assert.strictEqual(p.y, 54 + 2, 'the built inn has an inside');
+
+// -- the builder's lock ---------------------------------------------------------------
+const ed = require('../server/editor');
+ed.configure('smoke-key');
+assert(ed.passwordRequired(), 'a password arms the gate');
+assert(ed.verifyPassword('smoke-key'), 'the right key turns');
+assert(!ed.verifyPassword('wrong'), 'the wrong key does not');
+const tok = ed.issueSession();
+assert(ed.checkToken(tok), 'a fresh session holds');
+assert(!ed.checkToken('deadbeef'), 'garbage does not');
+for (let i = 0; i < 5; i++) assert(!ed.rateLimited('9.9.9.9'), 'five tries are allowed');
+assert(ed.rateLimited('9.9.9.9'), 'the sixth is refused');
+const gh = ed.githubRequest('PUT', 'o/r', 'tkn', 'world/edits.json', { a: 1 });
+assert(gh.options.hostname === 'api.github.com' &&
+  gh.options.path === '/repos/o/r/contents/world/edits.json' &&
+  gh.options.headers.Authorization === 'Bearer tkn' && gh.payload === '{"a":1}',
+  'the publish request is well-formed');
+ed.configure(undefined); // disarm so nothing else in this run is gated
+
 console.log('smoke test: all assertions passed');
 process.exit(0);
