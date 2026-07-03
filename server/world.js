@@ -163,6 +163,20 @@ function generate(seed = 1337) {
 
   const props = []; // decorative furniture, rendered by the client
 
+  // A pre-drawn building sprite with a solid 3x2 footprint beneath it, so
+  // nobody walks through the artwork. The prop anchors at (bx, by). Every
+  // building sits on a little lawn — the wall tiles under it ground on
+  // grass anyway, so the pad keeps what peeks past the sprite coherent.
+  const shopfront = (bx, by, name) => {
+    for (let y = by - 2; y <= by + 1; y++) {
+      for (let x = bx - 2; x <= bx + 2; x++) set(x, y, TILE.GRASS);
+    }
+    for (let y = by - 1; y <= by; y++) {
+      for (let x = bx - 1; x <= bx + 1; x++) set(x, y, TILE.WALL);
+    }
+    props.push({ x: bx, y: by, name: 'prop.' + name });
+  };
+
   const building = (x0, y0, w, h, doorX, doorY) => {
     for (let y = y0; y < y0 + h; y++) {
       for (let x = x0; x < x0 + w; x++) {
@@ -205,19 +219,19 @@ function generate(seed = 1337) {
   for (let y = CY - 16; y <= CY + 16; y++) {
     for (let x = CX - 16; x <= CX + 16; x++) set(x, y, TILE.FLOOR);
   }
-  building(CX - 11, CY - 11, 8, 6, CX - 7, CY - 6);  // smithy
-  building(CX + 4, CY - 11, 8, 6, CX + 8, CY - 6);   // inn
-  building(CX - 11, CY + 6, 8, 6, CX - 7, CY + 6);   // healer
-  building(CX + 4, CY + 6, 8, 6, CX + 8, CY + 6);    // mage tower
+  shopfront(CX - 8, CY - 8, 'smithy');
+  shopfront(CX + 8, CY - 8, 'inn');
+  shopfront(CX - 8, CY + 8, 'healer');
+  shopfront(CX + 8, CY + 8, 'magetower');
   set(CX, CY - 7, TILE.SHRINE);
   props.push({ x: CX + 6, y: CY - 2, name: 'prop.well' });
   props.push({ x: CX - 6, y: CY + 2, name: 'prop.table' });  // market stall
   props.push({ x: CX - 5, y: CY + 3, name: 'prop.stool' });
-  props.push({ x: CX - 9, y: CY - 9, name: 'prop.table' });  // smithy workbench
-  props.push({ x: CX + 7, y: CY - 9, name: 'prop.table' });  // the inn's common table
-  props.push({ x: CX + 8, y: CY - 8, name: 'prop.stool' });
+  props.push({ x: CX - 6, y: CY - 7, name: 'prop.table' });  // smithy workbench
+  props.push({ x: CX + 5, y: CY - 7, name: 'prop.table' });  // the inn's yard table
+  props.push({ x: CX + 6, y: CY - 6, name: 'prop.stool' });
   vendors.push({
-    name: 'Bren the Blacksmith', x: CX - 8, y: CY - 8, forge: true, model: 'smith',
+    name: 'Bren the Blacksmith', x: CX - 8, y: CY - 6, forge: true, model: 'smith',
     goods: [
       { type: 'weapon', item: 'dagger', q: 1 },
       { type: 'weapon', item: 'dagger', q: 2 },
@@ -235,7 +249,7 @@ function generate(seed = 1337) {
     ],
   });
   vendors.push({
-    name: 'Mira the Alchemist', x: CX - 7, y: CY + 9,
+    name: 'Mira the Alchemist', x: CX - 6, y: CY + 10,
     goods: [
       { item: 'heal', name: 'Greater Heal Potion', price: 45, desc: 'Restores 25-40 health.' },
       { item: 'mana', name: 'Mana Potion', price: 35, desc: 'Restores 20-30 mana.' },
@@ -293,22 +307,15 @@ function generate(seed = 1337) {
     for (let y = v.y - 6; y <= v.y + 6; y++) {
       for (let x = v.x - 8; x <= v.x + 8; x++) set(x, y, TILE.FLOOR);
     }
-    // Every village is built a little differently.
-    const w1 = 7 + Math.floor(rng() * 3);
-    const h1 = 5 + Math.floor(rng() * 2);
-    building(v.x - 7, v.y - 5, w1, h1, v.x - 7 + (w1 >> 1), v.y - 5 + h1 - 1); // shop
-    const w2 = 5 + Math.floor(rng() * 3);
-    const h2 = 6 + Math.floor(rng() * 2);
-    building(v.x + 3, v.y - 5, w2, h2, v.x + 3 + (w2 >> 1), v.y - 5 + h2 - 1); // lodge
+    // Whole pre-drawn buildings: a shop and a lodge front the green.
+    shopfront(v.x - 4, v.y - 3, 'shop');
+    shopfront(v.x + 4, v.y - 3, 'lodge');
     if (rng() > 0.45) {
       props.push({ x: v.x - 5, y: v.y + 4, name: 'prop.cottage' + Math.floor(rng() * 4) });
     }
     set(v.x, v.y + 4, TILE.SHRINE);
     props.push({ x: v.x + 1, y: v.y + 4, name: 'prop.table' }); // market stall
     props.push({ x: v.x + 2, y: v.y + 5, name: 'prop.stool' });
-    const lcx = v.x + 3 + (w2 >> 1);
-    const lcy = v.y - 5 + (h2 >> 1);
-    if (lcy < v.y - 5 + h2 - 1) props.push({ x: lcx, y: lcy, name: 'prop.table' });
     spawners.push({ kind: 'villager', count: 3, x: v.x, y: v.y, r: 6 });
     // Livestock graze around every village.
     for (let k = 0; k < 2; k++) {
@@ -319,7 +326,7 @@ function generate(seed = 1337) {
     const jitter = Math.floor(rng() * 11) - 5;
     vendors.push({
       name: `${['Aldric', 'Bryn', 'Cedany', 'Doran', 'Elspeth', 'Fenwick', 'Gilda', 'Hamon', 'Isolde'][vendors.length % 9]} of ${v.name}`,
-      x: v.x - 3, y: v.y - 3,
+      x: v.x - 4, y: v.y - 1,
       goods: [
         { item: 'heal', name: 'Greater Heal Potion', price: 45 + jitter, desc: 'Restores 25-40 health.' },
         { item: 'mana', name: 'Mana Potion', price: 35 + jitter, desc: 'Restores 20-30 mana.' },
@@ -369,17 +376,17 @@ function generate(seed = 1337) {
         set(x, y, gate ? TILE.ROAD : TILE.WALL);
       }
     }
-    building(cx - 10, cy - 9, 8, 6, cx - 6, cy - 4);   // smithy
-    building(cx + 3, cy - 9, 8, 6, cx + 7, cy - 4);    // inn
-    building(cx - 10, cy + 4, 7, 5, cx - 7, cy + 4);   // healer
+    shopfront(cx - 6, cy - 6, 'smithy');
+    shopfront(cx + 6, cy - 6, 'inn');
+    shopfront(cx - 6, cy + 6, 'healer');
     set(cx, cy - 2, TILE.SHRINE);
     props.push({ x: cx + 5, y: cy + 3, name: 'prop.well' });
     props.push({ x: cx - 4, y: cy + 1, name: 'prop.table' });
     props.push({ x: cx - 3, y: cy + 2, name: 'prop.stool' });
-    props.push({ x: cx + 6, y: cy - 7, name: 'prop.table' }); // the inn hearth
-    props.push({ x: cx + 7, y: cy - 6, name: 'prop.stool' });
+    props.push({ x: cx + 4, y: cy - 4, name: 'prop.table' }); // the inn's yard
+    props.push({ x: cx + 5, y: cy - 3, name: 'prop.stool' });
     vendors.push({
-      name: `Garrick of ${def.name}`, x: cx - 7, y: cy - 6, forge: true, model: 'smith',
+      name: `Garrick of ${def.name}`, x: cx - 6, y: cy - 4, forge: true, model: 'smith',
       goods: [
         { type: 'weapon', item: 'dagger', q: 1 },
         { type: 'weapon', item: 'sword', q: 1 },

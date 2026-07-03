@@ -17,7 +17,7 @@ const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SA
 // priority]. The higher-priority side lays its tufts onto the lower;
 // water and roads receive fringes but never spill their own.
 const FRINGES = {
-  [T.WATER]: [null, 0], [T.ROAD]: [null, 0.5],
+  [T.WATER]: [null, 0], [T.ROAD]: [null, 0.5], [T.FLOOR]: [null, 0.4],
   [T.SAND]: ['sand', 1],
   [T.SWAMP]: ['swamp', 2], [T.SWAMPTREE]: ['swamp', 2],
   [T.GRASS]: ['grass', 3], [T.TREE]: ['grass', 3],

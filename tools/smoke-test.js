@@ -26,7 +26,9 @@ const welcome = ws.sent.find((m) => m.t === 'welcome');
 assert(welcome, 'registered and joined');
 assert(welcome.vendors && welcome.vendors.length >= 5, 'welcome lists the vendors of the realm');
 assert(welcome.mini && welcome.mini.d, 'welcome carries the minimap overview');
-assert(welcome.buildings.length > 10, 'welcome lists buildings for roofs');
+// towns are whole pre-drawn sprites now; only the hermit's hovel (and any
+// future tile-built shelter) still needs a client-drawn roof
+assert(welcome.buildings.length >= 1, 'welcome lists the remaining tile-built roofs');
 assert(!welcome.map.tiles, 'tiles are not shipped wholesale');
 const p = ws.player;
 assert.strictEqual(p.pots.heal, 1, 'new characters start with one heal potion');
@@ -741,6 +743,12 @@ assert(game.map.spawners.filter((sp) => sp.kind === 'ghost').every((sp) => sp.ni
   'surface ghosts only rise at night; only the deeps hold them by day');
 assert(game.map.spawners.some((sp) => sp.kind === 'vampire' && sp.y < 64),
   'the Count sleeps beneath a ruined keep');
+
+// -- towns wear whole pre-drawn buildings now -----------------------------------------
+for (const k of ['smithy', 'inn', 'healer', 'magetower', 'shop', 'lodge']) {
+  assert(game.map.props.some((pr) => pr.name === 'prop.' + k),
+    `somewhere a ${k} stands as one drawn piece`);
+}
 
 // -- the factions keep their own corners of the world --------------------------------
 for (const k of ['dwarf', 'dwarfguard', 'dwarfpriest', 'orcbrute', 'orcwarlord',
