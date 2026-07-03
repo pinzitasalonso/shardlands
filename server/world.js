@@ -555,7 +555,7 @@ function generate(seed = 1337) {
     for (let x = CX - 3; x <= CX + 3; x++) set(x, y, TILE.FLOOR); // forecourt
   }
   for (let y = CY - 21; y <= CY - 17; y++) {
-    for (let x = CX - 5; x <= CX + 5; x++) set(x, y, TILE.WALL); // solid under the keep
+    for (let x = CX - 4; x <= CX + 4; x++) set(x, y, TILE.WALL); // solid under the keep
   }
   props.push({ x: CX, y: CY - 17, name: 'prop.citycastle' });
   openMouth({ x: CX, y: CY - 16 }, 6, {
@@ -638,6 +638,9 @@ function generate(seed = 1337) {
 
   // ---- Farmsteads: a lonely hut, a well, and livestock ----------------------------
   scatter(12, 1500, (s) => {
+    // lonely means lonely: not against the capital's walls, not on a green
+    if (Math.hypot(s.x - CX, s.y - CY) < 70) return;
+    if (villages.some((v) => Math.hypot(v.x - s.x, v.y - s.y) < 40)) return;
     flatten(s.x, s.y, 7);
     props.push({ x: s.x, y: s.y + 1, name: 'prop.cottage' + Math.floor(rng() * 4) });
     props.push({ x: s.x + 3, y: s.y, name: 'prop.well' });

@@ -596,8 +596,8 @@ def build_topdown_heroic(frames, images_out):
     for k, im in imgs.items():
         sheet.paste(im, (x, sh - im.height))
         # city halls tower over houses (5x); treasures loom (4x); cottages 3x
-        # the crown's own castle dwarfs everything; other halls are grand
-        z = 7 if k == 'citycastle' else 5 if k.startswith('city') else 3 if k.startswith('cottage') else 4
+        # the crown's own castle is grandest, without swallowing the skyline
+        z = 6 if k == 'citycastle' else 5 if k.startswith('city') else 3 if k.startswith('cottage') else 4
         frames[f'td.o.{k}'] = {'img': 'structures', 'x': x, 'y': sh - im.height,
                                'w': im.width, 'h': im.height,
                                'ax': im.width // 2, 'ay': im.height - 2, 'scale': z}
