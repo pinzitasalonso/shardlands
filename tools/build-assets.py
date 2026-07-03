@@ -471,17 +471,24 @@ HAS_SHEETS = {
 
 # Ground variants (each biome LandTileset shares one template; the textured
 # field block lives at cols 1-6, rows 14-16).
+# Ground fills lean on each sheet's PLAIN interior cell (6,15), with the
+# textured cells as occasional accents — busy cells at every tile made the
+# terrain read as noise. Water sticks to the light lattice cells only (the
+# dark-blob cells checkerboard when picked at random), floor uses the
+# borderless cracked flagstones of DNG rows 9-10 (the old picks were the
+# centres of two DIFFERENT bordered rooms — hence the plaza checkerboard),
+# and cave stays in the brown rubble family.
 HAS_GROUNDS = {
     'grass':  [('GB', 1, 14), ('GB', 4, 14), ('GB', 5, 15), ('GB', 5, 16)],
-    'snow':   [('IB', 1, 14), ('IB', 4, 14), ('IB', 5, 15), ('IB', 5, 16)],
-    'swamp':  [('MB', 1, 14), ('MB', 4, 15), ('MB', 5, 15), ('MB', 5, 16)],
-    'sand':   [('SB', 1, 14), ('SB', 4, 14), ('SB', 5, 15), ('SB', 5, 16)],
-    'dirt':   [('DB', 1, 14), ('DB', 4, 14), ('DB', 5, 15), ('DB', 5, 16)],
-    'water':  [('OCEAN', 0, 0), ('OCEAN', 1, 0), ('OCEAN', 2, 0), ('OCEAN', 6, 2)],
+    'snow':   [('IB', 6, 15), ('IB', 6, 15), ('IB', 1, 14), ('IB', 2, 15)],
+    'swamp':  [('MB', 6, 15), ('MB', 6, 15), ('MB', 6, 15), ('MB', 1, 14)],
+    'sand':   [('SB', 6, 15), ('SB', 6, 15), ('SB', 1, 14), ('SB', 2, 15)],
+    'dirt':   [('DB', 6, 15), ('DB', 6, 15), ('DB', 1, 14), ('DB', 1, 14)],
+    'water':  [('OCEAN', 0, 0), ('OCEAN', 1, 0), ('OCEAN', 0, 0), ('OCEAN', 1, 0)],
     'road':   [('ROAD', 6, 1)],                        # smooth tan road (the brown one is all boulders)
-    'floor':  [('DNG', 1, 7), ('DNG', 1, 12)],         # dungeon stone slabs
+    'floor':  [('DNG', 4, 9), ('DNG', 5, 9), ('DNG', 2, 10), ('DNG', 6, 9)],
     'planks': [('ROAD', 14, 6)],                       # pale cobbled boardwalk
-    'cave':   [('DNG', 1, 19), ('DNG', 4, 19)],        # brown rubble floor
+    'cave':   [('DNG', 1, 19), ('DNG', 1, 19), ('DNG', 0, 18), ('DNG', 2, 18)],
 }
 
 # Scenery stamps: 16px cells designed to fill their tile (HoMM-style forest
