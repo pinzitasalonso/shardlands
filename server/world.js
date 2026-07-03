@@ -273,7 +273,7 @@ function generate(seed = 1337) {
     const h2 = 6 + Math.floor(rng() * 2);
     building(v.x + 3, v.y - 5, w2, h2, v.x + 3 + (w2 >> 1), v.y - 5 + h2 - 1); // lodge
     if (rng() > 0.45) {
-      building(v.x - 7, v.y + 2, 5, 4, v.x - 5, v.y + 2); // a humble hut
+      props.push({ x: v.x - 5, y: v.y + 4, name: 'prop.cottage' + Math.floor(rng() * 4) });
     }
     set(v.x, v.y + 4, TILE.SHRINE);
     props.push({ x: v.x + 1, y: v.y + 4, name: 'prop.table' }); // market stall
@@ -374,10 +374,14 @@ function generate(seed = 1337) {
     spawners.push({ kind: 'villager', count: 4, x: cx, y: cy, r: 8 });
     spawners.push({ kind: 'guard', count: 4, x: cx, y: cy, r: 11 });
     road(cx, cy + 14, CX, CY + 11);
+    // every city gets its landmark hall, rising behind the shrine
+    const hall = { Frosthelm: 'citytower', Sunwatch: 'cityrampart', Mirehold: 'citystronghold' }[def.name];
+    props.push({ x: cx, y: cy + 9, name: 'prop.' + hall });
     cities.push({ name: def.name, x: cx, y: cy, r: 16 });
   }
   // The capital is the first city of all: guarded and safe within the plaza.
   spawners.push({ kind: 'guard', count: 4, x: CX, y: CY, r: 11 });
+  props.push({ x: CX, y: CY + 10, name: 'prop.citycastle' }); // the crown's own keep
   cities.push({ name: 'Briarhaven', x: CX, y: CY, r: 16 });
 
   // ---- The barrow-deeps: caverns beneath the world ------------------------------
@@ -457,9 +461,11 @@ function generate(seed = 1337) {
       }
     }
     set(spot.x, spot.y - 6, TILE.GRASS); // the fallen gate
+    props.push({ x: spot.x - 3, y: spot.y - 1, name: 'prop.keep' });
     spawners.push({ kind: 'skeleton', count: 7, x: spot.x, y: spot.y, r: 9 });
     // a cave mouth descends into the barrow-deeps
     if (keepIdx < 4) {
+      props.push({ x: spot.x + 2, y: spot.y + 3, name: 'prop.daemoncave' });
       openMouth({ x: spot.x + 2, y: spot.y + 2 }, keepIdx++, {},
         'Cold air breathes up from a cracked stair descending into the dark.');
     }
@@ -492,6 +498,7 @@ function generate(seed = 1337) {
       keepers: [['goblin', 8, 'mid', 18], ['snake', 4, 'mid', 14], ['goblin', 5, 'far', 8]],
       loot: [['gold', 220, 450], ['gems', 1, 3], ['mana', 1, 2]],
     }, 'A goblin-dug shaft yawns out of the mire, shored with stolen timber. Voices echo below.');
+    props.push({ x: warrenMouth.x + 1, y: warrenMouth.y + 1, name: 'prop.snakelair' });
   }
 
   // ---- Wilderness mob camps -----------------------------------------------------
@@ -537,6 +544,7 @@ function generate(seed = 1337) {
     for (const [ox, oy] of [[-2, 0], [2, 0], [0, -2], [0, 2]]) {
       if (get(s.x + ox, s.y + oy) !== TILE.WATER) set(s.x + ox, s.y + oy, TILE.ROCK);
     }
+    props.push({ x: s.x, y: s.y - 1, name: 'prop.graveyard' });
     spawners.push({ kind: 'skeleton', count: 4, x: s.x, y: s.y, r: 8 });
     if (rng() > 0.5) {
       secrets.push({ type: 'cache', x: s.x, y: s.y, loot: [['gold', 40, 120], ['heal', 0, 1]] });
@@ -551,7 +559,7 @@ function generate(seed = 1337) {
   // ---- Farmsteads: a lonely hut, a well, and livestock ----------------------------
   scatter(12, 1500, (s) => {
     flatten(s.x, s.y, 7);
-    building(s.x - 2, s.y - 2, 5, 4, s.x, s.y + 1);
+    props.push({ x: s.x, y: s.y + 1, name: 'prop.cottage' + Math.floor(rng() * 4) });
     props.push({ x: s.x + 3, y: s.y, name: 'prop.well' });
     const kind = ['sheep', 'pig', 'chicken'][Math.floor(rng() * 3)];
     spawners.push({ kind, count: 3, x: s.x + 5, y: s.y + 4, r: 5 });
@@ -578,6 +586,7 @@ function generate(seed = 1337) {
       const y = Math.round(s.y + Math.sin(a) * d);
       if (get(x, y) !== TILE.WATER) set(x, y, TILE.ROCK);
     }
+    props.push({ x: s.x + 1, y: s.y - 2, name: 'prop.dwarffortress' });
     spawners.push({ kind: 'ettin', count: 2, x: s.x, y: s.y, r: 8 });
     secrets.push({ type: 'cache', x: s.x, y: s.y, loot: [['gold', 60, 140], ['gems', 0, 1]] });
   });
@@ -675,6 +684,7 @@ function generate(seed = 1337) {
       const y = Math.round(rim.y + Math.sin(a) * 5);
       if (get(x, y) !== TILE.WATER) set(x, y, TILE.ROCK);
     }
+    props.push({ x: rim.x, y: rim.y - 2, name: 'prop.bloodtemple' });
     spawners.push({ kind: 'vyrmaur', count: 1, x: rim.x, y: rim.y, r: 3, respawnMs: 30 * 60_000 });
     secrets.push({ type: 'whisper', x: rim.x, y: rim.y - 9,
       text: 'The air shimmers with heat, and the very stones seem afraid.' });
@@ -688,6 +698,7 @@ function generate(seed = 1337) {
     if (!spot) continue;
     if (Math.hypot(spot.x - CX, spot.y - CY) < 600) continue;
     if (villages.some((v) => Math.hypot(v.x - spot.x, v.y - spot.y) < 300)) continue;
+    props.push({ x: spot.x, y: spot.y - 1, name: 'prop.dragoncity' });
     spawners.push({ kind: 'dragon', count: 1, x: spot.x, y: spot.y, r: 10 });
     // Every roost has a hoard nearby.
     secrets.push({ type: 'cache', x: spot.x + 3, y: spot.y,

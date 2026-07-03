@@ -11,6 +11,7 @@
   "ground16": "ground16.png",
   "objects16": "objects16.png",
   "extras16": "extras16.png",
+  "structures": "structures.png",
   "goblin": "creatures/goblin.png",
   "skeleton": "creatures/skeleton.png",
   "skelmage": "creatures/skelmage.png",
@@ -1153,6 +1154,166 @@
    "h": 16,
    "ax": 8,
    "ay": 16,
+   "scale": 3
+  },
+  "td.o.citycastle": {
+   "img": "structures",
+   "x": 0,
+   "y": 0,
+   "w": 64,
+   "h": 64,
+   "ax": 32,
+   "ay": 62,
+   "scale": 3
+  },
+  "td.o.citytower": {
+   "img": "structures",
+   "x": 64,
+   "y": 0,
+   "w": 64,
+   "h": 64,
+   "ax": 32,
+   "ay": 62,
+   "scale": 3
+  },
+  "td.o.citystronghold": {
+   "img": "structures",
+   "x": 128,
+   "y": 0,
+   "w": 64,
+   "h": 64,
+   "ax": 32,
+   "ay": 62,
+   "scale": 3
+  },
+  "td.o.cityrampart": {
+   "img": "structures",
+   "x": 192,
+   "y": 0,
+   "w": 64,
+   "h": 64,
+   "ax": 32,
+   "ay": 62,
+   "scale": 3
+  },
+  "td.o.keep": {
+   "img": "structures",
+   "x": 256,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "ax": 16,
+   "ay": 30,
+   "scale": 3
+  },
+  "td.o.ruins": {
+   "img": "structures",
+   "x": 288,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "ax": 16,
+   "ay": 30,
+   "scale": 3
+  },
+  "td.o.graveyard": {
+   "img": "structures",
+   "x": 320,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "ax": 16,
+   "ay": 30,
+   "scale": 3
+  },
+  "td.o.dragoncity": {
+   "img": "structures",
+   "x": 352,
+   "y": 16,
+   "w": 64,
+   "h": 48,
+   "ax": 32,
+   "ay": 46,
+   "scale": 3
+  },
+  "td.o.snakelair": {
+   "img": "structures",
+   "x": 416,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "ax": 16,
+   "ay": 30,
+   "scale": 3
+  },
+  "td.o.daemoncave": {
+   "img": "structures",
+   "x": 448,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "ax": 16,
+   "ay": 30,
+   "scale": 3
+  },
+  "td.o.dwarffortress": {
+   "img": "structures",
+   "x": 480,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "ax": 16,
+   "ay": 30,
+   "scale": 3
+  },
+  "td.o.bloodtemple": {
+   "img": "structures",
+   "x": 512,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "ax": 16,
+   "ay": 30,
+   "scale": 3
+  },
+  "td.o.cottage0": {
+   "img": "structures",
+   "x": 544,
+   "y": 48,
+   "w": 16,
+   "h": 16,
+   "ax": 8,
+   "ay": 14,
+   "scale": 3
+  },
+  "td.o.cottage1": {
+   "img": "structures",
+   "x": 560,
+   "y": 48,
+   "w": 16,
+   "h": 16,
+   "ax": 8,
+   "ay": 14,
+   "scale": 3
+  },
+  "td.o.cottage2": {
+   "img": "structures",
+   "x": 576,
+   "y": 48,
+   "w": 16,
+   "h": 16,
+   "ax": 8,
+   "ay": 14,
+   "scale": 3
+  },
+  "td.o.cottage3": {
+   "img": "structures",
+   "x": 592,
+   "y": 48,
+   "w": 16,
+   "h": 16,
+   "ax": 8,
+   "ay": 14,
    "scale": 3
   }
  },
