@@ -1530,9 +1530,16 @@ function drawRoof(b, cam, time) {
   const w = br.x - tl.x;
   const h = br.y - tl.y;
 
-  const slope = (x, y, sw, sh, fill) => {
-    ctx.fillStyle = fill;
+  // Slopes are tiled with real HAS shingle texture (slate slabs or pale
+  // cobbles per building); the far slope sits in shadow.
+  const tex = Assets.pattern(ctx, (b.x * 7 + b.y * 13) % 2 ? 'td.g.floor.0' : 'td.g.planks.0');
+  const slope = (x, y, sw, sh, fill, shade) => {
+    ctx.fillStyle = tex || fill;
     ctx.fillRect(x, y, sw, sh);
+    if (shade) {
+      ctx.fillStyle = 'rgba(24, 12, 6, 0.3)';
+      ctx.fillRect(x, y, sw, sh);
+    }
     ctx.strokeStyle = 'rgba(40, 16, 10, 0.5)';
     ctx.strokeRect(x + 0.5, y + 0.5, sw - 1, sh - 1);
   };
@@ -1579,15 +1586,15 @@ function drawRoof(b, cam, time) {
   let ridgeB;
   if (b.w >= b.h) {
     // Ridge runs west-east: north slope lit, south slope shaded.
-    slope(tl.x, tl.y, w, h / 2, pal.near);
-    slope(tl.x, tl.y + h / 2, w, h / 2, pal.far);
+    slope(tl.x, tl.y, w, h / 2, pal.near, false);
+    slope(tl.x, tl.y + h / 2, w, h / 2, pal.far, true);
     courses(tl.x, tl.y, w, h / 2, false);
     courses(tl.x, tl.y + h / 2, w, h / 2, false);
     ridgeA = [tl.x + 3, tl.y + h / 2];
     ridgeB = [br.x - 3, tl.y + h / 2];
   } else {
-    slope(tl.x, tl.y, w / 2, h, pal.near);
-    slope(tl.x + w / 2, tl.y, w / 2, h, pal.far);
+    slope(tl.x, tl.y, w / 2, h, pal.near, false);
+    slope(tl.x + w / 2, tl.y, w / 2, h, pal.far, true);
     courses(tl.x, tl.y, w / 2, h, true);
     courses(tl.x + w / 2, tl.y, w / 2, h, true);
     ridgeA = [tl.x + w / 2, tl.y + 3];
@@ -1617,6 +1624,21 @@ function drawRoof(b, cam, time) {
     ctx.beginPath();
     ctx.arc(px, py, 3 + k * 5, 0, Math.PI * 2);
     ctx.fill();
+  }
+
+  // The way in, unmistakable: a framed wooden door on the doorway tile.
+  if (b.dx !== undefined) {
+    const d = worldToScreen(b.dx, b.dy, cam);
+    ctx.fillStyle = '#2a1c10';
+    ctx.fillRect(d.x + 8, d.y + 4, TP - 16, TP - 4);   // dark opening
+    ctx.fillStyle = '#8a6a42';
+    ctx.fillRect(d.x + 8, d.y + 4, TP - 16, 6);        // lintel
+    ctx.fillStyle = '#6e5334';
+    ctx.fillRect(d.x + 12, d.y + 12, TP - 24, TP - 14); // the door itself
+    ctx.fillStyle = '#d8b35e';
+    ctx.fillRect(d.x + TP - 17, d.y + 26, 4, 4);        // brass handle
+    ctx.strokeStyle = 'rgba(20, 12, 6, 0.8)';
+    ctx.strokeRect(d.x + 11.5, d.y + 11.5, TP - 23, TP - 13);
   }
 }
 

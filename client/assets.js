@@ -188,5 +188,26 @@ const Assets = (() => {
     return true;
   }
 
-  return { state, load, tile, tileTD, creature, drawFrame, drawGround, drawCreature, drawFringe };
+  // Cached repeating patterns built from any manifest frame (roof textures).
+  const patterns = new Map();
+  function pattern(ctx2, name) {
+    if (!state.ok) return null;
+    if (patterns.has(name)) return patterns.get(name);
+    const f = state.manifest.frames[name];
+    let p = null;
+    if (f) {
+      const k = f.scale || 1;
+      const c = document.createElement('canvas');
+      c.width = f.w * k;
+      c.height = f.h * k;
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      g.drawImage(state.images[f.img], f.x, f.y, f.w, f.h, 0, 0, c.width, c.height);
+      p = ctx2.createPattern(c, 'repeat');
+    }
+    patterns.set(name, p);
+    return p;
+  }
+
+  return { state, load, tile, tileTD, creature, pattern, drawFrame, drawGround, drawCreature, drawFringe };
 })();
