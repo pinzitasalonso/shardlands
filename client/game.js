@@ -62,7 +62,8 @@ const state = {
   speech: new Map(),    // entity id -> { text, until, magic }
   floaters: [],         // { x, y, text, color, born }
   projectiles: [],      // { x, y, tx, ty, born, color }
-  telegraphs: [],       // boss slam warnings: { x, y, born }
+  telegraphs: [],
+  torches: [],       // wall torches in the deeps, lit during the night pass       // boss slam warnings: { x, y, born }
   target: 0,            // selected mob id
   walkTarget: null,     // { x, y } click-to-move destination
   path: null,           // A* steps toward walkTarget
@@ -1011,16 +1012,17 @@ function renderInventory() {
   document.getElementById('inv-weapons').innerHTML = weaponsHtml;
   const pots = y.pots || {};
   const mats = y.mats || {};
+  const px = (n) => `<img class="px-icon" src="assets/ui/icons/${n}.png" alt="">`;
   const rows = [
-    ['🪙', 'Gold', y.gold, ''],
-    ['🧪', 'Heal potions', pots.heal || 0, 'drink:heal'],
-    ['🜄', 'Mana potions', pots.mana || 0, 'drink:mana'],
-    ['🪵', 'Logs', y.logs, ''],
-    ['🪨', 'Ore', y.ore, ''],
-    ['💎', 'Gems', y.gems || 0, ''],
+    [px('gold'), 'Gold', y.gold, ''],
+    [px('heal'), 'Heal potions', pots.heal || 0, 'drink:heal'],
+    [px('mana'), 'Mana potions', pots.mana || 0, 'drink:mana'],
+    [px('logs'), 'Logs', y.logs, ''],
+    [px('ore'), 'Ore', y.ore, ''],
+    [px('gems'), 'Gems', y.gems || 0, ''],
     ['🐟', 'Raw fish', y.fish || 0, 'cook'],
     ['🍖', 'Raw meat', y.meat || 0, 'cook'],
-    ['🍲', 'Hot meals', y.food || 0, 'eat'],
+    [px('food'), 'Hot meals', y.food || 0, 'eat'],
     ['❄', 'Frostwood', mats.frostwood || 0, ''],
     ['☀', 'Sunsteel', mats.sunsteel || 0, ''],
     ['🌿', 'Ironbark', mats.ironbark || 0, ''],
@@ -1270,6 +1272,10 @@ function drawNight(cam, time) {
     if (s.x < -200 || s.x > canvas.width + 200 || s.y < -200 || s.y > canvas.height + 200) continue;
     punch(s.x, s.y - 6, 120 + Math.sin(time / 130 + pr.x) * 8, 0.95);
   }
+  for (const t of state.torches || []) {
+    const s = worldToScreen(t.x, t.y, cam);
+    punch(s.x, s.y, 85 + Math.sin(time / 170 + t.x * 3) * 7, 0.9);
+  }
   ctx.drawImage(lightCanvas, 0, 0);
   // a faint warm tint over fires so night feels inhabited
 }
@@ -1318,6 +1324,7 @@ function render() {
   const y1 = Math.min(state.map.h - 1, cy + range);
 
   const drawables = [];
+  state.torches = [];
 
   // Ground pass, plus collection of y-sorted scenery. Depth is the world y
   // of a thing's feet: painter's algorithm, north to south.
@@ -1331,8 +1338,13 @@ function render() {
       const h = hash(tx, ty);
 
       if (useSprites) {
-        const recipe = Assets.tileTD(tile) || Assets.tileTD(T.WATER);
+        const under = ty < 64 && Assets.tileTD('u' + tile);
+        const recipe = under || Assets.tileTD(tile) || Assets.tileTD(T.WATER);
         Assets.drawGround(ctx, recipe, h, sx, sy);
+        if (under && recipe.torch && tileAt(tx, ty + 1) === T.CAVE && hash(tx * 7, ty * 3) < 0.14) {
+          drawables.push({ depth: ty, kind: 'sprite', name: 'td.o.torch', x: sx + HT, y: sy + TP + 12 });
+          state.torches.push({ x: tx + 0.5, y: ty + 0.8 });
+        }
 
         // Walls pick their piece by which neighbours are also wall, so
         // ramparts read as connected runs with proper corners.

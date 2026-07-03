@@ -6,6 +6,11 @@ here; these assets merely evoke the same isometric style.
 
 Generated atlases are produced by `tools/build-assets.py` from these sources:
 
+## UI chrome and icons (`ui/*.png`, `ui/icons/*.png`, `extras16.png`)
+- Spell icons from **HAS Magic Book**, item icons from **HAS IconPack**,
+  dungeon brick and torches from **HAS Dungeon** — all by
+  **Aleksandr Makarov** (@IKnowKingRabbit), same license terms.
+
 ## UI chrome (`ui/*.png`)
 - Window frames, buttons and the cursor are sliced from **HAS UI** by
   **Aleksandr Makarov** (@IKnowKingRabbit), same license terms as below.

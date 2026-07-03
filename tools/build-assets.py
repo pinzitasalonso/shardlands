@@ -545,6 +545,19 @@ def build_topdown_heroic(frames, images_out):
     images_out['ground16'] = 'ground16.png'
     images_out['objects16'] = 'objects16.png'
 
+    # dungeon brick wall cells + a torch, straight from the dungeon tileset
+    dng = sheets['DNG'] if False else Image.open(os.path.join(HEROIC, HAS_SHEETS['DNG'])).convert('RGBA')
+    extra = Image.new('RGBA', (3 * TD, TD), (0, 0, 0, 0))
+    for i, (cx, cy) in enumerate([(1, 5), (2, 5)]):
+        extra.paste(dng.crop((cx * TD, cy * TD, cx * TD + TD, cy * TD + TD)), (i * TD, 0))
+        frames[f'td.g.ubrick.{i}'] = {'img': 'extras16', 'x': i * TD, 'y': 0,
+                                      'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+    extra.paste(dng.crop((12 * 16, 7 * 16, 12 * 16 + 16, 7 * 16 + 16)), (2 * TD, 0))
+    frames['td.o.torch'] = {'img': 'extras16', 'x': 2 * TD, 'y': 0, 'w': TD, 'h': TD,
+                            'ax': TD // 2, 'ay': TD, 'scale': TD_SCALE}
+    extra.save(os.path.join(OUT, 'extras16.png'))
+    images_out['extras16'] = 'extras16.png'
+
     g = lambda kind: [f'td.g.{kind}.{v}' for v in range(len(HAS_GROUNDS[kind]))]
     autowall = {k: f'td.wall.{k}' for k in
                 ('h', 'v', 'tl', 'tr', 'bl', 'br', 'capL', 'capR', 'capT', 'capB')}
@@ -576,6 +589,9 @@ def build_topdown_heroic(frames, images_out):
         '13': {'ground': g('swamp'), 'stamp': True,
                'object': ['td.o.swamptree0', 'td.o.swamptree1']},
         '14': {'ground': g('cave')},
+        # underground overrides (the barrow-deeps strip, y < 64): rock reads
+        # as worked brick, and torches bracket the tunnel walls client-side
+        'u3': {'ground': ['td.g.ubrick.0', 'td.g.ubrick.1'], 'torch': True},
     }
 
 
@@ -777,7 +793,29 @@ def build_has_ui():
             os.path.join(out, dst))
     cur = Image.open(os.path.join(ui_src, 'Cursors/Cursor_1.png')).convert('RGBA')
     cur.resize((cur.width * 2, cur.height * 2), Image.NEAREST).save(os.path.join(out, 'cursor.png'))
-    print('ui chrome baked from HAS UI')
+
+    # spell icons from HAS Magic Book, item icons from HAS IconPack
+    icons = os.path.join(out, 'icons')
+    os.makedirs(icons, exist_ok=True)
+    book = os.path.join(HEROIC, 'HAS Magic Book 1.1')
+    import glob as _glob
+    for name, folder in [('magicarrow', 'MagicArrow'), ('fireball', 'FireBall'),
+                         ('greaterheal', 'Cure'), ('bless', 'Bless'),
+                         ('poison', 'AcidSplash'), ('energybolt', 'EnergyBlast')]:
+        found = sorted(_glob.glob(os.path.join(book, folder, 'Icon*.png')))
+        if not found:
+            raise FileNotFoundError(folder)
+        im = Image.open(found[0]).convert('RGBA')
+        im.resize((im.width * 2, im.height * 2), Image.NEAREST).save(
+            os.path.join(icons, f'{name}.png'))
+    misc = Image.open(os.path.join(
+        HEROIC, 'HAS IconPack (v.1.2)/IconPack 1.1/AllItems/MiscellaneousSource/MiscellaneousOriginal.png')).convert('RGBA')
+    for name, (cx, cy) in {'gold': (13, 0), 'heal': (1, 1), 'mana': (2, 1),
+                           'logs': (6, 0), 'ore': (8, 0), 'gems': (3, 1),
+                           'food': (14, 1), 'pick': (10, 1)}.items():
+        c = misc.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16))
+        c.resize((32, 32), Image.NEAREST).save(os.path.join(icons, f'{name}.png'))
+    print('ui chrome + icons baked from HAS UI / Magic Book / IconPack')
 
 
 def build_topdown_placeholder(frames, images_out):
@@ -987,6 +1025,9 @@ def build_topdown_placeholder(frames, images_out):
         '12': {'ground': g('swamp')},
         '13': {'ground': g('swamp'), 'object': ['td.o.swamptree0', 'td.o.swamptree1']},
         '14': {'ground': g('cave')},
+        # underground overrides (the barrow-deeps strip, y < 64): rock reads
+        # as worked brick, and torches bracket the tunnel walls client-side
+        'u3': {'ground': ['td.g.ubrick.0', 'td.g.ubrick.1'], 'torch': True},
     }
 
 
