@@ -478,7 +478,7 @@ HAS_GROUNDS = {
     'sand':   [('SB', 1, 14), ('SB', 4, 14), ('SB', 5, 15), ('SB', 5, 16)],
     'dirt':   [('DB', 1, 14), ('DB', 4, 14), ('DB', 5, 15), ('DB', 5, 16)],
     'water':  [('OCEAN', 0, 0), ('OCEAN', 1, 0), ('OCEAN', 2, 0), ('OCEAN', 6, 2)],
-    'road':   [('ROAD', 14, 1)],                       # brown dirt road, seamless centre
+    'road':   [('ROAD', 6, 1)],                        # smooth tan road (the brown one is all boulders)
     'floor':  [('DNG', 1, 7), ('DNG', 1, 12)],         # dungeon stone slabs
     'planks': [('ROAD', 14, 6)],                       # pale cobbled boardwalk
     'cave':   [('DNG', 1, 19), ('DNG', 4, 19)],        # brown rubble floor
@@ -581,9 +581,11 @@ def build_topdown_heroic(frames, images_out):
     x = 0
     for k, im in imgs.items():
         sheet.paste(im, (x, sh - im.height))
+        # city halls tower over houses (5x); treasures loom (4x); cottages 3x
+        z = 5 if k.startswith('city') else 3 if k.startswith('cottage') else 4
         frames[f'td.o.{k}'] = {'img': 'structures', 'x': x, 'y': sh - im.height,
                                'w': im.width, 'h': im.height,
-                               'ax': im.width // 2, 'ay': im.height - 2, 'scale': TD_SCALE}
+                               'ax': im.width // 2, 'ay': im.height - 2, 'scale': z}
         x += im.width
     sheet.save(os.path.join(OUT, 'structures.png'))
     images_out['structures'] = 'structures.png'

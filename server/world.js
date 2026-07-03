@@ -171,7 +171,7 @@ function generate(seed = 1337) {
       }
     }
     set(doorX, doorY, TILE.PLANKS);
-    buildings.push({ x: x0, y: y0, w, h });
+    buildings.push({ x: x0, y: y0, w, h, dx: doorX, dy: doorY });
   };
 
   const road = (x0, y0, x1, y1) => {

@@ -1164,7 +1164,7 @@
    "h": 64,
    "ax": 32,
    "ay": 62,
-   "scale": 3
+   "scale": 5
   },
   "td.o.citytower": {
    "img": "structures",
@@ -1174,7 +1174,7 @@
    "h": 64,
    "ax": 32,
    "ay": 62,
-   "scale": 3
+   "scale": 5
   },
   "td.o.citystronghold": {
    "img": "structures",
@@ -1184,7 +1184,7 @@
    "h": 64,
    "ax": 32,
    "ay": 62,
-   "scale": 3
+   "scale": 5
   },
   "td.o.cityrampart": {
    "img": "structures",
@@ -1194,7 +1194,7 @@
    "h": 64,
    "ax": 32,
    "ay": 62,
-   "scale": 3
+   "scale": 5
   },
   "td.o.keep": {
    "img": "structures",
@@ -1204,7 +1204,7 @@
    "h": 32,
    "ax": 16,
    "ay": 30,
-   "scale": 3
+   "scale": 4
   },
   "td.o.ruins": {
    "img": "structures",
@@ -1214,7 +1214,7 @@
    "h": 32,
    "ax": 16,
    "ay": 30,
-   "scale": 3
+   "scale": 4
   },
   "td.o.graveyard": {
    "img": "structures",
@@ -1224,7 +1224,7 @@
    "h": 32,
    "ax": 16,
    "ay": 30,
-   "scale": 3
+   "scale": 4
   },
   "td.o.dragoncity": {
    "img": "structures",
@@ -1234,7 +1234,7 @@
    "h": 48,
    "ax": 32,
    "ay": 46,
-   "scale": 3
+   "scale": 4
   },
   "td.o.snakelair": {
    "img": "structures",
@@ -1244,7 +1244,7 @@
    "h": 32,
    "ax": 16,
    "ay": 30,
-   "scale": 3
+   "scale": 4
   },
   "td.o.daemoncave": {
    "img": "structures",
@@ -1254,7 +1254,7 @@
    "h": 32,
    "ax": 16,
    "ay": 30,
-   "scale": 3
+   "scale": 4
   },
   "td.o.dwarffortress": {
    "img": "structures",
@@ -1264,7 +1264,7 @@
    "h": 32,
    "ax": 16,
    "ay": 30,
-   "scale": 3
+   "scale": 4
   },
   "td.o.bloodtemple": {
    "img": "structures",
@@ -1274,7 +1274,7 @@
    "h": 32,
    "ax": 16,
    "ay": 30,
-   "scale": 3
+   "scale": 4
   },
   "td.o.cottage0": {
    "img": "structures",
