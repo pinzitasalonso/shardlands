@@ -3,6 +3,13 @@
    bottom-left. Theme variables below; focus-visible and reduced-motion
    support throughout. */
 
+/* The HAS UI display face — used for titles and name plates. */
+@font-face {
+  font-family: 'MiKroll Fantasy';
+  src: url('assets/ui/MiKrollFantasy.ttf') format('truetype');
+  font-display: swap;
+}
+
 :root {
   --gold: #d8b35e;
   --gold-dim: #8a7440;
@@ -85,6 +92,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 .login-box h1 {
+  font-family: 'MiKroll Fantasy', Georgia, serif;
   font-size: 44px;
   letter-spacing: 6px;
   color: var(--gold);
@@ -167,7 +175,7 @@ button { font-family: inherit; cursor: pointer; }
 
 .pf-main { flex: 1; min-width: 0; }
 
-#char-name { font-size: 15px; color: var(--gold); margin-bottom: 4px; white-space: nowrap; }
+#char-name { font-family: 'MiKroll Fantasy', Georgia, serif; font-size: 15px; color: var(--gold); margin-bottom: 4px; white-space: nowrap; }
 #target-name { font-size: 14px; color: var(--text); margin-bottom: 4px; white-space: nowrap; }
 #target-frame.boss #target-name { color: var(--gold); font-weight: bold; }
 
@@ -175,16 +183,19 @@ button { font-family: inherit; cursor: pointer; }
   position: relative;
   height: 16px;
   background: #14100a;
-  border: 1px solid #4a3c24;
-  border-radius: 3px;
+  border: 4px solid transparent;
+  border-image: url('assets/ui/bar-frame-gold.png') 3 fill / 4px stretch;
+  image-rendering: pixelated;
+  border-radius: 0;
   overflow: hidden;
   margin-bottom: 4px;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.7);
 }
 
-.bar div { height: 100%; width: 100%; transition: width 0.18s ease-out; }
-.bar.hp div { background: linear-gradient(var(--hp), var(--hp-deep)); }
-.bar.mana div { background: linear-gradient(var(--mana), var(--mana-deep)); }
+.bar div { height: 100%; width: 100%; transition: width 0.18s ease-out; image-rendering: pixelated; }
+.bar.hp div { background: url('assets/ui/bar-fill-red.png') center / 100% 100% no-repeat; }
+.bar.mana div { background: url('assets/ui/bar-fill-blue.png') center / 100% 100% no-repeat; }
+/* the target's plate is silver, in deference to the crown's gold */
+#target-frame .bar { border-image-source: url('assets/ui/bar-frame-silver.png'); }
 
 .bar span {
   position: absolute;
@@ -247,10 +258,12 @@ button { font-family: inherit; cursor: pointer; }
   position: fixed;
   top: 12px;
   right: 12px;
-  padding: 5px;
+  padding: 8px;
   background: linear-gradient(160deg, rgba(38, 29, 18, 0.94), rgba(22, 16, 10, 0.94));
-  border: 1px solid var(--panel-edge);
-  border-radius: 6px;
+  border: 12px solid transparent;
+  border-image: url('assets/ui/minimap-frame.png') 14 fill / 12px stretch;
+  image-rendering: pixelated;
+  border-radius: 0;
   box-shadow:
     inset 0 0 0 1px rgba(0, 0, 0, 0.6),
     inset 0 0 0 2px rgba(216, 179, 94, 0.18),
@@ -427,6 +440,7 @@ button { font-family: inherit; cursor: pointer; }
 #inventory { border-color: var(--panel-edge); z-index: 14; }
 
 .shop-title {
+  font-family: 'MiKroll Fantasy', Georgia, serif;
   font-size: 17px;
   color: var(--gold);
   margin-bottom: 10px;
@@ -730,6 +744,26 @@ body, button { cursor: url('assets/ui/cursor.png') 2 2, auto; }
 }
 #actions kbd, #actions .count { z-index: 1; }
 .px-icon { width: 22px; height: 22px; image-rendering: pixelated; vertical-align: middle; }
+
+/* Leather-thumbed pixel scrollbars wherever the parchment overflows. */
+#chat-log::-webkit-scrollbar, #skills-list::-webkit-scrollbar,
+#deeds-list::-webkit-scrollbar, #shop::-webkit-scrollbar,
+#inventory::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+#chat-log::-webkit-scrollbar-track, #skills-list::-webkit-scrollbar-track,
+#deeds-list::-webkit-scrollbar-track, #shop::-webkit-scrollbar-track,
+#inventory::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.35);
+}
+#chat-log::-webkit-scrollbar-thumb, #skills-list::-webkit-scrollbar-thumb,
+#deeds-list::-webkit-scrollbar-thumb, #shop::-webkit-scrollbar-thumb,
+#inventory::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-image: url('assets/ui/scroll-thumb.png') 3 fill / 3px stretch;
+  image-rendering: pixelated;
+}
 
 /* equipment icons in shop / forge / backpack rows */
 .eq-icon {

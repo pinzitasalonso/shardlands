@@ -11,9 +11,11 @@ Generated atlases are produced by `tools/build-assets.py` from these sources:
   dungeon brick and torches from **HAS Dungeon** — all by
   **Aleksandr Makarov** (@IKnowKingRabbit), same license terms.
 
-## UI chrome (`ui/*.png`)
-- Window frames, buttons and the cursor are sliced from **HAS UI** by
-  **Aleksandr Makarov** (@IKnowKingRabbit), same license terms as below.
+## UI chrome (`ui/*.png`, `ui/MiKrollFantasy.ttf`)
+- Window frames, buttons, the cursor, HP/mana bar frames and fills, the
+  minimap frame, scrollbar thumbs and the **MiKroll Fantasy** display font
+  ship with **HAS UI** by **Aleksandr Makarov** (@IKnowKingRabbit), same
+  license terms as below.
 
 ## Top-down terrain and scenery (`ground16.png`, `objects16.png`)
 - Sliced from the **Heroic Asset Series** (HAS Overworld 2.1, HAS Dungeon)
