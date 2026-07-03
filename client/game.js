@@ -36,6 +36,11 @@ const MOB_STYLE = {
   bonelord: { color: '#d8d4c8', size: 1.1, name: 'the Bone Lord', spriteScale: 1.15, boss: true },
   wolfking: { color: '#6a625a', size: 0.9, name: 'Greyfang, the Wolf King', sprite: 'wolf', spriteScale: 1.6, boss: true },
   vyrmaur: { color: '#c03828', size: 1.6, name: 'Vyrmaur the Undying', sprite: 'dragon', spriteScale: 2.0, boss: true },
+  zombie: { color: '#7a9a5a', size: 0.7, name: 'a shambling corpse' },
+  ghost: { color: '#bcd8e8', size: 0.7, name: 'a restless ghost', ghostly: true },
+  harpy: { color: '#b08a5a', size: 0.7, name: 'a harpy' },
+  wolfrider: { color: '#8a7a5a', size: 0.7, name: 'a goblin wolf-rider' },
+  vampire: { color: '#a03040', size: 1.0, name: 'the Crimson Count', boss: true },
 };
 
 const canvas = document.getElementById('game');
@@ -1793,8 +1798,10 @@ function drawMob(m, cam, time) {
   const c = Assets.state.ok && Assets.creature(spriteKind);
   let labelY;
   if (c) {
+    if (style.ghostly) ctx.globalAlpha = 0.62; // you can see the stones through them
     Assets.drawCreature(ctx, spriteKind, m.heading, entityAnim(m), time + m.id * 137, s.x, s.y, spriteScale,
       style.overlay || null);
+    if (style.ghostly) ctx.globalAlpha = 1;
     labelY = s.y - c.ay * spriteScale - 8;
   } else {
     const r = 22 * style.size;
