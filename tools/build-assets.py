@@ -617,6 +617,14 @@ def build_topdown_heroic(frames, images_out):
     bld = Image.open(os.path.join(HEROIC, HAS_SHEETS['BLDG'])).convert('RGBA')
     for i, (cx, cy) in enumerate([(3, 4), (5, 4), (4, 6), (4, 7)]):
         imgs[f'cottage{i}'] = bld.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16))
+    # whole pre-drawn town buildings (HAS2020 2x2 set) replace the old
+    # tile-assembled houses: every shop is one hand-drawn sprite now
+    b2020 = Image.open(os.path.join(
+        HEROIC, 'HAS2020 (alpha 1)', 'Buildings', '2x2', '2x2BuildingsSpriteSheet.png')).convert('RGBA')
+    TOWN2020 = {'smithy': (4, 4), 'inn': (3, 6), 'healer': (0, 7),
+                'magetower': (0, 6), 'shop': (3, 2), 'lodge': (4, 6)}
+    for k, (cx, cy) in TOWN2020.items():
+        imgs[k] = b2020.crop((cx * 32, cy * 32, cx * 32 + 32, cy * 32 + 32))
     sw = sum(im.width for im in imgs.values())
     sh = max(im.height for im in imgs.values())
     sheet = Image.new('RGBA', (sw, sh), (0, 0, 0, 0))
@@ -624,8 +632,10 @@ def build_topdown_heroic(frames, images_out):
     for k, im in imgs.items():
         sheet.paste(im, (x, sh - im.height))
         # city halls tower over houses (5x); treasures loom (4x); cottages 3x
-        # the crown's own castle is grandest, without swallowing the skyline
-        z = 6 if k == 'citycastle' else 5 if k.startswith('city') else 3 if k.startswith('cottage') else 4
+        # the crown's own castle is grandest, without swallowing the skyline;
+        # town shops bake at 5x so the sprite fully covers its 3-tile footprint
+        z = 6 if k == 'citycastle' else 5 if k.startswith('city') else \
+            3 if k.startswith('cottage') else 5 if k in TOWN2020 else 4
         frames[f'td.o.{k}'] = {'img': 'structures', 'x': x, 'y': sh - im.height,
                                'w': im.width, 'h': im.height,
                                'ax': im.width // 2, 'ay': im.height - 2, 'scale': z}

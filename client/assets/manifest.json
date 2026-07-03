@@ -1593,6 +1593,66 @@
    "ay": 14,
    "scale": 3
   },
+  "td.o.smithy": {
+   "img": "structures",
+   "x": 608,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "ax": 16,
+   "ay": 30,
+   "scale": 5
+  },
+  "td.o.inn": {
+   "img": "structures",
+   "x": 640,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "ax": 16,
+   "ay": 30,
+   "scale": 5
+  },
+  "td.o.healer": {
+   "img": "structures",
+   "x": 672,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "ax": 16,
+   "ay": 30,
+   "scale": 5
+  },
+  "td.o.magetower": {
+   "img": "structures",
+   "x": 704,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "ax": 16,
+   "ay": 30,
+   "scale": 5
+  },
+  "td.o.shop": {
+   "img": "structures",
+   "x": 736,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "ax": 16,
+   "ay": 30,
+   "scale": 5
+  },
+  "td.o.lodge": {
+   "img": "structures",
+   "x": 768,
+   "y": 32,
+   "w": 32,
+   "h": 32,
+   "ax": 16,
+   "ay": 30,
+   "scale": 5
+  },
   "td.sfx.magicarrow.0": {
    "img": "spellfx",
    "x": 0,
