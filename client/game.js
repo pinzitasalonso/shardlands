@@ -1318,10 +1318,15 @@ function drawNight(cam, time) {
     punch(s.x, s.y - 20, 150, 0.85); // the traveller's lantern
   }
   for (const pr of state.props) {
-    if (pr.name !== 'fx.campfire') continue;
+    if (pr.name !== 'fx.campfire' && pr.name !== 'prop.lamp') continue;
     const s = worldToScreen(pr.x + 0.5, pr.y + 0.5, cam);
     if (s.x < -200 || s.x > canvas.width + 200 || s.y < -200 || s.y > canvas.height + 200) continue;
-    punch(s.x, s.y - 6, 120 + Math.sin(time / 130 + pr.x) * 8, 0.95);
+    if (pr.name === 'prop.lamp') {
+      // street braziers: a smaller, steadier pool of light than a campfire
+      punch(s.x, s.y - 14, 95 + Math.sin(time / 210 + pr.x * 2) * 5, 0.9);
+    } else {
+      punch(s.x, s.y - 6, 120 + Math.sin(time / 130 + pr.x) * 8, 0.95);
+    }
   }
   for (const t of state.torches || []) {
     const s = worldToScreen(t.x, t.y, cam);

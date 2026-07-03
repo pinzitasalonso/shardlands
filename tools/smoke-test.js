@@ -750,6 +750,13 @@ for (const k of ['smithy', 'inn', 'healer', 'magetower', 'shop', 'lodge']) {
     `somewhere a ${k} stands as one drawn piece`);
 }
 
+// -- and the towns are dressed: fountains, lamps, gardens ----------------------------
+for (const k of ['fountain', 'lamp', 'statue', 'signpost', 'kiosk', 'flowers0', 'bush0']) {
+  assert(game.map.props.some((pr) => pr.name === 'prop.' + k), `the towns keep their ${k}`);
+}
+assert(game.map.props.filter((pr) => pr.name === 'prop.lamp').length >= 10,
+  'braziers light more than one street');
+
 // -- and every house opens its door: doorstep portals into carved interiors ----------
 const houseDoor = game.map.secrets.find((s) => s.type === 'portal' && s.ty > 44 && s.ty < 64);
 assert(houseDoor, 'a doorstep leads to a room beneath the world');

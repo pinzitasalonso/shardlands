@@ -21,6 +21,8 @@ const PROPS = ['prop.well', 'prop.table', 'prop.stool', 'fx.campfire',
   'prop.snakelair', 'prop.daemoncave', 'prop.dwarffortress', 'prop.bloodtemple',
   'prop.citycastle', 'prop.citytower', 'prop.citystronghold', 'prop.cityrampart',
   'prop.smithy', 'prop.inn', 'prop.healer', 'prop.magetower', 'prop.shop', 'prop.lodge',
+  'prop.fountain', 'prop.lamp', 'prop.statue', 'prop.signpost', 'prop.kiosk',
+  'prop.flowers0', 'prop.flowers1', 'prop.flowers2', 'prop.bush0', 'prop.bush1',
   'prop.stairsup'];
 
 const cv = document.getElementById('map');

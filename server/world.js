@@ -208,6 +208,11 @@ function generate(seed = 1337) {
     if (name === 'smithy' || name === 'shop') {
       props.push({ x: ix + 2, y: iy - 1, name: 'prop.chest' });
     }
+    // every lawn is kept: daisy beds by the door, trimmed bushes behind
+    props.push({ x: bx - 2, y: by + 1, name: 'prop.flowers' + ((bx + by) % 3) });
+    props.push({ x: bx + 2, y: by + 1, name: 'prop.flowers' + ((bx * 3 + by) % 3) });
+    props.push({ x: bx - 2, y: by - 2, name: 'prop.bush' + (bx % 2) });
+    props.push({ x: bx + 2, y: by - 2, name: 'prop.bush' + ((bx + 1) % 2) });
     return { x: ix, y: iy };
   };
 
@@ -304,6 +309,15 @@ function generate(seed = 1337) {
       set(CX + 20, y, TILE.WALL);
     }
   }
+  // the plaza dressed for a capital: a winged fountain, braziers down the
+  // king's way and at the market, a statue by the shrine, a market kiosk
+  props.push({ x: CX, y: CY - 2, name: 'prop.fountain' });
+  props.push({ x: CX + 2, y: CY - 8, name: 'prop.statue' });
+  props.push({ x: CX - 5, y: CY + 3, name: 'prop.kiosk' });
+  for (const [lx, ly] of [[CX - 2, CY + 5], [CX + 2, CY + 5], [CX - 2, CY + 10], [CX + 2, CY + 10],
+                          [CX - 2, CY + 15], [CX + 2, CY + 15], [CX - 10, CY - 2], [CX + 10, CY - 2]]) {
+    props.push({ x: lx, y: ly, name: 'prop.lamp' });
+  }
   // the outer ring: cottages, stalls and townsfolk between plaza and wall
   props.push({ x: CX - 18, y: CY + 7, name: 'prop.cottage0' });
   props.push({ x: CX + 18, y: CY - 6, name: 'prop.cottage1' });
@@ -350,6 +364,12 @@ function generate(seed = 1337) {
     set(v.x, v.y + 4, TILE.SHRINE);
     props.push({ x: v.x + 1, y: v.y + 4, name: 'prop.table' }); // market stall
     props.push({ x: v.x + 2, y: v.y + 5, name: 'prop.stool' });
+    // village green dressing: a signpost, lamps by the shrine, daisies
+    props.push({ x: v.x - 1, y: v.y + 6, name: 'prop.signpost' });
+    props.push({ x: v.x - 2, y: v.y + 3, name: 'prop.lamp' });
+    props.push({ x: v.x + 3, y: v.y + 3, name: 'prop.lamp' });
+    props.push({ x: v.x - 3, y: v.y + 5, name: 'prop.flowers' + (v.x % 3) });
+    props.push({ x: v.x + 4, y: v.y + 6, name: 'prop.flowers' + ((v.x + 1) % 3) });
     spawners.push({ kind: 'villager', count: 3, x: v.x, y: v.y, r: 6 });
     // Livestock graze around every village.
     for (let k = 0; k < 2; k++) {
@@ -414,6 +434,14 @@ function generate(seed = 1337) {
     shopfront(cx + 6, cy - 6, 'inn');
     const cityHealer = shopfront(cx - 6, cy + 6, 'healer');
     set(cx, cy - 2, TILE.SHRINE);
+    // civic pride: a fountain, a statue, braziers at the gates
+    props.push({ x: cx, y: cy + 1, name: 'prop.fountain' });
+    props.push({ x: cx + 2, y: cy - 2, name: 'prop.statue' });
+    for (const [lx, ly] of [[cx - 2, cy + 11], [cx + 2, cy + 11],
+                            [cx - 2, cy - 11], [cx + 2, cy - 11],
+                            [cx - 13, cy], [cx + 13, cy]]) {
+      props.push({ x: lx, y: ly, name: 'prop.lamp' });
+    }
     props.push({ x: cx + 5, y: cy + 3, name: 'prop.well' });
     props.push({ x: cx - 4, y: cy + 1, name: 'prop.table' });
     props.push({ x: cx - 3, y: cy + 2, name: 'prop.stool' });
