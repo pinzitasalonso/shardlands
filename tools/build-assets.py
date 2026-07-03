@@ -658,7 +658,15 @@ HAS_CREATURE_SHEETS = {
     'rampart': 'HAS CreaturePack (v.1.3)/HAS Creature Pack 1.2/Rampart/RampartSpriteSheet.png',
     'inferno': 'HAS CreaturePack (v.1.3)/HAS Creature Pack 1.2/Inferno/InfernoSpriteSheet.png',
     'animals': 'HASWildlife (v.1.0)/Animals/AnimalsSheet.png',
+    'dwarves': 'HAS Dwarves (v.1.1)/Creatures/DwarvesSpriteSheet.png',
+    'orcsempire': 'HAS Orcs Empire (1.0)/OrcSpriteSheet.png',
+    'woodelves': 'HASWoodElves(v.1.0)/Units/unitsSpriteSheet.png',
+    'lizardmen': 'HAS Lizardmen Empire (v.1.1)/LizardmenSpriteSheet.png',
 }
+
+# The standalone faction packs put two 16px portrait cells before the
+# animation bands, so their frames start at column 2 (WoodElves excepted).
+HAS_SHEET_COL_OFFSET = {'dwarves': 2, 'orcsempire': 2, 'lizardmen': 2}
 
 # kind -> (sheet, row, bake scale, recolor)
 HAS_UNITS = {
@@ -686,6 +694,20 @@ HAS_UNITS = {
     'deer':     ('animals', 3, 3, None),
     'boar':     ('animals', 2, 3, None),
     'snake':    ('animals', 6, 3, None),
+    # the mountain clans of the high quarries
+    'dwarf':       ('dwarves', 1, 3, None),   # miner with his axe
+    'dwarfguard':  ('dwarves', 6, 3, None),   # halberdier in red
+    'dwarfpriest': ('dwarves', 7, 3, None),   # white-bearded rune-priest
+    # the warlord's own, harder company than the common camps
+    'orcbrute':    ('orcsempire', 3, 4, None),  # shield and club
+    'orcwarlord':  ('orcsempire', 7, 4, None),  # white-crested chief
+    # the deep-wood folk
+    'elfranger':   ('woodelves', 13, 3, None),  # hooded archer
+    'dryad':       ('woodelves', 1, 3, None),   # red-blossom guardian
+    'treant':      ('woodelves', 2, 4, None),   # walking elder tree
+    # the mire-folk of the sunken warren
+    'lizardman':   ('lizardmen', 11, 3, None),  # crested warrior
+    'raptor':      ('lizardmen', 6, 3, None),   # gold-eyed hunting beast
 }
 
 HAS_HERO_DIRS = ['Right', 'Right-Down', 'Down', 'Left-Down', 'Left', 'Left-Up', 'Up', 'Right-Up']
@@ -735,7 +757,9 @@ def build_has_creatures():
     creatures = {}
     for kind, (sheet, row, z, recolor) in HAS_UNITS.items():
         img = sheets[sheet]
-        def get_frame(col, mirrored, img=img, row=row, recolor=recolor):
+        off = HAS_SHEET_COL_OFFSET.get(sheet, 0)
+        def get_frame(col, mirrored, img=img, row=row, recolor=recolor, off=off):
+            col += off
             f = img.crop((col * 16, row * 16, col * 16 + 16, row * 16 + 16))
             if recolor == 'gray':
                 f = grayify(f)

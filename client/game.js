@@ -41,6 +41,16 @@ const MOB_STYLE = {
   harpy: { color: '#b08a5a', size: 0.7, name: 'a harpy' },
   wolfrider: { color: '#8a7a5a', size: 0.7, name: 'a goblin wolf-rider' },
   vampire: { color: '#a03040', size: 1.0, name: 'the Crimson Count', boss: true },
+  dwarf: { color: '#c8a878', size: 0.6, name: 'a dwarf miner' },
+  dwarfguard: { color: '#b04838', size: 0.7, name: 'a dwarf warden' },
+  dwarfpriest: { color: '#e8e0d0', size: 0.6, name: 'a rune-priest' },
+  orcbrute: { color: '#4a7a30', size: 0.9, name: 'an orc brute' },
+  orcwarlord: { color: '#4a7a30', size: 1.1, name: 'Gruk, Warlord of the Wastes', boss: true },
+  elfranger: { color: '#5a8a4a', size: 0.7, name: 'an elf ranger' },
+  dryad: { color: '#c05848', size: 0.7, name: 'a dryad' },
+  treant: { color: '#7a5a38', size: 1.1, name: 'an elder treant' },
+  lizardman: { color: '#4a8a6a', size: 0.7, name: 'a lizardman warrior' },
+  raptor: { color: '#5aa080', size: 0.6, name: 'a swamp raptor' },
 };
 
 const canvas = document.getElementById('game');

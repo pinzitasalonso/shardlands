@@ -742,6 +742,21 @@ assert(game.map.spawners.filter((sp) => sp.kind === 'ghost').every((sp) => sp.ni
 assert(game.map.spawners.some((sp) => sp.kind === 'vampire' && sp.y < 64),
   'the Count sleeps beneath a ruined keep');
 
+// -- the factions keep their own corners of the world --------------------------------
+for (const k of ['dwarf', 'dwarfguard', 'dwarfpriest', 'orcbrute', 'orcwarlord',
+                 'elfranger', 'dryad', 'treant', 'lizardman', 'raptor']) {
+  assert(MOB_KINDS[k], `${k} walks the world`);
+  assert(game.map.spawners.some((sp) => sp.kind === k), `${k} has a home somewhere`);
+}
+assert(MOB_KINDS.dwarf.peaceful && MOB_KINDS.dwarfguard.guard,
+  'the quarry clans are peaceful, and their wardens answer trouble');
+assert(MOB_KINDS.elfranger.caster && MOB_KINDS.elfranger.caster.fx === 'arrow',
+  'elf rangers shoot arrows, not sorcery');
+assert(game.map.spawners.filter((sp) => sp.kind === 'orcwarlord').length === 1,
+  'one warlord, one banner');
+assert(game.map.spawners.some((sp) => sp.kind === 'lizardman' && sp.y < 64),
+  'lizardmen hold the sunken warren');
+
 // -- the new words of power: frost, the arcing bolt, and borrowed speed --------------
 p.skills.magery = 100; // at GM magery the fizzle roll (d100 > magery+35) cannot fail
 p.mana = 200;

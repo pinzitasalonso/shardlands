@@ -41,7 +41,17 @@
   "ghost": "creatures/ghost.png",
   "vampire": "creatures/vampire.png",
   "harpy": "creatures/harpy.png",
-  "wolfrider": "creatures/wolfrider.png"
+  "wolfrider": "creatures/wolfrider.png",
+  "dwarf": "creatures/dwarf.png",
+  "dwarfguard": "creatures/dwarfguard.png",
+  "dwarfpriest": "creatures/dwarfpriest.png",
+  "orcbrute": "creatures/orcbrute.png",
+  "orcwarlord": "creatures/orcwarlord.png",
+  "elfranger": "creatures/elfranger.png",
+  "dryad": "creatures/dryad.png",
+  "treant": "creatures/treant.png",
+  "lizardman": "creatures/lizardman.png",
+  "raptor": "creatures/raptor.png"
  },
  "frames": {
   "grass.0": {
@@ -2818,6 +2828,266 @@
   },
   "wolfrider": {
    "img": "wolfrider",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "dwarf": {
+   "img": "dwarf",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "dwarfguard": {
+   "img": "dwarfguard",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "dwarfpriest": {
+   "img": "dwarfpriest",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "orcbrute": {
+   "img": "orcbrute",
+   "cellW": 64,
+   "cellH": 64,
+   "dirs": 8,
+   "ax": 32,
+   "ay": 52,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "orcwarlord": {
+   "img": "orcwarlord",
+   "cellW": 64,
+   "cellH": 64,
+   "dirs": 8,
+   "ax": 32,
+   "ay": 52,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "elfranger": {
+   "img": "elfranger",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "dryad": {
+   "img": "dryad",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "treant": {
+   "img": "treant",
+   "cellW": 64,
+   "cellH": 64,
+   "dirs": 8,
+   "ax": 32,
+   "ay": 52,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "lizardman": {
+   "img": "lizardman",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "raptor": {
+   "img": "raptor",
    "cellW": 48,
    "cellH": 48,
    "dirs": 8,
