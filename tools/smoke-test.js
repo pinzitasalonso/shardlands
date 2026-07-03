@@ -730,5 +730,39 @@ assert(p.y >= 64, 'a ghost takes the stair back to the surface');
 p.dead = false;
 p.hp = 50;
 
+// -- the new words of power: frost, the arcing bolt, and borrowed speed --------------
+p.skills.magery = 100; // at GM magery the fizzle roll (d100 > magery+35) cannot fail
+p.mana = 200;
+// clear the board so the bolt cannot arc into some passing world-mob instead
+const savedMobs = [...game.mobs.entries()];
+game.mobs.clear();
+const spellSp = { alive: new Set(), x: p.x, y: p.y, r: 4, kind: 'orc' };
+const frostee = { id: 999989, kind: 'orc', x: p.x + 1, y: p.y, hp: 500, maxhp: 500,
+  homeX: p.x + 1, homeY: p.y, target: 0, moveAt: Infinity, swingAt: Infinity,
+  chatAt: Infinity, spawner: spellSp };
+const arcee = { id: 999988, kind: 'orc', x: p.x + 2, y: p.y, hp: 500, maxhp: 500,
+  homeX: p.x + 2, homeY: p.y, target: 0, moveAt: Infinity, swingAt: Infinity,
+  chatAt: Infinity, spawner: spellSp };
+game.mobs.set(frostee.id, frostee);
+game.mobs.set(arcee.id, arcee);
+spellSp.alive.add(frostee.id);
+spellSp.alive.add(arcee.id);
+
+p.castAt = 0;
+game.handleCast(p, 'icebolt', frostee.id);
+assert(frostee.slowUntil > Date.now(), 'ice bolt leaves frost gripping the legs');
+assert(frostee.hp < 500, 'and it bites');
+
+p.castAt = 0;
+const arceeHpBefore = arcee.hp;
+game.handleCast(p, 'chainlightning', frostee.id);
+assert(arcee.hp < arceeHpBefore, 'chain lightning arcs to the packmate');
+
+p.castAt = 0;
+game.handleCast(p, 'haste', 0);
+assert(p.hasteUntil > Date.now(), 'haste quickens the caster');
+game.mobs.clear();
+for (const [id, m] of savedMobs) game.mobs.set(id, m);
+
 console.log('smoke test: all assertions passed');
 process.exit(0);
