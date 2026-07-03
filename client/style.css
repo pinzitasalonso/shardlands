@@ -621,33 +621,39 @@ button { font-family: inherit; cursor: pointer; }
   #char-panel { display: none; top: 112px; left: 8px; width: 210px; font-size: 12px; }
   #char-panel.open { display: block; }
 
-  #minimap-wrap { top: 8px; right: 8px; padding: 3px; }
-  #minimap { width: 92px; height: 92px; }
+  #minimap-wrap { top: 8px; right: 8px; padding: 2px; }
+  #minimap { width: 76px; height: 76px; }
   #coords { font-size: 9.5px; margin-top: 2px; letter-spacing: 0.5px; }
 
-  /* hotbar: two wrapped rows pinned to the bottom edge */
+  /* hotbar: ONE row, swipeable sideways — half the vertical footprint */
   #actions {
     left: 50%;
-    bottom: calc(6px + env(safe-area-inset-bottom));
+    bottom: calc(4px + env(safe-area-inset-bottom));
     transform: translateX(-50%);
-    flex-wrap: wrap;
-    justify-content: center;
-    width: min(100vw - 8px, 388px);
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    width: calc(100vw - 8px);
     gap: 5px;
     padding: 5px;
   }
+  #actions::-webkit-scrollbar { display: none; }
+  #actions button { flex: none; }
   #actions button { width: 40px; height: 40px; }
   .slot-icon { font-size: 17px; line-height: 38px; }
   #actions kbd { display: none; } /* no keyboard on a phone */
 
-  /* chat: slim strip above the hotbar */
+  /* chat: a one-line ticker; tap it to unfold the log */
   #chat {
     left: 8px;
-    bottom: calc(132px + env(safe-area-inset-bottom));
+    bottom: calc(64px + env(safe-area-inset-bottom));
     width: min(72vw, 300px);
     min-width: 0;
   }
-  #chat-log { max-height: 66px; font-size: 12px; padding: 5px 8px; }
+  #chat-log { max-height: 30px; overflow-y: hidden; font-size: 12px; padding: 4px 8px; }
+  #chat-log.expanded { max-height: 160px; overflow-y: auto; }
   #chat-input { padding: 6px 8px; font-size: 16px; } /* 16px stops iOS focus-zoom */
 
   /* dialogs fit the screen */

@@ -1126,7 +1126,7 @@
    "ay": 0,
    "scale": 3
   },
-  "td.f.wall": {
+  "td.f.wt": {
    "img": "extras16",
    "x": 64,
    "y": 0,
@@ -1136,25 +1136,45 @@
    "ay": 0,
    "scale": 3
   },
-  "td.f.win": {
+  "td.f.wb": {
    "img": "extras16",
    "x": 80,
    "y": 0,
    "w": 16,
    "h": 16,
-   "ax": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.f.pt": {
+   "img": "extras16",
+   "x": 96,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.f.pb": {
+   "img": "extras16",
+   "x": 112,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
    "ay": 0,
    "scale": 3
   },
   "td.f.door": {
    "img": "extras16",
-   "x": 96,
+   "x": 128,
    "y": 0,
    "w": 16,
    "h": 32,
    "ax": 8,
    "ay": 32,
-   "scale": 2
+   "scale": 3
   },
   "td.g.ubrick.0": {
    "img": "extras16",
