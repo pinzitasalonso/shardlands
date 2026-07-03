@@ -557,6 +557,11 @@ function generate(seed = 1337) {
   for (let y = CY - 21; y <= CY - 17; y++) {
     for (let x = CX - 4; x <= CX + 4; x++) set(x, y, TILE.WALL); // solid under the keep
   }
+  // the precinct's flatten() grassed over the north rampart — re-stitch it
+  // so the city wall runs shoulder-to-shoulder into the castle's flanks
+  for (let x = CX - 20; x <= CX + 20; x++) {
+    if (Math.abs(x - CX) > 4) set(x, CY - 18, TILE.WALL);
+  }
   props.push({ x: CX, y: CY - 17, name: 'prop.citycastle' });
   openMouth({ x: CX, y: CY - 16 }, 6, {
     cx: 1870,
