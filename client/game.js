@@ -1300,7 +1300,17 @@ function render() {
     for (const e of map.values()) {
       const dx = e.x - e.rx;
       const dy = e.y - e.ry;
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) { e.rx = e.x; e.ry = e.y; continue; }
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+        e.rx = e.x;
+        e.ry = e.y;
+        // a big jump means a portal or recall: forget the old destination,
+        // or the stale path marches you straight back through the door
+        if (e.id === state.myId) {
+          state.walkTarget = null;
+          state.path = null;
+        }
+        continue;
+      }
       // diagonal steps are granted more slowly (165ms vs 118ms)
       const step = dtMs / (dx && dy ? msPerTile * 1.4 : msPerTile);
       e.rx += Math.max(-step, Math.min(step, dx));
