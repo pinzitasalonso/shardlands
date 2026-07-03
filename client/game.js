@@ -63,6 +63,7 @@ const state = {
   floaters: [],         // { x, y, text, color, born }
   projectiles: [],      // { x, y, tx, ty, born, color }
   telegraphs: [],
+  spellfx: [],       // Magic Book impact animations: { name, x, y, born }
   torches: [],       // wall torches in the deeps, lit during the night pass       // boss slam warnings: { x, y, born }
   target: 0,            // selected mob id
   walkTarget: null,     // { x, y } click-to-move destination
@@ -342,6 +343,7 @@ function handleFx(msg) {
       break;
     case 'heal':
       state.floaters.push({ x: msg.x, y: msg.y, text: '+' + msg.amount, color: '#5ac05a', born: t });
+      state.spellfx.push({ name: 'greaterheal', x: msg.x, y: msg.y, born: t });
       Sound.play('heal');
       break;
     case 'die':
@@ -366,6 +368,7 @@ function handleFx(msg) {
       break;
     case 'poison':
       state.floaters.push({ x: msg.x, y: msg.y, text: '☠', color: '#7ac05a', born: t });
+      state.spellfx.push({ name: 'poison', x: msg.x, y: msg.y, born: t });
       break;
     case 'evade':
       state.floaters.push({ x: msg.x, y: msg.y, text: 'evade', color: '#c0b070', born: t });
@@ -381,14 +384,25 @@ function handleFx(msg) {
     case 'magicarrow':
     case 'fireball':
     case 'energybolt':
+    case 'icebolt':
+    case 'chainlightning':
+    case 'chainarc':
       state.projectiles.push({
         x: msg.x, y: msg.y, tx: msg.tx, ty: msg.ty, born: t,
-        color: { magicarrow: '#70b0ff', fireball: '#ff8030', energybolt: '#c0f0ff' }[msg.kind],
+        color: { magicarrow: '#70b0ff', fireball: '#ff8030', energybolt: '#c0f0ff',
+                 icebolt: '#9adcff', chainlightning: '#f0e878', chainarc: '#f0e878' }[msg.kind],
       });
-      Sound.play({ magicarrow: 'marrow', fireball: 'fireball', energybolt: 'zap' }[msg.kind]);
+      Sound.play({ magicarrow: 'marrow', fireball: 'fireball', energybolt: 'zap',
+                   icebolt: 'marrow', chainlightning: 'zap', chainarc: 'zap' }[msg.kind]);
+      state.spellfx.push({ name: msg.kind === 'chainarc' ? 'chainlightning' : msg.kind,
+        x: msg.tx, y: msg.ty, born: t + 250 });
       setTimeout(() => {
         state.floaters.push({ x: msg.tx, y: msg.ty, text: '-' + msg.amount, color: '#e05848', born: Date.now() });
       }, 250);
+      break;
+    case 'haste':
+      state.spellfx.push({ name: 'haste', x: msg.x, y: msg.y, born: t });
+      Sound.play('gain');
       break;
   }
 }
@@ -434,6 +448,9 @@ document.addEventListener('keydown', (ev) => {
     case '6': triggerAction('cast:bless'); break;
     case '7': triggerAction('cast:poison'); break;
     case '8': triggerAction('cast:energybolt'); break;
+    case '9': triggerAction('cast:icebolt'); break;
+    case '0': triggerAction('cast:chainlightning'); break;
+    case 'h': case 'H': triggerAction('cast:haste'); break;
     case '4': triggerAction('drink:heal'); break;
     case '5': triggerAction('drink:mana'); break;
     case 'b': case 'B': triggerAction('bandage'); break;
@@ -1460,6 +1477,7 @@ function render() {
 
   drawTelegraphs(cam, time);
   drawProjectiles(cam, time);
+  drawSpellFx(cam, time);
   drawWeather(cam, time);
   drawNight(cam, time);
   drawFloaters(cam, time);
@@ -1903,6 +1921,17 @@ function drawProjectiles(cam, time) {
     ctx.beginPath();
     ctx.arc(s.x, y, 2, 0, Math.PI * 2);
     ctx.fill();
+  }
+}
+
+// Magic Book impact animations: four 24px frames at 3x, feet-anchored.
+function drawSpellFx(cam, time) {
+  state.spellfx = state.spellfx.filter((f) => time - f.born < 440);
+  for (const f of state.spellfx) {
+    const k = time - f.born;
+    if (k < 0) continue; // still travelling
+    const s = worldToScreen(f.x + 0.5, f.y + 0.9, cam);
+    Assets.drawFrame(ctx, 'td.sfx.' + f.name + '.' + Math.min(3, Math.floor(k / 110)), s.x, s.y);
   }
 }
 

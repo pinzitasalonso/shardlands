@@ -825,6 +825,33 @@ CRITTERS = {
 
 # ---- HAS UI: window frames, buttons, cursor for the HTML chrome -------------------
 
+def build_has_spellfx(frames, images_out):
+    """Every Magic Book spell ships 4 animation frames (24x24); bake the
+    ones the game casts into one atlas, plus icons for the new spells."""
+    import glob as _g
+    book = os.path.join(HEROIC, 'HAS Magic Book 1.1')
+    SP = [('magicarrow', 'MagicArrow'), ('fireball', 'FireBall'), ('greaterheal', 'Cure'),
+          ('bless', 'Bless'), ('poison', 'AcidSplash'), ('energybolt', 'EnergyBlast'),
+          ('icebolt', 'IceBolt'), ('chainlightning', 'ChainLightning'), ('haste', 'Haste')]
+    C = 24
+    atlas = Image.new('RGBA', (4 * C, len(SP) * C), (0, 0, 0, 0))
+    for r, (sid, folder) in enumerate(SP):
+        for n in range(1, 5):
+            hits = sorted(_g.glob(os.path.join(book, folder, f'*Frame {n}*.png')))
+            im = Image.open(hits[0]).convert('RGBA')
+            atlas.paste(im, ((n - 1) * C, r * C))
+            frames[f'td.sfx.{sid}.{n - 1}'] = {'img': 'spellfx', 'x': (n - 1) * C, 'y': r * C,
+                                               'w': C, 'h': C, 'ax': C // 2, 'ay': C - 6, 'scale': 3}
+    atlas.save(os.path.join(OUT, 'spellfx.png'))
+    images_out['spellfx'] = 'spellfx.png'
+    icons = os.path.join(OUT, 'ui', 'icons')
+    os.makedirs(icons, exist_ok=True)
+    for sid, folder in [('icebolt', 'IceBolt'), ('chainlightning', 'ChainLightning'), ('haste', 'Haste')]:
+        f = sorted(_g.glob(os.path.join(book, folder, 'Icon*.png')))[0]
+        im = Image.open(f).convert('RGBA')
+        im.resize((32, 32), Image.NEAREST).save(os.path.join(icons, f'{sid}.png'))
+
+
 def build_has_ui():
     ui_src = os.path.join(HEROIC, 'HAS UI')
     out = os.path.join(OUT, 'ui')
@@ -1283,6 +1310,8 @@ def main():
 
     td_images = {}
     tiles_td = build_topdown(frames, td_images)
+    if os.path.isdir(HEROIC):
+        build_has_spellfx(frames, td_images)
 
     manifest = {
         'tileW': 64, 'tileH': 32,

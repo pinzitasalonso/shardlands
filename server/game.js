@@ -32,6 +32,9 @@ const SPELLS = {
   bless: { name: 'Bless', mana: 8, minSkill: 25, buff: 8, buffMs: 60_000, words: 'Rel Sanct' },
   poison: { name: 'Poison', mana: 6, minSkill: 20, dot: [3, 5], words: 'In Nox' },
   energybolt: { name: 'Energy Bolt', mana: 14, minSkill: 55, dmg: [20, 30], words: 'Corp Por' },
+  icebolt: { name: 'Ice Bolt', mana: 8, minSkill: 35, dmg: [10, 18], slowMs: 4000, words: 'In Corp Del' },
+  chainlightning: { name: 'Chain Lightning', mana: 18, minSkill: 65, dmg: [15, 25], chain: 2, words: 'Vas Ort Grav' },
+  haste: { name: 'Haste', mana: 12, minSkill: 45, hasteMs: 10_000, words: 'Rel Por' },
 };
 
 const MOB_KINDS = {
@@ -725,7 +728,8 @@ class Game {
     if (p.dead && (nx < 0 || ny < 0 || nx >= this.map.w || ny >= this.map.h)) return;
     p.x = nx;
     p.y = ny;
-    p.moveAt = t + (dx !== 0 && dy !== 0 ? 165 : 118);
+    const stride = dx !== 0 && dy !== 0 ? 165 : 118;
+    p.moveAt = t + (t < (p.hasteUntil || 0) ? Math.round(stride * 0.7) : stride);
 
     if (tileAt(this.map, p.x, p.y) === TILE.SHRINE) {
       if (p.dead) this.resurrect(p);
@@ -858,6 +862,10 @@ class Game {
       p.buffUntil = t + spell.buffMs;
       this.fxNear(p, { t: 'fx', kind: 'heal', x: p.x, y: p.y, amount: 0 });
       this.sys(p, 'Your arm feels surer. (+damage for a minute)');
+    } else if (spell.hasteMs) {
+      p.hasteUntil = t + spell.hasteMs;
+      this.fxNear(p, { t: 'fx', kind: 'haste', x: p.x, y: p.y });
+      this.sys(p, 'The world slows around you. (+speed for ten seconds)');
     } else if (spell.dot) {
       const mob = this.mobs.get(targetId || p.target);
       if (!mob || dist(p, mob) > 10) {
@@ -878,7 +886,20 @@ class Game {
       } else {
         const dmg = rand(spell.dmg[0], spell.dmg[1]) + Math.floor(p.skills.magery / (spellId === 'energybolt' ? 8 : 12));
         this.fxNear(p, { t: 'fx', kind: spellId, x: p.x, y: p.y, tx: mob.x, ty: mob.y, amount: dmg });
+        if (spell.slowMs) mob.slowUntil = t + spell.slowMs; // frost grips the legs
         this.damageMob(p, mob, dmg);
+        if (spell.chain) {
+          // the bolt arcs onward to the nearest packmates
+          let struck = 0;
+          for (const m2 of this.mobs.values()) {
+            if (struck >= spell.chain) break;
+            if (m2 === mob || MOB_KINDS[m2.kind].peaceful || dist(mob, m2) > 5) continue;
+            const d2 = Math.round(dmg * 0.7);
+            this.fxNear(m2, { t: 'fx', kind: 'chainarc', x: mob.x, y: mob.y, tx: m2.x, ty: m2.y, amount: d2 });
+            this.damageMob(p, m2, d2);
+            struck++;
+          }
+        }
         this.gainStat(p, 'int');
       }
     }
@@ -1370,7 +1391,7 @@ class Game {
     // The frightened run first and think later.
     if (mob.fleeUntil && t < mob.fleeUntil) {
       if (t >= mob.moveAt) {
-        mob.moveAt = t + def.speedMs;
+        mob.moveAt = t + (t < (mob.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
         this.stepToward(mob, 2 * mob.x - mob.fleeFrom.x, 2 * mob.y - mob.fleeFrom.y);
       }
       return;
@@ -1411,7 +1432,7 @@ class Game {
             }
           }
         } else if (t >= mob.moveAt) {
-          mob.moveAt = t + def.speedMs;
+          mob.moveAt = t + (t < (mob.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
           this.stepToward(mob, foe.x, foe.y);
         }
         return;
@@ -1436,7 +1457,7 @@ class Game {
         mob.evading = false;
       } else {
         if (t >= mob.moveAt) {
-          mob.moveAt = t + def.speedMs;
+          mob.moveAt = t + (t < (mob.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
           this.stepToward(mob, mob.homeX, mob.homeY);
         }
         return;
@@ -1502,7 +1523,7 @@ class Game {
           }
         }
       } else if (t >= mob.moveAt) {
-        mob.moveAt = t + def.speedMs;
+        mob.moveAt = t + (t < (mob.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
         this.stepToward(mob, target.x, target.y);
       }
       return;
@@ -1526,7 +1547,7 @@ class Game {
     if (mob.dest) {
       if (dist(mob, mob.dest) <= 2) mob.dest = null;
       else if (t >= mob.moveAt) {
-        mob.moveAt = t + def.speedMs;
+        mob.moveAt = t + (t < (mob.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
         this.stepToward(mob, mob.dest.x, mob.dest.y);
       }
       return;
