@@ -830,7 +830,9 @@ class Game {
         p.y = s.ty;
         p.moveAt = t + 600;
         this.fxNear(p, { t: 'fx', kind: 'portal', x: p.x, y: p.y });
-        this.sys(p, 'The standing stones flare with old magic, and the world lurches.');
+        this.sys(p, s.door
+          ? 'You step through the door.'
+          : 'The standing stones flare with old magic, and the world lurches.');
         return;
       }
       if (s.type === 'whisper' && !p.dead && !p.whispered.has(i) &&
