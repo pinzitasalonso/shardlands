@@ -1414,7 +1414,8 @@ function render() {
           if ((f = FRINGES[tileAt(tx - 1, ty)]) && f[0] && f[1] > pr) Assets.drawFrame(ctx, 'td.fr.' + f[0] + '.w', sx, sy);
           if ((f = FRINGES[tileAt(tx + 1, ty)]) && f[0] && f[1] > pr) Assets.drawFrame(ctx, 'td.fr.' + f[0] + '.e', sx, sy);
         }
-        if (under && recipe.torch && tileAt(tx, ty + 1) === T.CAVE && hash(tx * 7, ty * 3) < 0.14) {
+        const belowT = tileAt(tx, ty + 1);
+        if (under && recipe.torch && (belowT === T.CAVE || belowT === T.PLANKS) && hash(tx * 7, ty * 3) < 0.14) {
           drawables.push({ depth: ty, kind: 'sprite', name: 'td.o.torch', x: sx + HT, y: sy + TP + 12 });
           state.torches.push({ x: tx + 0.5, y: ty + 0.8 });
         }

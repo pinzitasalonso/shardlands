@@ -369,12 +369,12 @@ p.nagAt = 0;
 ws.sent.length = 0;
 game.meleeTick(p, Date.now());
 assert(ws.sent.some((m) => m.t === 'sys' && /out of arrows/.test(m.text)), 'no arrows, no shot');
-p.arrows = 3;
+p.arrows = 20; // enough that twenty 78% shots can't all miss in practice
 p.swingAt = 0;
 const hpBefore = dummy2.hp;
 for (let i = 0; i < 20 && dummy2.hp === hpBefore; i++) { p.swingAt = 0; game.meleeTick(p, Date.now()); }
 assert(dummy2.hp < hpBefore, 'arrow found its mark');
-assert(p.arrows < 3, 'arrows are consumed');
+assert(p.arrows < 20, 'arrows are consumed');
 
 // poison dot ticks a mob down
 p.skills.magery = 60;
@@ -749,6 +749,19 @@ for (const k of ['smithy', 'inn', 'healer', 'magetower', 'shop', 'lodge']) {
   assert(game.map.props.some((pr) => pr.name === 'prop.' + k),
     `somewhere a ${k} stands as one drawn piece`);
 }
+
+// -- and every house opens its door: doorstep portals into carved interiors ----------
+const houseDoor = game.map.secrets.find((s) => s.type === 'portal' && s.ty > 44 && s.ty < 64);
+assert(houseDoor, 'a doorstep leads to a room beneath the world');
+p.dead = false;
+p.hp = 50;
+p.x = houseDoor.x + 1;
+p.y = houseDoor.y;
+p.moveAt = 0;
+p.portalAt = 0;
+game.handleMove(p, -1, 0);
+assert(p.y > 44 && p.y < 64, 'stepping on the doorstep carries you inside');
+assert(game.vendors.some((v) => v.y > 44 && v.y < 64), 'a shopkeeper keeps shop indoors');
 
 // -- the factions keep their own corners of the world --------------------------------
 for (const k of ['dwarf', 'dwarfguard', 'dwarfpriest', 'orcbrute', 'orcwarlord',
