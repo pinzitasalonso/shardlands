@@ -889,6 +889,29 @@ def build_has_ui():
                            'food': (14, 1), 'pick': (10, 1)}.items():
         c = misc.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16))
         c.resize((32, 32), Image.NEAREST).save(os.path.join(icons, f'{name}.png'))
+
+    # equipment icons: one hand-picked cell per WEAPONS id, so the shop,
+    # forge and backpack can show the goods (sheets are 10x2 cells of 16px)
+    allitems = os.path.join(HEROIC, 'HAS IconPack (v.1.2)/IconPack 1.1/AllItems')
+    EQUIP = {
+        'dagger':       ('WeaponSource/DaggerOriginal.png', 0, 0),
+        'sword':        ('WeaponSource/SwordOriginal.png', 0, 1),
+        'greatsword':   ('WeaponSource/SwordOriginal.png', 8, 1),
+        'dawnbreaker':  ('WeaponSource/SwordOriginal.png', 9, 0),
+        'battleaxe':    ('WeaponSource/AxeOriginal.png', 6, 0),
+        'mace':         ('WeaponSource/MaceOriginal.png', 6, 0),
+        'longbow':      ('WeaponSource/RangedOriginal.png', 1, 1),
+        'buckler':      ('ShieldSource/ShieldOriginal.png', 5, 1),
+        'kiteshield':   ('ShieldSource/ShieldOriginal.png', 6, 1),
+        'leatherarmor': ('TorsoSource/TorsoOriginal.png', 1, 1),
+        'chainmail':    ('TorsoSource/TorsoOriginal.png', 6, 0),
+    }
+    eq = os.path.join(icons, 'eq')
+    os.makedirs(eq, exist_ok=True)
+    for name, (rel, cx, cy) in EQUIP.items():
+        sheet = Image.open(os.path.join(allitems, rel)).convert('RGBA')
+        c = sheet.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16))
+        c.resize((48, 48), Image.NEAREST).save(os.path.join(eq, f'{name}.png'))
     print('ui chrome + icons baked from HAS UI / Magic Book / IconPack')
 
 
