@@ -11,6 +11,9 @@
   "ground16": "ground16.png",
   "objects16": "objects16.png",
   "fringe16": "fringe16.png",
+  "fringe16c": "fringe16c.png",
+  "peaks16": "peaks16.png",
+  "wateranim": "wateranim.png",
   "extras16": "extras16.png",
   "structures": "structures.png",
   "spellfx": "spellfx.png",
@@ -1473,6 +1476,436 @@
    "ay": 0,
    "scale": 3
   },
+  "td.fr.grass.nw": {
+   "img": "fringe16c",
+   "x": 0,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.grass.ne": {
+   "img": "fringe16c",
+   "x": 16,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.grass.sw": {
+   "img": "fringe16c",
+   "x": 32,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.grass.se": {
+   "img": "fringe16c",
+   "x": 48,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.snow.nw": {
+   "img": "fringe16c",
+   "x": 0,
+   "y": 16,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.snow.ne": {
+   "img": "fringe16c",
+   "x": 16,
+   "y": 16,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.snow.sw": {
+   "img": "fringe16c",
+   "x": 32,
+   "y": 16,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.snow.se": {
+   "img": "fringe16c",
+   "x": 48,
+   "y": 16,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.swamp.nw": {
+   "img": "fringe16c",
+   "x": 0,
+   "y": 32,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.swamp.ne": {
+   "img": "fringe16c",
+   "x": 16,
+   "y": 32,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.swamp.sw": {
+   "img": "fringe16c",
+   "x": 32,
+   "y": 32,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.swamp.se": {
+   "img": "fringe16c",
+   "x": 48,
+   "y": 32,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.sand.nw": {
+   "img": "fringe16c",
+   "x": 0,
+   "y": 48,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.sand.ne": {
+   "img": "fringe16c",
+   "x": 16,
+   "y": 48,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.sand.sw": {
+   "img": "fringe16c",
+   "x": 32,
+   "y": 48,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.sand.se": {
+   "img": "fringe16c",
+   "x": 48,
+   "y": 48,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.dirt.nw": {
+   "img": "fringe16c",
+   "x": 0,
+   "y": 64,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.dirt.ne": {
+   "img": "fringe16c",
+   "x": 16,
+   "y": 64,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.dirt.sw": {
+   "img": "fringe16c",
+   "x": 32,
+   "y": 64,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.fr.dirt.se": {
+   "img": "fringe16c",
+   "x": 48,
+   "y": 64,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.mtn.0": {
+   "img": "peaks16",
+   "x": 0,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.mtn.1": {
+   "img": "peaks16",
+   "x": 16,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.mtn.2": {
+   "img": "peaks16",
+   "x": 32,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.mtn.3": {
+   "img": "peaks16",
+   "x": 48,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.mtn.4": {
+   "img": "peaks16",
+   "x": 64,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.mtn.5": {
+   "img": "peaks16",
+   "x": 80,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.mtn.6": {
+   "img": "peaks16",
+   "x": 96,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.mtn.7": {
+   "img": "peaks16",
+   "x": 112,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.mtn.8": {
+   "img": "peaks16",
+   "x": 128,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.wateranim.0.0": {
+   "img": "wateranim",
+   "x": 0,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.wateranim.0.1": {
+   "img": "wateranim",
+   "x": 16,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.wateranim.1.0": {
+   "img": "wateranim",
+   "x": 0,
+   "y": 16,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.wateranim.1.1": {
+   "img": "wateranim",
+   "x": 16,
+   "y": 16,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.wateranim.2.0": {
+   "img": "wateranim",
+   "x": 0,
+   "y": 32,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.wateranim.2.1": {
+   "img": "wateranim",
+   "x": 16,
+   "y": 32,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.wateranim.3.0": {
+   "img": "wateranim",
+   "x": 0,
+   "y": 48,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.wateranim.3.1": {
+   "img": "wateranim",
+   "x": 16,
+   "y": 48,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.wateranim.4.0": {
+   "img": "wateranim",
+   "x": 0,
+   "y": 64,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.wateranim.4.1": {
+   "img": "wateranim",
+   "x": 16,
+   "y": 64,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.wateranim.5.0": {
+   "img": "wateranim",
+   "x": 0,
+   "y": 80,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.wateranim.5.1": {
+   "img": "wateranim",
+   "x": 16,
+   "y": 80,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.wateranim.6.0": {
+   "img": "wateranim",
+   "x": 0,
+   "y": 96,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.g.wateranim.6.1": {
+   "img": "wateranim",
+   "x": 16,
+   "y": 96,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
   "td.f.wt": {
    "img": "extras16",
    "x": 64,
@@ -1571,7 +2004,7 @@
    "h": 64,
    "ax": 32,
    "ay": 62,
-   "scale": 6
+   "scale": 3
   },
   "td.o.citytower": {
    "img": "structures",
@@ -1581,7 +2014,7 @@
    "h": 64,
    "ax": 32,
    "ay": 62,
-   "scale": 5
+   "scale": 3
   },
   "td.o.citystronghold": {
    "img": "structures",
@@ -1591,7 +2024,7 @@
    "h": 64,
    "ax": 32,
    "ay": 62,
-   "scale": 5
+   "scale": 3
   },
   "td.o.cityrampart": {
    "img": "structures",
@@ -1601,7 +2034,7 @@
    "h": 64,
    "ax": 32,
    "ay": 62,
-   "scale": 5
+   "scale": 3
   },
   "td.o.keep": {
    "img": "structures",
@@ -1611,7 +2044,7 @@
    "h": 32,
    "ax": 16,
    "ay": 30,
-   "scale": 4
+   "scale": 3
   },
   "td.o.ruins": {
    "img": "structures",
@@ -1621,7 +2054,7 @@
    "h": 32,
    "ax": 16,
    "ay": 30,
-   "scale": 4
+   "scale": 3
   },
   "td.o.graveyard": {
    "img": "structures",
@@ -1631,7 +2064,7 @@
    "h": 32,
    "ax": 16,
    "ay": 30,
-   "scale": 4
+   "scale": 3
   },
   "td.o.dragoncity": {
    "img": "structures",
@@ -1641,7 +2074,7 @@
    "h": 48,
    "ax": 32,
    "ay": 46,
-   "scale": 4
+   "scale": 3
   },
   "td.o.snakelair": {
    "img": "structures",
@@ -1651,7 +2084,7 @@
    "h": 32,
    "ax": 16,
    "ay": 30,
-   "scale": 4
+   "scale": 3
   },
   "td.o.daemoncave": {
    "img": "structures",
@@ -1661,7 +2094,7 @@
    "h": 32,
    "ax": 16,
    "ay": 30,
-   "scale": 4
+   "scale": 3
   },
   "td.o.dwarffortress": {
    "img": "structures",
@@ -1671,7 +2104,7 @@
    "h": 32,
    "ax": 16,
    "ay": 30,
-   "scale": 4
+   "scale": 3
   },
   "td.o.bloodtemple": {
    "img": "structures",
@@ -1681,7 +2114,7 @@
    "h": 32,
    "ax": 16,
    "ay": 30,
-   "scale": 4
+   "scale": 3
   },
   "td.o.cottage0": {
    "img": "structures",
@@ -1729,9 +2162,9 @@
    "y": 32,
    "w": 32,
    "h": 32,
-   "ax": 16,
+   "ax": 8,
    "ay": 30,
-   "scale": 5
+   "scale": 3
   },
   "td.o.inn": {
    "img": "structures",
@@ -1739,9 +2172,9 @@
    "y": 32,
    "w": 32,
    "h": 32,
-   "ax": 16,
+   "ax": 8,
    "ay": 30,
-   "scale": 5
+   "scale": 3
   },
   "td.o.healer": {
    "img": "structures",
@@ -1749,9 +2182,9 @@
    "y": 32,
    "w": 32,
    "h": 32,
-   "ax": 16,
+   "ax": 8,
    "ay": 30,
-   "scale": 5
+   "scale": 3
   },
   "td.o.magetower": {
    "img": "structures",
@@ -1759,9 +2192,9 @@
    "y": 32,
    "w": 32,
    "h": 32,
-   "ax": 16,
+   "ax": 8,
    "ay": 30,
-   "scale": 5
+   "scale": 3
   },
   "td.o.shop": {
    "img": "structures",
@@ -1769,9 +2202,9 @@
    "y": 32,
    "w": 32,
    "h": 32,
-   "ax": 16,
+   "ax": 8,
    "ay": 30,
-   "scale": 5
+   "scale": 3
   },
   "td.o.lodge": {
    "img": "structures",
@@ -1779,9 +2212,9 @@
    "y": 32,
    "w": 32,
    "h": 32,
-   "ax": 16,
+   "ax": 8,
    "ay": 30,
-   "scale": 5
+   "scale": 3
   },
   "td.o.fountain": {
    "img": "structures",
@@ -2306,7 +2739,37 @@
     "td.g.water.2",
     "td.g.water.3"
    ],
-   "effect": "water"
+   "effect": "water",
+   "wanim": [
+    [
+     "td.g.wateranim.0.0",
+     "td.g.wateranim.0.1"
+    ],
+    [
+     "td.g.wateranim.1.0",
+     "td.g.wateranim.1.1"
+    ],
+    [
+     "td.g.wateranim.2.0",
+     "td.g.wateranim.2.1"
+    ],
+    [
+     "td.g.wateranim.3.0",
+     "td.g.wateranim.3.1"
+    ],
+    [
+     "td.g.wateranim.4.0",
+     "td.g.wateranim.4.1"
+    ],
+    [
+     "td.g.wateranim.5.0",
+     "td.g.wateranim.5.1"
+    ],
+    [
+     "td.g.wateranim.6.0",
+     "td.g.wateranim.6.1"
+    ]
+   ]
   },
   "1": {
    "ground": [
@@ -2363,14 +2826,21 @@
   },
   "3": {
    "ground": [
-    "td.g.dirt.0",
-    "td.g.dirt.1",
-    "td.g.dirt.2",
-    "td.g.dirt.3"
+    "td.g.grass.0",
+    "td.g.grass.1",
+    "td.g.grass.2",
+    "td.g.grass.3"
    ],
-   "object": [
-    "td.o.rock0",
-    "td.o.rock1"
+   "peaks": [
+    "td.mtn.0",
+    "td.mtn.1",
+    "td.mtn.2",
+    "td.mtn.3",
+    "td.mtn.4",
+    "td.mtn.5",
+    "td.mtn.6",
+    "td.mtn.7",
+    "td.mtn.8"
    ]
   },
   "4": {

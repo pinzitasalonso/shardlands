@@ -173,13 +173,14 @@ function generate(seed = 1337) {
   // doorstep and the world lurches; step back on the door mat to leave.
   // Returns the room centre so callers can put shopkeepers indoors.
   let interiorX = 24;
+  // Native pack scale: a 32px shop covers exactly two tiles (bx and bx+1),
+  // grid-aligned, on a snug lawn with a solid base row beneath the art.
   const shopfront = (bx, by, name) => {
-    for (let y = by - 2; y <= by + 1; y++) {
-      for (let x = bx - 2; x <= bx + 2; x++) set(x, y, TILE.GRASS);
+    for (let y = by - 1; y <= by + 1; y++) {
+      for (let x = bx - 1; x <= bx + 2; x++) set(x, y, TILE.GRASS);
     }
-    for (let y = by - 1; y <= by; y++) {
-      for (let x = bx - 1; x <= bx + 1; x++) set(x, y, TILE.WALL);
-    }
+    set(bx, by, TILE.WALL);
+    set(bx + 1, by, TILE.WALL);
     props.push({ x: bx, y: by, name: 'prop.' + name });
     // the interior: stone shell, plank floor, a hearth against the north wall
     const ix = interiorX;
@@ -209,10 +210,10 @@ function generate(seed = 1337) {
       props.push({ x: ix + 2, y: iy - 1, name: 'prop.chest' });
     }
     // every lawn is kept: daisy beds by the door, trimmed bushes behind
-    props.push({ x: bx - 2, y: by + 1, name: 'prop.flowers' + ((bx + by) % 3) });
+    props.push({ x: bx - 1, y: by + 1, name: 'prop.flowers' + ((bx + by) % 3) });
     props.push({ x: bx + 2, y: by + 1, name: 'prop.flowers' + ((bx * 3 + by) % 3) });
-    props.push({ x: bx - 2, y: by - 2, name: 'prop.bush' + (bx % 2) });
-    props.push({ x: bx + 2, y: by - 2, name: 'prop.bush' + ((bx + 1) % 2) });
+    props.push({ x: bx - 1, y: by - 1, name: 'prop.bush' + (bx % 2) });
+    props.push({ x: bx + 2, y: by - 1, name: 'prop.bush' + ((bx + 1) % 2) });
     return { x: ix, y: iy };
   };
 
@@ -258,9 +259,9 @@ function generate(seed = 1337) {
   for (let y = CY - 16; y <= CY + 16; y++) {
     for (let x = CX - 16; x <= CX + 16; x++) set(x, y, TILE.FLOOR);
   }
-  const smithyRoom = shopfront(CX - 8, CY - 8, 'smithy');
+  const smithyRoom = shopfront(CX - 9, CY - 8, 'smithy');
   const innRoom = shopfront(CX + 8, CY - 8, 'inn');
-  const healerRoom = shopfront(CX - 8, CY + 8, 'healer');
+  const healerRoom = shopfront(CX - 9, CY + 8, 'healer');
   shopfront(CX + 8, CY + 8, 'magetower');
   set(CX, CY - 7, TILE.SHRINE);
   props.push({ x: CX + 6, y: CY - 2, name: 'prop.well' });
@@ -356,7 +357,7 @@ function generate(seed = 1337) {
       for (let x = v.x - 8; x <= v.x + 8; x++) set(x, y, TILE.FLOOR);
     }
     // Whole pre-drawn buildings: a shop and a lodge front the green.
-    v.shopRoom = shopfront(v.x - 4, v.y - 3, 'shop');
+    v.shopRoom = shopfront(v.x - 5, v.y - 3, 'shop');
     v.lodgeRoom = shopfront(v.x + 4, v.y - 3, 'lodge');
     if (rng() > 0.45) {
       props.push({ x: v.x - 5, y: v.y + 4, name: 'prop.cottage' + Math.floor(rng() * 4) });
@@ -430,9 +431,9 @@ function generate(seed = 1337) {
         set(x, y, gate ? TILE.ROAD : TILE.WALL);
       }
     }
-    const citySmithy = shopfront(cx - 6, cy - 6, 'smithy');
+    const citySmithy = shopfront(cx - 7, cy - 6, 'smithy');
     shopfront(cx + 6, cy - 6, 'inn');
-    const cityHealer = shopfront(cx - 6, cy + 6, 'healer');
+    const cityHealer = shopfront(cx - 7, cy + 6, 'healer');
     set(cx, cy - 2, TILE.SHRINE);
     // civic pride: a fountain, a statue, braziers at the gates
     props.push({ x: cx, y: cy + 1, name: 'prop.fountain' });
@@ -474,8 +475,8 @@ function generate(seed = 1337) {
     // every city gets its landmark hall, rising behind the north wall —
     // solid stone underneath, so nobody walks through it
     const hall = { Frosthelm: 'citytower', Sunwatch: 'cityrampart', Mirehold: 'citystronghold' }[def.name];
-    for (let y = cy - 18; y <= cy - 15; y++) {
-      for (let x = cx - 3; x <= cx + 3; x++) set(x, y, TILE.WALL);
+    for (let y = cy - 17; y <= cy - 15; y++) {
+      for (let x = cx - 1; x <= cx + 1; x++) set(x, y, TILE.WALL);
     }
     props.push({ x: cx, y: cy - 15, name: 'prop.' + hall });
     cities.push({ name: def.name, x: cx, y: cy, r: 16 });
@@ -623,13 +624,13 @@ function generate(seed = 1337) {
   for (let y = CY - 16; y <= CY - 13; y++) {
     for (let x = CX - 3; x <= CX + 3; x++) set(x, y, TILE.FLOOR); // forecourt
   }
-  for (let y = CY - 21; y <= CY - 17; y++) {
-    for (let x = CX - 4; x <= CX + 4; x++) set(x, y, TILE.WALL); // solid under the keep
+  for (let y = CY - 19; y <= CY - 17; y++) {
+    for (let x = CX - 1; x <= CX + 1; x++) set(x, y, TILE.WALL); // solid under the keep
   }
   // the precinct's flatten() grassed over the north rampart — re-stitch it
   // so the city wall runs shoulder-to-shoulder into the castle's flanks
   for (let x = CX - 20; x <= CX + 20; x++) {
-    if (Math.abs(x - CX) > 4) set(x, CY - 18, TILE.WALL);
+    if (Math.abs(x - CX) > 1) set(x, CY - 18, TILE.WALL);
   }
   props.push({ x: CX, y: CY - 17, name: 'prop.citycastle' });
   openMouth({ x: CX, y: CY - 16 }, 6, {

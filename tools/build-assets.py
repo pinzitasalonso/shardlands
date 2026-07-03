@@ -586,8 +586,54 @@ def build_topdown_heroic(frames, images_out):
             fringe.paste(im, (i * TD + ox, row * TD + oy))
             frames[f'td.fr.{kind}.{p}'] = {'img': 'fringe16', 'x': i * TD, 'y': row * TD,
                                            'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+    fringe2 = Image.new('RGBA', (4 * TD, len(FRINGE_SHEETS) * TD), (0, 0, 0, 0))
+    for row, (kind, sk) in enumerate(FRINGE_SHEETS.items()):
+        # corner nubs for diagonal-only neighbours, so transitions round off
+        # the way the pack's own maps do instead of stair-stepping
+        sh = sheets[sk]
+        blob = lambda cx, cy, box: sh.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16)).crop(box)
+        corners = {
+            'nw': (blob(12, 16, (16 - FR, 16 - FR, 16, 16)), (0, 0)),
+            'ne': (blob(10, 16, (0, 16 - FR, FR, 16)), (16 - FR, 0)),
+            'sw': (blob(12, 14, (16 - FR, 0, 16, FR)), (0, 16 - FR)),
+            'se': (blob(10, 14, (0, 0, FR, FR)), (16 - FR, 16 - FR)),
+        }
+        for i, p in enumerate(['nw', 'ne', 'sw', 'se']):
+            im, (ox, oy) = corners[p]
+            fringe2.paste(im, (i * TD + ox, row * TD + oy))
+            frames[f'td.fr.{kind}.{p}'] = {'img': 'fringe16c', 'x': i * TD, 'y': row * TD,
+                                           'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
     fringe.save(os.path.join(OUT, 'fringe16.png'))
+    fringe2.save(os.path.join(OUT, 'fringe16c.png'))
     images_out['fringe16'] = 'fringe16.png'
+    images_out['fringe16c'] = 'fringe16c.png'
+
+    # Mountains the pack's way: the brown 3x3 interlocking peak block tiles
+    # into solid ranges when cells are picked by map position, and its
+    # transparent gaps let the grass beneath show through at the edges.
+    trees = sheets['TREES']
+    peaks = Image.new('RGBA', (9 * TD, TD), (0, 0, 0, 0))
+    for i in range(9):
+        cx, cy = i % 3, 22 + i // 3
+        peaks.paste(trees.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16)), (i * TD, 0))
+        frames[f'td.mtn.{i}'] = {'img': 'peaks16', 'x': i * TD, 'y': 0,
+                                 'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+    peaks.save(os.path.join(OUT, 'peaks16.png'))
+    images_out['peaks16'] = 'peaks16.png'
+
+    # The living sea: seven frames of the pack's animated ocean, two calm
+    # lattice variants per frame, cycled client-side.
+    oa = Image.open(os.path.join(
+        HEROIC, 'HAS Overworld 2.1', 'Universal', 'Animated', 'Universal-Ocean-Animated.png')).convert('RGBA')
+    wat = Image.new('RGBA', (2 * TD, 7 * TD), (0, 0, 0, 0))
+    # the sheet leads with one empty 16px row; frame blocks start below it
+    for f in range(7):
+        for v in range(2):
+            wat.paste(oa.crop((v * 16, 16 + f * 48, v * 16 + 16, 32 + f * 48)), (v * TD, f * TD))
+            frames[f'td.g.wateranim.{f}.{v}'] = {'img': 'wateranim', 'x': v * TD, 'y': f * TD,
+                                                 'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+    wat.save(os.path.join(OUT, 'wateranim.png'))
+    images_out['wateranim'] = 'wateranim.png'
 
     # dungeon brick wall cells + a torch, straight from the dungeon tileset
     dng = sheets['DNG'] if False else Image.open(os.path.join(HEROIC, HAS_SHEETS['DNG'])).convert('RGBA')
@@ -649,14 +695,15 @@ def build_topdown_heroic(frames, images_out):
     x = 0
     for k, im in imgs.items():
         sheet.paste(im, (x, sh - im.height))
-        # city halls tower over houses (5x); treasures loom (4x); cottages 3x
-        # the crown's own castle is grandest, without swallowing the skyline;
-        # town shops bake at 5x so the sprite fully covers its 3-tile footprint
-        z = 6 if k == 'citycastle' else 5 if k.startswith('city') else \
-            3 if k.startswith('cottage') or k == 'fountain' else 5 if k in TOWN2020 else 4
+        # NATIVE scale, exactly like the pack's own maps: every structure
+        # bakes at 3x so a 16px cottage is one tile, a 32px shop two, a
+        # 64px castle four. Town shops grid-align (ax=8: the sprite spans
+        # its tile and the next); monuments stay centred on their axis.
+        z = 3
         frames[f'td.o.{k}'] = {'img': 'structures', 'x': x, 'y': sh - im.height,
                                'w': im.width, 'h': im.height,
-                               'ax': im.width // 2, 'ay': im.height - 2, 'scale': z}
+                               'ax': 8 if k in TOWN2020 else im.width // 2,
+                               'ay': im.height - 2, 'scale': z}
         x += im.width
     sheet.save(os.path.join(OUT, 'structures.png'))
     images_out['structures'] = 'structures.png'
@@ -665,7 +712,8 @@ def build_topdown_heroic(frames, images_out):
     autowall = {k: f'td.wall.{k}' for k in
                 ('h', 'v', 'tl', 'tr', 'bl', 'br', 'capL', 'capR', 'capT', 'capB')}
     return {
-        '0': {'ground': g('water'), 'effect': 'water'},
+        '0': {'ground': g('water'), 'effect': 'water',
+              'wanim': [[f'td.g.wateranim.{f}.{v}' for v in range(2)] for f in range(7)]},
         '1': {'ground': g('grass'),
               'decor': {'chance': 0.05,
                         'objects': ['td.o.flower', 'td.o.tuft', 'td.o.stone0', 'td.o.twig']}},
@@ -676,7 +724,8 @@ def build_topdown_heroic(frames, images_out):
                   ['td.o.pine0', 'td.o.pine1', 'td.o.pine0', 'td.o.pine1', 'td.o.dead1'],
                   ['td.o.dead0', 'td.o.dead1', 'td.o.pine1'],
               ]},
-        '3': {'ground': g('dirt'), 'object': ['td.o.rock0', 'td.o.rock1']},
+        # mountains sit straight on the grass, ranges of interlocking peaks
+        '3': {'ground': g('grass'), 'peaks': [f'td.mtn.{i}' for i in range(9)]},
         '4': {'ground': g('road')},
         '5': {'ground': g('floor')},
         '6': {'ground': g('grass'), 'autowall': autowall},
