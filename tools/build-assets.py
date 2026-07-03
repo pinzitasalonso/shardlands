@@ -560,6 +560,34 @@ def build_topdown_heroic(frames, images_out):
     extra.save(os.path.join(OUT, 'extras16.png'))
     images_out['extras16'] = 'extras16.png'
 
+
+    # ---- landmark structures: town centrepieces, treasures, cottages ----------
+    bpk = os.path.join(HEROIC, 'HAS Buildings Pack 1.01', 'HAS Buildings Pack')
+    structs = {
+        'citycastle': ('Towns/Castle.png', None), 'citytower': ('Towns/Tower.png', None),
+        'citystronghold': ('Towns/Stronghold.png', None), 'cityrampart': ('Towns/Rampart.png', None),
+        'keep': ('Treasures/Keep.png', None), 'ruins': ('Treasures/Ruins.png', None),
+        'graveyard': ('Treasures/Graveyard.png', None), 'dragoncity': ('Treasures/DragonCity.png', None),
+        'snakelair': ('Treasures/SnakeLair.png', None), 'daemoncave': ('Treasures/DaemonCave.png', None),
+        'dwarffortress': ('Treasures/DwarfFortress.png', None), 'bloodtemple': ('Treasures/BloodTemple.png', None),
+    }
+    imgs = {k: Image.open(os.path.join(bpk, p)).convert('RGBA') for k, (p, _) in structs.items()}
+    bld = Image.open(os.path.join(HEROIC, HAS_SHEETS['BLDG'])).convert('RGBA')
+    for i, (cx, cy) in enumerate([(3, 4), (5, 4), (4, 6), (4, 7)]):
+        imgs[f'cottage{i}'] = bld.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16))
+    sw = sum(im.width for im in imgs.values())
+    sh = max(im.height for im in imgs.values())
+    sheet = Image.new('RGBA', (sw, sh), (0, 0, 0, 0))
+    x = 0
+    for k, im in imgs.items():
+        sheet.paste(im, (x, sh - im.height))
+        frames[f'td.o.{k}'] = {'img': 'structures', 'x': x, 'y': sh - im.height,
+                               'w': im.width, 'h': im.height,
+                               'ax': im.width // 2, 'ay': im.height - 2, 'scale': TD_SCALE}
+        x += im.width
+    sheet.save(os.path.join(OUT, 'structures.png'))
+    images_out['structures'] = 'structures.png'
+
     g = lambda kind: [f'td.g.{kind}.{v}' for v in range(len(HAS_GROUNDS[kind]))]
     autowall = {k: f'td.wall.{k}' for k in
                 ('h', 'v', 'tl', 'tr', 'bl', 'br', 'capL', 'capR', 'capT', 'capB')}

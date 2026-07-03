@@ -15,7 +15,11 @@ const TILE_COLORS = [
   [170, 150, 110], [90, 86, 80], [196, 178, 128], [240, 220, 130], [225, 228, 235],
   [180, 195, 205], [140, 105, 65], [70, 90, 60], [50, 70, 48], [28, 24, 32],
 ];
-const PROPS = ['prop.well', 'prop.table', 'prop.stool', 'fx.campfire'];
+const PROPS = ['prop.well', 'prop.table', 'prop.stool', 'fx.campfire',
+  'prop.cottage0', 'prop.cottage1', 'prop.cottage2', 'prop.cottage3',
+  'prop.keep', 'prop.ruins', 'prop.graveyard', 'prop.dragoncity',
+  'prop.snakelair', 'prop.daemoncave', 'prop.dwarffortress', 'prop.bloodtemple',
+  'prop.citycastle', 'prop.citytower', 'prop.citystronghold', 'prop.cityrampart'];
 
 const cv = document.getElementById('map');
 const ctx = cv.getContext('2d');
