@@ -496,11 +496,21 @@ function generate(seed = 1337) {
     set(spot.x, spot.y - 6, TILE.GRASS); // the fallen gate
     props.push({ x: spot.x - 3, y: spot.y - 1, name: 'prop.keep' });
     spawners.push({ kind: 'skeleton', count: 7, x: spot.x, y: spot.y, r: 9 });
+    spawners.push({ kind: 'zombie', count: 3, x: spot.x, y: spot.y, r: 9 });
+    // after dark, the keep's dead do not stay in the ground
+    spawners.push({ kind: 'ghost', count: 3, x: spot.x, y: spot.y, r: 10, nightOnly: true });
     // a cave mouth descends into the barrow-deeps
     if (keepIdx < 4) {
       props.push({ x: spot.x + 2, y: spot.y + 3, name: 'prop.daemoncave' });
-      openMouth({ x: spot.x + 2, y: spot.y + 2 }, keepIdx++, {},
-        'Cold air breathes up from a cracked stair descending into the dark.');
+      // the second keep's deep is a crypt: the Crimson Count feeds below
+      const crypt = keepIdx === 1;
+      openMouth({ x: spot.x + 2, y: spot.y + 2 }, keepIdx++, crypt ? {
+        keepers: [['zombie', 6, 'mid', 18], ['ghost', 4, 'mid', 14],
+                  ['vampire', 1, 'far', 3]],
+        loot: [['gold', 250, 500], ['gems', 2, 3], ['heal', 1, 2]],
+      } : {}, crypt
+        ? 'The stair below reeks of old blood. Something down there has slept long, and fed well.'
+        : 'Cold air breathes up from a cracked stair descending into the dark.');
     }
     if (k === 0) {
       // The Bone Lord holds court in the first keep.
@@ -565,7 +575,21 @@ function generate(seed = 1337) {
       const spot = settle(CX + (rng() - 0.5) * 1700, CY + (rng() - 0.5) * 1700, 100, r);
       if (spot && Math.hypot(spot.x - CX, spot.y - CY) > 120) {
         spawners.push({ kind, count, x: spot.x, y: spot.y, r });
+        // goblin wolf-riders run with the bigger orc warbands
+        if (kind === 'orc' && count >= 6) {
+          spawners.push({ kind: 'wolfrider', count: 2, x: spot.x, y: spot.y, r });
+        }
       }
+    }
+  }
+
+  // ---- Harpy roosts on the high crags --------------------------------------------
+  // The spawner sits on bare rock; spawnMob only places them on walkable
+  // ground nearby, so they wheel around the peaks.
+  for (let i = 0; i < 8; i++) {
+    const crag = findGround([TILE.ROCK], 200, W - 200, 200, H - 200);
+    if (crag && Math.hypot(crag.x - CX, crag.y - CY) > 200) {
+      spawners.push({ kind: 'harpy', count: 3, x: crag.x, y: crag.y, r: 7 });
     }
   }
 
@@ -597,6 +621,8 @@ function generate(seed = 1337) {
     }
     props.push({ x: s.x, y: s.y - 1, name: 'prop.graveyard' });
     spawners.push({ kind: 'skeleton', count: 4, x: s.x, y: s.y, r: 8 });
+    spawners.push({ kind: 'zombie', count: 2, x: s.x, y: s.y, r: 8 });
+    spawners.push({ kind: 'ghost', count: 2, x: s.x, y: s.y, r: 9, nightOnly: true });
     if (rng() > 0.5) {
       secrets.push({ type: 'cache', x: s.x, y: s.y, loot: [['gold', 40, 120], ['heal', 0, 1]] });
     }

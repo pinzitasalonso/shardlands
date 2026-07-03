@@ -730,6 +730,18 @@ assert(p.y >= 64, 'a ghost takes the stair back to the surface');
 p.dead = false;
 p.hp = 50;
 
+// -- the new company: the restless dead, the crags, and the Count --------------------
+const { MOB_KINDS } = require('../server/game');
+for (const k of ['zombie', 'ghost', 'harpy', 'wolfrider', 'vampire']) {
+  assert(MOB_KINDS[k], `${k} walks the world`);
+  assert(game.map.spawners.some((sp) => sp.kind === k), `${k} has a home somewhere`);
+}
+assert(MOB_KINDS.vampire.vampiric, 'the Count feeds on what he wounds');
+assert(game.map.spawners.filter((sp) => sp.kind === 'ghost').every((sp) => sp.nightOnly || sp.y < 64),
+  'surface ghosts only rise at night; only the deeps hold them by day');
+assert(game.map.spawners.some((sp) => sp.kind === 'vampire' && sp.y < 64),
+  'the Count sleeps beneath a ruined keep');
+
 // -- the new words of power: frost, the arcing bolt, and borrowed speed --------------
 p.skills.magery = 100; // at GM magery the fizzle roll (d100 > magery+35) cannot fail
 p.mana = 200;

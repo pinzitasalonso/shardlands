@@ -36,7 +36,12 @@
   "snake": "creatures/snake.png",
   "bonelord": "creatures/bonelord.png",
   "guard": "creatures/guard.png",
-  "villager": "creatures/villager.png"
+  "villager": "creatures/villager.png",
+  "zombie": "creatures/zombie.png",
+  "ghost": "creatures/ghost.png",
+  "vampire": "creatures/vampire.png",
+  "harpy": "creatures/harpy.png",
+  "wolfrider": "creatures/wolfrider.png"
  },
  "frames": {
   "grass.0": {
@@ -2683,6 +2688,136 @@
   },
   "villager": {
    "img": "villager",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "zombie": {
+   "img": "zombie",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "ghost": {
+   "img": "ghost",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "vampire": {
+   "img": "vampire",
+   "cellW": 64,
+   "cellH": 64,
+   "dirs": 8,
+   "ax": 32,
+   "ay": 52,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "harpy": {
+   "img": "harpy",
+   "cellW": 48,
+   "cellH": 48,
+   "dirs": 8,
+   "ax": 24,
+   "ay": 39,
+   "anims": {
+    "stance": {
+     "start": 0,
+     "frames": 4,
+     "ms": 260,
+     "loop": "back_forth"
+    },
+    "run": {
+     "start": 4,
+     "frames": 4,
+     "ms": 140
+    },
+    "melee": {
+     "start": 8,
+     "frames": 4,
+     "ms": 130
+    }
+   }
+  },
+  "wolfrider": {
+   "img": "wolfrider",
    "cellW": 48,
    "cellH": 48,
    "dirs": 8,

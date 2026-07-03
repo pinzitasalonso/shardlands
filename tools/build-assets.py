@@ -676,6 +676,11 @@ HAS_UNITS = {
     'smith':    ('rampart', 10, 3, None),  # dwarf with a hammer
     'bard':     ('rampart', 11, 3, None),  # a satyr, pipes and all
     'hermit':   ('rampart', 14, 3, None),  # green-robed druid
+    'zombie':   ('necro', 2, 3, None),     # walking dead, cleaver and all
+    'ghost':    ('necro', 12, 3, None),    # blue-white wraith
+    'vampire':  ('necro', 5, 4, None),     # red-caped count, baked boss-big
+    'harpy':    ('stronghold', 2, 3, None),
+    'wolfrider': ('stronghold', 3, 3, None),  # goblin on a grey wolf
     'dragon':   ('inferno', 15, 5, None),  # the arch-fiend wears the crown
     'wolf':     ('inferno', 3, 3, None),   # hell hound, close enough to a hungry wolf
     'deer':     ('animals', 3, 3, None),

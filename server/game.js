@@ -65,6 +65,17 @@ const MOB_KINDS = {
   wolfking: { name: 'Greyfang, the Wolf King', hp: 150, dmg: [7, 13], skill: 70, gold: 240, speedMs: 330, aggro: 9, boss: true },
   skelmage: { name: 'a skeleton mage', hp: 26, dmg: [2, 4], skill: 50, gold: 24, speedMs: 550, aggro: 8, caster: { range: 7, dmg: [6, 12], cdMs: 2600 } },
   whitestag: { name: 'the White Stag', hp: 60, dmg: [1, 2], skill: 30, gold: 50, speedMs: 260, aggro: 0 },
+  // The restless dead: corpses shamble at the barrows, and after dark the
+  // ghosts rise with them (their spawners are marked nightOnly).
+  zombie: { name: 'a shambling corpse', hp: 42, dmg: [4, 9], skill: 40, gold: 14, speedMs: 750, aggro: 6 },
+  ghost: { name: 'a restless ghost', hp: 30, dmg: [4, 9], skill: 55, gold: 24, speedMs: 420, aggro: 7 },
+  // Wilder company: harpies roost on the high crags, goblin wolf-riders run
+  // with the orc warbands.
+  harpy: { name: 'a harpy', hp: 34, dmg: [4, 8], skill: 50, gold: 26, speedMs: 300, aggro: 8 },
+  wolfrider: { name: 'a goblin wolf-rider', hp: 44, dmg: [5, 10], skill: 58, gold: 34, speedMs: 290, aggro: 8 },
+  // The Crimson Count sleeps beneath the second ruined keep, and every
+  // wound he deals feeds him.
+  vampire: { name: 'the Crimson Count', hp: 280, dmg: [12, 22], skill: 88, gold: 420, speedMs: 350, aggro: 10, boss: true, vampiric: true },
 };
 
 const VILLAGER_NAMES = ['Tomlin', 'Berta', 'Old Casso', 'Wilmot', 'Ysolde', 'Pell',
@@ -101,7 +112,22 @@ const LOOT_TABLES = {
   bonelord: [[1, 'gold', 120, 300], [1, 'gems', 1, 2], [0.6, 'mana', 1, 2], [1, 'weapon', ['battleaxe', 'greatsword'], 2, 4]],
   wolfking: [[1, 'gold', 100, 260], [1, 'gems', 1, 2], [0.6, 'heal', 1, 2], [1, 'weapon', ['sword'], 2, 3]],
   vyrmaur: [[1, 'gold', 800, 1500], [1, 'gems', 3, 6], [1, 'heal', 2, 3]],
+  zombie: [[0.25, 'gold', 6, 16], [0.1, 'heal', 1, 1]],
+  ghost: [[0.3, 'gold', 10, 24], [0.15, 'mana', 1, 2], [0.05, 'gems', 1, 1]],
+  harpy: [[0.3, 'gold', 10, 26], [0.1, 'gems', 1, 1], [0.06, 'tmap']],
+  wolfrider: [[0.28, 'gold', 12, 30], [0.1, 'heal', 1, 1], [0.06, 'weapon', ['mace', 'sword'], 0, 2]],
+  vampire: [[1, 'gold', 200, 450], [1, 'gems', 2, 4], [0.6, 'heal', 1, 2], [0.6, 'mana', 1, 2],
+            [1, 'weapon', ['greatsword', 'battleaxe'], 2, 4], [0.5, 'tmap']],
 };
+
+// Mirrors the client's sky exactly (same clock, same curve): darkness is 0
+// at noon and ~0.62 at deepest night. Past 0.3 counts as night — the same
+// threshold the client uses to switch to the night music.
+const DAY_MS = 20 * 60_000;
+function dayDarkness() {
+  const phase = (Date.now() % DAY_MS) / DAY_MS;
+  return Math.max(0, -Math.cos(phase * Math.PI * 2)) * 0.62;
+}
 
 const DROP_TTL_MS = 60_000;
 const RESOURCE_RESPAWN_MS = 90_000;
@@ -1517,7 +1543,12 @@ class Game {
           mob.swungAt = t;
           const hitChance = clamp(50 + (def.skill - target.skills.swordsmanship) / 2, 10, 95);
           if (Math.random() * 100 <= hitChance) {
-            this.hitPlayer(target, rand(def.dmg[0], def.dmg[1]), mob.name || def.name);
+            const dmg = rand(def.dmg[0], def.dmg[1]);
+            this.hitPlayer(target, dmg, mob.name || def.name);
+            if (def.vampiric && mob.hp < mob.maxhp) {
+              // every wound he deals closes one of his own
+              mob.hp = Math.min(mob.maxhp, mob.hp + Math.ceil(dmg / 2));
+            }
           } else {
             this.fxNear(target, { t: 'fx', kind: 'miss', x: target.x, y: target.y });
           }
@@ -1596,6 +1627,12 @@ class Game {
     const ids = new Set();
     for (let i = 0; i < 8; i++) {
       this.spawnMob(stub);
+    }
+    if (kind === 'orc') {
+      // wolf-riders ride at the head of every orc warband
+      const outriders = { alive: new Set(), x: v.x + 18, y: v.y + 18, r: 4, kind: 'wolfrider', respawnMs: Infinity };
+      for (let i = 0; i < 3; i++) this.spawnMob(outriders);
+      for (const id of outriders.alive) stub.alive.add(id);
     }
     for (const id of stub.alive) {
       const m = this.mobs.get(id);
@@ -1709,7 +1746,20 @@ class Game {
       }
     }
 
+    const night = dayDarkness() > 0.3;
     for (const sp of this.spawners) {
+      if (sp.nightOnly && !night) {
+        // dawn lays the restless back down — unless they're mid-fight
+        for (const id of [...sp.alive]) {
+          const m = this.mobs.get(id);
+          if (m && !m.target) {
+            this.mobs.delete(id);
+            sp.alive.delete(id);
+            this.fxNear(m, { t: 'fx', kind: 'evade', x: m.x, y: m.y });
+          }
+        }
+        continue;
+      }
       if (sp.alive.size < sp.count && t >= (sp.respawnAt || 0)) {
         sp.respawnAt = t + (sp.respawnMs || 20_000);
         this.spawnMob(sp);
