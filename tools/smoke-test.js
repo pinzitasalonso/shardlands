@@ -925,6 +925,30 @@ p.portalAt = 0;
 game.handleMove(p, -1, 0);
 assert.strictEqual(p.y, 54 + 2, 'the built inn has an inside');
 
+// -- the whole bestiary is placeable ---------------------------------------------------
+assert(Object.keys(MOB_KINDS).length >= 130, 'the full bestiary is registered');
+for (const k of ['titan', 'lich', 'ogre', 'basilisk', 'paladin', 'rabbit']) {
+  assert(MOB_KINDS[k] && MOB_KINDS[k].name && MOB_KINDS[k].hp > 0, `${k} has stats`);
+}
+assert(MOB_KINDS.rabbit.aggro === 0, 'rabbits do not bite');
+assert(MOB_KINDS.lich.caster, 'liches cast');
+const manifest = JSON.parse(require('fs').readFileSync('client/assets/manifest.json', 'utf8'));
+for (const k of Object.keys(MOB_KINDS)) {
+  // originals drawn from scratch, and bosses that share a base kind's atlas
+  if (['sheep', 'pig', 'chicken', 'crab',
+       'goblinking', 'wolfking', 'vyrmaur', 'whitestag'].includes(k)) continue;
+  assert(manifest.creatures[k], `${k} has a creature atlas`);
+}
+assert(Object.values(manifest.iconCategories || {}).reduce((a, v) => a + v.length, 0) >= 500,
+  'the icon library is stocked');
+assert(manifest.frames['td.o.windmill'] && manifest.frames['td.o.windmill'].anim,
+  'the windmill turns');
+assert(manifest.frames['td.o.lamp'].anim, 'the street lamps flicker');
+// a builder-placed titan lives
+const c5 = game.applyEditsLive({ spawners: [{ kind: 'titan', count: 1, x: spot.x + 12, y: spot.y, r: 3 }] });
+assert.strictEqual(c5.spawners, 1, 'a titan camp takes');
+assert([...game.mobs.values()].some((m) => m.kind === 'titan'), 'and a titan walks the world');
+
 // -- the builder's lock ---------------------------------------------------------------
 const ed = require('../server/editor');
 ed.configure('smoke-key');

@@ -762,6 +762,7 @@ HAS_CREATURE_SHEETS = {
     'castle': 'HAS CreaturePack (v.1.3)/HAS Creature Pack 1.2/Castle/CastleSpriteSheet.png',
     'rampart': 'HAS CreaturePack (v.1.3)/HAS Creature Pack 1.2/Rampart/RampartSpriteSheet.png',
     'inferno': 'HAS CreaturePack (v.1.3)/HAS Creature Pack 1.2/Inferno/InfernoSpriteSheet.png',
+    'tower': 'HAS CreaturePack (v.1.3)/HAS Creature Pack 1.2/Tower/TowerSpriteSheet.png',
     'animals': 'HASWildlife (v.1.0)/Animals/AnimalsSheet.png',
     'dwarves': 'HAS Dwarves (v.1.1)/Creatures/DwarvesSpriteSheet.png',
     'orcsempire': 'HAS Orcs Empire (1.0)/OrcSpriteSheet.png',
@@ -814,6 +815,80 @@ HAS_UNITS = {
     'lizardman':   ('lizardmen', 11, 3, None),  # crested warrior
     'raptor':      ('lizardmen', 6, 3, None),   # gold-eyed hunting beast
 }
+
+# The rest of the packs' bestiary: every remaining creature row, baked so
+# the world builder can place ANY of them. Stats live in server/game.js's
+# BESTIARY table (same kind names); big monsters bake at 4x.
+BESTIARY_UNITS = {
+    # Castle
+    'pikeman': ('castle', 1, 3), 'outrider': ('castle', 3, 3),
+    'swordsman': ('castle', 4, 3), 'monk': ('castle', 6, 3),
+    'knight': ('castle', 7, 3), 'halberdier': ('castle', 9, 3),
+    'crossbowman': ('castle', 10, 3), 'cavalier': ('castle', 11, 3),
+    'squire': ('castle', 13, 3), 'whiteknight': ('castle', 14, 3),
+    'paladin': ('castle', 15, 3),
+    # Rampart
+    'pixie': ('rampart', 1, 3), 'hilldwarf': ('rampart', 2, 3),
+    'woodarcher': ('rampart', 3, 3), 'silverstag': ('rampart', 5, 3),
+    'youngtreant': ('rampart', 7, 3), 'flowersprite': ('rampart', 9, 3),
+    'grovekeeper': ('rampart', 12, 3), 'greatelk': ('rampart', 13, 4),
+    'darktreant': ('rampart', 15, 4),
+    # Inferno
+    'imp': ('inferno', 1, 3), 'fireimp': ('inferno', 2, 3),
+    'lesserdemon': ('inferno', 4, 3), 'hellion': ('inferno', 5, 3),
+    'burningone': ('inferno', 6, 3), 'demon': ('inferno', 7, 3),
+    'pitfiend': ('inferno', 9, 3), 'devil': ('inferno', 10, 3),
+    'shadowbeast': ('inferno', 11, 3), 'hornedbrute': ('inferno', 12, 4),
+    'pitlord': ('inferno', 13, 4), 'magmafiend': ('inferno', 14, 4),
+    # Tower
+    'adept': ('tower', 1, 3), 'gargoyle': ('tower', 2, 3),
+    'stonegolem': ('tower', 3, 3), 'mage': ('tower', 4, 3),
+    'genie': ('tower', 5, 3), 'irongolem': ('tower', 6, 4),
+    'naga': ('tower', 7, 3), 'battleadept': ('tower', 9, 3),
+    'obsidiangargoyle': ('tower', 10, 3), 'goldgolem': ('tower', 11, 4),
+    'archmage': ('tower', 12, 3), 'djinn': ('tower', 13, 3),
+    'nagaqueen': ('tower', 14, 4), 'titan': ('tower', 15, 4),
+    # Necromancer
+    'cryptswarm': ('necro', 3, 3), 'wight': ('necro', 4, 3),
+    'lich': ('necro', 6, 3), 'deathknight': ('necro', 7, 3),
+    'rottinghulk': ('necro', 10, 4), 'tombspider': ('necro', 11, 3),
+    'vampirelord': ('necro', 13, 4), 'dreadknight': ('necro', 15, 4),
+    # Stronghold
+    'centaur': ('stronghold', 4, 3), 'orcshaman': ('stronghold', 5, 3),
+    'ogre': ('stronghold', 6, 4), 'cyclops': ('stronghold', 7, 4),
+    'goblinveteran': ('stronghold', 9, 3), 'rocrider': ('stronghold', 10, 3),
+    'wolfraider': ('stronghold', 11, 3), 'boarrider': ('stronghold', 12, 3),
+    'cyclopsking': ('stronghold', 15, 4),
+    # Dwarves
+    'dwarfaxeman': ('dwarves', 2, 3), 'dwarfcrossbow': ('dwarves', 3, 3),
+    'warram': ('dwarves', 4, 3), 'dwarfspearman': ('dwarves', 5, 3),
+    'dwarfoutrider': ('dwarves', 9, 3), 'ramcavalier': ('dwarves', 10, 3),
+    'cavebear': ('dwarves', 11, 4), 'elkrider': ('dwarves', 12, 3),
+    'runicgolem': ('dwarves', 13, 4), 'stoneguardian': ('dwarves', 14, 4),
+    # Orcs Empire
+    'goblinarcher': ('orcsempire', 1, 3), 'orcgrunt': ('orcsempire', 2, 3),
+    'orcspearman': ('orcsempire', 4, 3), 'orcraider': ('orcsempire', 5, 3),
+    'orcchampion': ('orcsempire', 6, 3),
+    # WoodElves
+    'willowtreant': ('woodelves', 0, 4), 'autumntreant': ('woodelves', 3, 4),
+    'elfswordsman': ('woodelves', 4, 3), 'elfscout': ('woodelves', 5, 3),
+    'forestcentaur': ('woodelves', 6, 3), 'elfkeeper': ('woodelves', 7, 3),
+    'brownbear': ('woodelves', 8, 4), 'direwolf': ('woodelves', 9, 3),
+    'owlbear': ('woodelves', 10, 4), 'blackboar': ('woodelves', 11, 3),
+    'bladedancer': ('woodelves', 12, 3),
+    # Lizardmen
+    'hatchling': ('lizardmen', 1, 3), 'marshraptor': ('lizardmen', 2, 3),
+    'armoredcroc': ('lizardmen', 3, 4), 'marshnaga': ('lizardmen', 4, 3),
+    'lizardassassin': ('lizardmen', 5, 3), 'goldengecko': ('lizardmen', 7, 3),
+    'fenserpent': ('lizardmen', 9, 3), 'crocwarden': ('lizardmen', 10, 4),
+    'duneserpent': ('lizardmen', 12, 3), 'bogcroc': ('lizardmen', 13, 3),
+    'salamander': ('lizardmen', 14, 4), 'basilisk': ('lizardmen', 15, 4),
+    # Wildlife
+    'rabbit': ('animals', 0, 3), 'giantrat': ('animals', 1, 3),
+    'fox': ('animals', 4, 3), 'badger': ('animals', 5, 3),
+}
+for _k, (_sheet, _row, _z) in BESTIARY_UNITS.items():
+    HAS_UNITS[_k] = (_sheet, _row, _z, None)
 
 HAS_HERO_DIRS = ['Right', 'Right-Down', 'Down', 'Left-Down', 'Left', 'Left-Up', 'Up', 'Right-Up']
 HAS_HEROES = {  # kind -> (faction dir name, file prefix, gender)
@@ -1491,6 +1566,7 @@ def main():
         build_has_spellfx(frames, td_images)
     prop_categories = build_prop_catalog(frames, td_images,
                                          export='--export-props' in sys.argv)
+    icon_categories = build_icon_library(frames, td_images) if os.path.isdir(HEROIC) else {}
 
     manifest = {
         'tileW': 64, 'tileH': 32,
@@ -1510,6 +1586,7 @@ def main():
         'tilesTD': tiles_td,
         'creatures': creatures,
         'propCategories': prop_categories,
+        'iconCategories': icon_categories,
     }
     with open(os.path.join(OUT, 'manifest.json'), 'w') as f:
         json.dump(manifest, f, indent=1)
@@ -1532,6 +1609,75 @@ def asset_pngs():
             if fn.endswith('.png'):
                 full = os.path.join(dirpath, fn)
                 yield os.path.relpath(full, OUT), full
+
+
+# ---- the full icon library ------------------------------------------------------
+#
+# Every icon in the packs, packed into one atlas with categories in the
+# manifest (manifest.iconCategories): 16 equipment families from the
+# IconPack, the whole Skills sheet, the HAS UI icon set and every Magic
+# Book spell icon. Nothing consumes most of these yet — they are the
+# library future items, skills and UI draw from.
+
+def build_icon_library(frames, images_out):
+    import glob as _g
+    import hashlib
+    icons = []  # (category, name, image)
+    seen = set()
+
+    def add(category, name, im):
+        if im.getbbox() is None:
+            return
+        digest = hashlib.md5(im.tobytes()).hexdigest()
+        if digest in seen:
+            return
+        seen.add(digest)
+        icons.append((category, name, im))
+
+    allitems = os.path.join(HEROIC, 'HAS IconPack (v.1.2)', 'IconPack 1.1', 'AllItems')
+    for sheet_path in sorted(_g.glob(os.path.join(allitems, '*Source', '*Original.png'))):
+        fam = os.path.basename(sheet_path).replace('Original.png', '').lower()
+        im = Image.open(sheet_path).convert('RGBA')
+        n = 0
+        for y in range(0, im.height, 16):
+            for x in range(0, im.width, 16):
+                add(fam, f'{fam}{n}', im.crop((x, y, x + 16, y + 16)))
+                n += 1
+    skills = Image.open(os.path.join(
+        HEROIC, 'HAS IconPack (v.1.2)', 'IconPack 1.2', 'Skills', 'Skills.png')).convert('RGBA')
+    n = 0
+    for y in range(0, skills.height, 16):
+        for x in range(0, skills.width, 16):
+            add('skills', f'skills{n}', skills.crop((x, y, x + 16, y + 16)))
+            n += 1
+    for p in sorted(_g.glob(os.path.join(HEROIC, 'HAS UI', 'Icons', 'Icon_*.png')),
+                    key=lambda s: int(re.search(r'_(\d+)', s).group(1))):
+        add('ui', 'ui' + re.search(r'_(\d+)', p).group(1), Image.open(p).convert('RGBA'))
+    for p in sorted(_g.glob(os.path.join(HEROIC, 'HAS Magic Book 1.1', '*', 'Icon*.png'))):
+        spell = os.path.basename(os.path.dirname(p)).replace(' ', '').lower()
+        add('magic', 'magic_' + spell, Image.open(p).convert('RGBA'))
+
+    if not icons:
+        return {}
+    COLS = 24
+    cw = max(im.width for _, _, im in icons)
+    chh = max(im.height for _, _, im in icons)
+    rows = (len(icons) + COLS - 1) // COLS
+    atlas = Image.new('RGBA', (COLS * cw, rows * chh), (0, 0, 0, 0))
+    categories = {}
+    for i, (category, name, im) in enumerate(icons):
+        x = (i % COLS) * cw
+        y = (i // COLS) * chh
+        atlas.paste(im, (x, y))
+        frames[f'icon.{name}'] = {'img': 'icons-extra', 'x': x, 'y': y,
+                                  'w': im.width, 'h': im.height,
+                                  'ax': 0, 'ay': 0, 'scale': 2}
+        categories.setdefault(category, []).append(name)
+    atlas.save(os.path.join(OUT, 'icons-extra.png'))
+    images_out['icons-extra'] = 'icons-extra.png'
+    print(f'icon library: {sum(len(v) for v in categories.values())} icons '
+          f'in {len(categories)} categories')
+    return categories
 
 
 # ---- the world builder's prop catalog ------------------------------------------
@@ -1650,6 +1796,39 @@ def build_prop_catalog(frames, images_out, export=False):
             im = Image.open(staged).convert('RGBA')
         cuts.append((category, name, im))
 
+    # Animated art first: every `Name(Frame N).png` set across the packs
+    # becomes ONE prop whose frames cycle in-game. Their frame digests go
+    # into `seen`, so the static copies of the same art (in the sheets and
+    # the un-animated files) dedupe away instead of appearing twice.
+    anim_sets = {}  # prop name -> [images]
+    if os.path.isdir(HEROIC):
+        import glob as _g2
+        groups = {}
+        for p in _g2.glob(os.path.join(HEROIC, '**', 'Animated', '*.png'), recursive=True):
+            m = re.match(r'(.+?)\(Frame (\d+)\)\.png$', os.path.basename(p))
+            if m:
+                groups.setdefault((os.path.dirname(p), m.group(1)), []).append((int(m.group(2)), p))
+        for (d, base), lst in sorted(groups.items()):
+            name = re.sub(r'[^a-z0-9]', '', base.lower())
+            if name in anim_sets:
+                continue  # same landmark animated in more than one pack
+            ims = [Image.open(p).convert('RGBA') for _, p in sorted(lst)]
+            if any(im.getbbox() is None for im in ims):
+                continue
+            anim_sets[name] = ims
+            import hashlib as _hl
+            for im in ims:
+                seen.add(_hl.md5(im.tobytes()).hexdigest())
+        # the street brazier's four flame frames, so lamps flicker
+        dng = Image.open(os.path.join(HEROIC, 'HAS Dungeon (v.1.01)', 'Dungeon',
+                                      'Dungeon-Tileset.png')).convert('RGBA')
+        anim_sets['lampflame'] = [dng.crop((c * 16, 96, c * 16 + 16, 112)) for c in (12, 13, 14, 15)]
+        for name, ims in anim_sets.items():
+            cuts.append(('animated', name, ims[0]))
+            seq['animated'] = seq.get('animated', 0) + 1
+            for i, im in enumerate(ims):
+                cuts.append(('_animframes', f'{name}.f{i}', im))
+
     if os.path.isdir(HEROIC):
         sheet_cache = {}
         for (category, rel, px0, py0, pw, ph, cw, ch, skip_frag) in PROP_REGIONS:
@@ -1720,7 +1899,18 @@ def build_prop_catalog(frames, images_out, export=False):
                                   'w': im.width, 'h': im.height,
                                   'ax': im.width // 2, 'ay': im.height - 2,
                                   'scale': TD_SCALE}
-        categories.setdefault(category, []).append(name)
+        if category != '_animframes':
+            categories.setdefault(category, []).append(name)
+    # stitch each animated set to its base frame; the client cycles them
+    for name, ims in anim_sets.items():
+        key = f'td.o.{name}'
+        if key in frames:
+            frames[key]['anim'] = [f'td.o.{name}.f{i}' for i in range(len(ims))]
+            frames[key]['animMs'] = 220
+    # the placed street lamps flicker with the brazier's own flames
+    if 'td.o.lamp' in frames and 'lampflame' in anim_sets:
+        frames['td.o.lamp']['anim'] = [f'td.o.lampflame.f{i}' for i in range(4)]
+        frames['td.o.lamp']['animMs'] = 180
     atlas.save(os.path.join(OUT, 'props-extra.png'))
     images_out['props-extra'] = 'props-extra.png'
     total = sum(len(v) for v in categories.values())

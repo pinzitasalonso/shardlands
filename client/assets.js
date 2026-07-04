@@ -120,8 +120,13 @@ const Assets = (() => {
 
   function drawFrame(ctx, name, sx, sy) {
     if (!state.ok) return;
-    const f = state.manifest.frames[name];
+    let f = state.manifest.frames[name];
     if (!f) return;
+    if (f.anim) {
+      // ambient prop animation: windmills turn, braziers flicker
+      const i = Math.floor(performance.now() / (f.animMs || 220)) % f.anim.length;
+      f = state.manifest.frames[f.anim[i]] || f;
+    }
     const k = f.scale || 1;
     ctx.drawImage(state.images[f.img], f.x, f.y, f.w, f.h,
       Math.round(sx - f.ax * k), Math.round(sy - f.ay * k), f.w * k, f.h * k);

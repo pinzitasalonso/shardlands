@@ -95,6 +95,93 @@ const MOB_KINDS = {
   raptor: { name: 'a swamp raptor', hp: 38, dmg: [4, 9], skill: 50, gold: 12, speedMs: 280, aggro: 8 },
 };
 
+// The wider bestiary: every remaining creature in the packs, so the world
+// builder can place ANY of them. [kind, display name, tier 1-7, overrides].
+// Stats scale with the sheet tier; overrides adjust the exceptions.
+const BESTIARY = [
+  // Castle
+  ['pikeman', 'a pikeman', 2], ['outrider', 'an outrider', 3],
+  ['swordsman', 'a swordsman', 3], ['monk', 'a monk', 4, { caster: { range: 7, dmg: [5, 10], cdMs: 2500 } }],
+  ['knight', 'a knight', 5], ['halberdier', 'a halberdier', 3],
+  ['crossbowman', 'a crossbowman', 3, { caster: { range: 8, dmg: [5, 10], cdMs: 2400, fx: 'arrow' } }],
+  ['cavalier', 'a cavalier', 6], ['squire', 'a squire', 2],
+  ['whiteknight', 'a white knight', 6], ['paladin', 'a paladin', 7],
+  // Rampart
+  ['pixie', 'a pixie', 1], ['hilldwarf', 'a hill dwarf', 2],
+  ['woodarcher', 'a wood archer', 3, { caster: { range: 8, dmg: [4, 9], cdMs: 2300, fx: 'arrow' } }],
+  ['silverstag', 'a silver stag', 4, { aggro: 0 }], ['youngtreant', 'a young treant', 4],
+  ['flowersprite', 'a flower sprite', 1], ['grovekeeper', 'a grove keeper', 4],
+  ['greatelk', 'a great elk', 5, { aggro: 0 }], ['darktreant', 'a dark treant', 6],
+  // Inferno
+  ['imp', 'an imp', 1], ['fireimp', 'a fire imp', 2],
+  ['lesserdemon', 'a lesser demon', 3], ['hellion', 'a hellion', 3],
+  ['burningone', 'a burning one', 4], ['demon', 'a demon', 5],
+  ['pitfiend', 'a pit fiend', 4], ['devil', 'a devil', 6, { caster: { range: 7, dmg: [8, 14], cdMs: 2600 } }],
+  ['shadowbeast', 'a shadow beast', 4], ['hornedbrute', 'a horned brute', 5],
+  ['pitlord', 'a pit lord', 6], ['magmafiend', 'a magma fiend', 7],
+  // Tower
+  ['adept', 'an adept', 1], ['gargoyle', 'a gargoyle', 2],
+  ['stonegolem', 'a stone golem', 3], ['mage', 'a mage', 4, { caster: { range: 8, dmg: [6, 12], cdMs: 2500 } }],
+  ['genie', 'a genie', 5], ['irongolem', 'an iron golem', 5],
+  ['naga', 'a naga', 6], ['battleadept', 'a battle adept', 2],
+  ['obsidiangargoyle', 'an obsidian gargoyle', 3], ['goldgolem', 'a gold golem', 6],
+  ['archmage', 'an archmage', 5, { caster: { range: 9, dmg: [8, 15], cdMs: 2600 } }],
+  ['djinn', 'a djinn', 6], ['nagaqueen', 'a naga queen', 7], ['titan', 'a titan', 7],
+  // Necromancer
+  ['cryptswarm', 'a crypt swarm', 1], ['wight', 'a wight', 3],
+  ['lich', 'a lich', 6, { caster: { range: 8, dmg: [8, 14], cdMs: 2600 } }],
+  ['deathknight', 'a death knight', 6], ['rottinghulk', 'a rotting hulk', 5],
+  ['tombspider', 'a tomb spider', 3], ['vampirelord', 'a vampire lord', 7, { vampiric: true }],
+  ['dreadknight', 'a dread knight', 7],
+  // Stronghold
+  ['centaur', 'a centaur', 3], ['orcshaman', 'an orc shaman', 4, { caster: { range: 7, dmg: [6, 11], cdMs: 2500 } }],
+  ['ogre', 'an ogre', 5], ['cyclops', 'a cyclops', 6],
+  ['goblinveteran', 'a goblin veteran', 2], ['rocrider', 'a roc rider', 5],
+  ['wolfraider', 'a wolf raider', 4], ['boarrider', 'a boar rider', 4],
+  ['cyclopsking', 'a cyclops king', 7],
+  // Dwarves
+  ['dwarfaxeman', 'a dwarf axeman', 3], ['dwarfcrossbow', 'a dwarf crossbowman', 3, { caster: { range: 8, dmg: [5, 10], cdMs: 2400, fx: 'arrow' } }],
+  ['warram', 'a war ram', 2, { aggro: 4 }], ['dwarfspearman', 'a dwarf spearman', 3],
+  ['dwarfoutrider', 'a dwarf outrider', 4], ['ramcavalier', 'a ram cavalier', 5],
+  ['cavebear', 'a cave bear', 5, { aggro: 5 }], ['elkrider', 'an elk rider', 4],
+  ['runicgolem', 'a runic golem', 6], ['stoneguardian', 'a stone guardian', 6],
+  // Orcs Empire
+  ['goblinarcher', 'a goblin archer', 2, { caster: { range: 7, dmg: [3, 7], cdMs: 2200, fx: 'arrow' } }],
+  ['orcgrunt', 'an orc grunt', 2], ['orcspearman', 'an orc spearman', 3],
+  ['orcraider', 'an orc raider', 4], ['orcchampion', 'an orc champion', 5],
+  // WoodElves
+  ['willowtreant', 'a willow treant', 5], ['autumntreant', 'an autumn treant', 5],
+  ['elfswordsman', 'an elf swordsman', 3], ['elfscout', 'an elf scout', 2],
+  ['forestcentaur', 'a forest centaur', 4], ['elfkeeper', 'an elf keeper', 4],
+  ['brownbear', 'a brown bear', 5, { aggro: 5 }], ['direwolf', 'a dire wolf', 4],
+  ['owlbear', 'an owlbear', 6], ['blackboar', 'a black boar', 3, { aggro: 4 }],
+  ['bladedancer', 'a blade-dancer', 5],
+  // Lizardmen
+  ['hatchling', 'a hatchling', 1], ['marshraptor', 'a marsh raptor', 2],
+  ['armoredcroc', 'an armored croc', 5], ['marshnaga', 'a marsh naga', 4],
+  ['lizardassassin', 'a lizard assassin', 4], ['goldengecko', 'a golden gecko', 2],
+  ['fenserpent', 'a fen serpent', 3], ['crocwarden', 'a croc warden', 5],
+  ['duneserpent', 'a dune serpent', 3], ['bogcroc', 'a bog croc', 4],
+  ['salamander', 'a salamander', 6], ['basilisk', 'a basilisk', 7],
+  // Wildlife
+  ['rabbit', 'a rabbit', 1, { aggro: 0, dmg: [0, 1], gold: 1 }],
+  ['giantrat', 'a giant rat', 1, { aggro: 4 }],
+  ['fox', 'a fox', 1, { aggro: 0 }],
+  ['badger', 'a badger', 2, { aggro: 3 }],
+];
+for (const [kind, name, tier, opts] of BESTIARY) {
+  MOB_KINDS[kind] = {
+    name,
+    hp: 12 + tier * 14,
+    dmg: [tier, 2 + tier * 2],
+    skill: 15 + tier * 10,
+    gold: 3 + tier * 6,
+    speedMs: 560 - tier * 25,
+    aggro: 7,
+    ...(opts || {}),
+  };
+}
+
 const VILLAGER_NAMES = ['Tomlin', 'Berta', 'Old Casso', 'Wilmot', 'Ysolde', 'Pell',
   'Marta', 'Edric', 'Nan', 'Osric', 'Tilly', 'Bram', 'Greta', 'Hob', 'Sera', 'Dunstan'];
 
@@ -503,6 +590,10 @@ class Game {
       weapons: WEAPONS,
       qualities: QUALITIES,
       vendors: this.vendors,
+      // every kind's plate name + disposition, so the client can label
+      // builder-placed creatures it has no hand-written style for
+      bestiary: Object.fromEntries(Object.entries(MOB_KINDS).map(([k, d]) =>
+        [k, { n: d.name, d: d.peaceful ? 'friendly' : d.aggro === 0 ? 'neutral' : 'hostile' }])),
     });
     this.sendYou(p);
     this.sys(p, `Welcome to Shardlands, ${p.name}. The shrine in Briarhaven will raise you if you fall.`);
