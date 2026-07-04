@@ -360,6 +360,7 @@ class Game {
     this.pristineProps = this.map.props.map((p) => ({ ...p }));
     this.pristineSpawners = this.map.spawners.map((s) => ({ ...s }));
     this.pristineSecrets = this.map.secrets.map((s) => ({ ...s }));
+    this.pristineVendors = this.map.vendors.map((v) => JSON.parse(JSON.stringify(v)));
     const dataEdits = readEdits(this.editsPath);
     const repoEdits = readEdits(legacyEditsPath);
     const edits = (dataEdits && repoEdits)
@@ -367,9 +368,11 @@ class Game {
       : (dataEdits || repoEdits);
     this.appliedEdits = edits ? JSON.parse(JSON.stringify(edits)) : {};
     if (edits) {
-      const c = applyEdits(this.map, edits, { validKinds: new Set(Object.keys(MOB_KINDS)) });
+      const c = applyEdits(this.map, edits, { validKinds: new Set(Object.keys(MOB_KINDS)),
+        validWeapons: new Set(Object.keys(WEAPONS)) });
       console.log(`map edits: ${c.tiles} tiles, ${c.props} props, ${c.spawners} spawners, ` +
-        `${c.secrets} secrets, ${c.buildings || 0} buildings, ${c.removed} removals`);
+        `${c.secrets} secrets, ${c.buildings || 0} buildings, ${c.vendors || 0} vendors, ` +
+        `${c.removed} removals`);
     }
     this.players = new Map(); // id -> player (online only)
     this.mobs = new Map();    // id -> mob
@@ -965,7 +968,8 @@ class Game {
   // materialises twice. Everything lands on the running world immediately —
   // except building removal, whose ground truth is only known at reboot.
   applyEditsLive(rawEdits) {
-    const clean = sanitizeEdits(this.map, rawEdits, { validKinds: new Set(Object.keys(MOB_KINDS)) });
+    const clean = sanitizeEdits(this.map, rawEdits, { validKinds: new Set(Object.keys(MOB_KINDS)),
+      validWeapons: new Set(Object.keys(WEAPONS)) });
     const prev = this.appliedEdits || {};
     const key = (o) => `${o.x},${o.y}`;
     const keyN = (o) => `${o.x},${o.y},${o.name}`;
@@ -979,7 +983,7 @@ class Game {
       const bs = new Set((b || []).map(pk));
       return (a || []).filter((p) => !bs.has(pk(p)));
     };
-    const counts = { tiles: 0, props: 0, spawners: 0, secrets: 0, buildings: 0, removed: 0, restored: 0 };
+    const counts = { tiles: 0, props: 0, spawners: 0, secrets: 0, buildings: 0, vendors: 0, removed: 0, restored: 0 };
     const changedTiles = [];
     const touchTile = (x, y, v) => {
       this.map.tiles[y * this.map.w + x] = v;
@@ -1044,13 +1048,13 @@ class Game {
       this.map.spawners.splice(i, 1);
       return true;
     };
-    for (const s of diff(clean.spawners, prev.spawners,
-      (o) => `${o.x},${o.y},${o.kind},${o.count},${o.r}`)) {
+    const spKey = (o) => `${o.x},${o.y},${o.kind},${o.count},${o.r},` +
+      `${JSON.stringify(o.lines || null)},${JSON.stringify(o.loot || null)}`;
+    for (const s of diff(clean.spawners, prev.spawners, spKey)) {
       dematerialize(s.x, s.y); // same spot with new settings = replace
       materialize(s);
     }
-    for (const s of diff(prev.spawners, clean.spawners,
-      (o) => `${o.x},${o.y},${o.kind},${o.count},${o.r}`)) {
+    for (const s of diff(prev.spawners, clean.spawners, spKey)) {
       if (!(clean.spawners || []).some((o) => o.x === s.x && o.y === s.y)) {
         if (dematerialize(s.x, s.y)) counts.removed++;
       }
@@ -1084,6 +1088,39 @@ class Game {
     for (const [x, y] of diffPairs(prev.removeSecrets, clean.removeSecrets)) {
       const s = this.map.secrets.find((o) => o.x === x && o.y === y && o.dead);
       if (s) { delete s.dead; counts.restored++; }
+    }
+
+    // -- merchants: the shop list is small, so rebuild and rebroadcast it
+    let vendorsDirty = false;
+    const vKey = (o) => `${o.x},${o.y},${o.name},${JSON.stringify(o.goods || null)},` +
+      `${o.model || ''},${o.forge ? 1 : 0},${o.greeting || ''}`;
+    for (const v of diff(clean.vendors, prev.vendors, vKey)) {
+      const i = this.map.vendors.findIndex((o) => o.x === v.x && o.y === v.y);
+      if (i >= 0) this.map.vendors.splice(i, 1); // same spot, new terms
+      this.map.vendors.push(JSON.parse(JSON.stringify(v)));
+      vendorsDirty = true;
+      counts.vendors = (counts.vendors || 0) + 1;
+    }
+    for (const v of diff(prev.vendors, clean.vendors, vKey)) {
+      if ((clean.vendors || []).some((o) => o.x === v.x && o.y === v.y)) continue;
+      const i = this.map.vendors.findIndex((o) => o.x === v.x && o.y === v.y);
+      if (i >= 0) { this.map.vendors.splice(i, 1); vendorsDirty = true; counts.removed++; }
+    }
+    for (const [x, y] of diffPairs(clean.removeVendors, prev.removeVendors)) {
+      const i = this.map.vendors.findIndex((o) => o.x === x && o.y === y);
+      if (i >= 0) { this.map.vendors.splice(i, 1); vendorsDirty = true; counts.removed++; }
+    }
+    for (const [x, y] of diffPairs(prev.removeVendors, clean.removeVendors)) {
+      const orig = this.pristineVendors.find((o) => o.x === x && o.y === y);
+      if (orig && !this.map.vendors.some((o) => o.x === x && o.y === y)) {
+        this.map.vendors.push(JSON.parse(JSON.stringify(orig)));
+        vendorsDirty = true;
+        counts.restored++;
+      }
+    }
+    if (vendorsDirty) {
+      this.vendors = this.map.vendors.map((v, i) => ({ ...v, id: -(i + 1), kind: 'vendor' }));
+      this.broadcast({ t: 'vendors', vendors: this.vendors });
     }
 
     // -- tell the world: cheap tile pings for small paints, whole chunks for
@@ -1462,7 +1499,8 @@ class Game {
         despawnAt: now() + 10 * 60_000, // it waits longer than common spoils
       });
     }
-    for (const entry of LOOT_TABLES[mob.kind] || []) {
+    const lootTable = (mob.spawner && mob.spawner.loot) || LOOT_TABLES[mob.kind] || [];
+    for (const entry of lootTable) {
       if (Math.random() > entry[0]) continue;
       if (entry[1] === 'tmap') {
         const cacheIdxs = this.map.secrets
@@ -1895,12 +1933,13 @@ class Game {
       return;
     }
 
-    // Townsfolk gossip at passers-by.
-    if (def.peaceful && t >= mob.chatAt && Math.random() < 0.004) {
+    // Townsfolk gossip at passers-by — and any camp the keeper gave lines.
+    const campLines = mob.spawner && mob.spawner.lines;
+    if ((def.peaceful || campLines) && t >= mob.chatAt && Math.random() < 0.004) {
       for (const p of this.players.values()) {
         if (dist(mob, p) <= 7) {
           mob.chatAt = t + 25_000;
-          const lines = GOSSIP_LINES[mob.kind] || VILLAGER_LINES;
+          const lines = campLines || GOSSIP_LINES[mob.kind] || VILLAGER_LINES;
           this.fxNear(mob, {
             t: 'chat', id: mob.id, name: mob.name || def.name,
             text: lines[rand(0, lines.length - 1)],
@@ -2219,4 +2258,4 @@ function skillName(skill) {
   return skill.charAt(0).toUpperCase() + skill.slice(1);
 }
 
-module.exports = { Game, MOB_KINDS };
+module.exports = { Game, MOB_KINDS, WEAPONS };
