@@ -7,9 +7,9 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { WebSocketServer } = require('ws');
-const { Game, MOB_KINDS } = require('./game');
+const { Game, MOB_KINDS, WEAPONS } = require('./game');
 const editor = require('./editor');
-editor.setMobKinds(MOB_KINDS);
+editor.setMobKinds(MOB_KINDS, WEAPONS);
 
 const PORT = process.env.PORT || 8080;
 const CLIENT_DIR = path.join(__dirname, '..', 'client');

@@ -39,6 +39,7 @@ const edits = {
   spawners: [], removeSpawners: [],
   secrets: [], removeSecrets: [],
   buildings: [],
+  vendors: [], removeVendors: [],
 };
 const undoStack = [];
 
@@ -70,6 +71,8 @@ async function load() {
     edits.secrets = meta.edits.secrets || [];
     edits.removeSecrets = meta.edits.removeSecrets || [];
     edits.buildings = meta.edits.buildings || [];
+    edits.vendors = meta.edits.vendors || [];
+    edits.removeVendors = meta.edits.removeVendors || [];
   }
 
   base = document.createElement('canvas');
@@ -202,6 +205,14 @@ function buildSidebar() {
   for (const k of world.mobKinds) mobSel.add(new Option(k, k));
   mobSel.onchange = drawMobThumb;
   drawMobThumb();
+  const vSel = document.getElementById('v-model');
+  for (const k of ['vendor', 'smith', 'bard', 'hermit', ...world.mobKinds]) {
+    vSel.add(new Option(k, k));
+  }
+  document.getElementById('goods-add-eq').onclick = () => addGoodsRow({ type: 'weapon', item: 'sword', q: 1 });
+  document.getElementById('goods-add-misc').onclick = () => addGoodsRow({ item: 'heal', price: 45 });
+  document.getElementById('loot-add').onclick = () => addLootRow([0.3, 'gold', 5, 20]);
+  document.getElementById('apply-edit').onclick = applyToSelected;
   const bSel = document.getElementById('building-kind');
   for (const k of world.buildingKinds || []) bSel.add(new Option(k, k));
   const go = document.getElementById('goto');
@@ -227,6 +238,211 @@ function buildSidebar() {
     await fetch('/editor/logout', { method: 'POST' });
     location.href = '/editor-login.html';
   };
+}
+
+// ---- merchant & npc editors ---------------------------------------------------
+
+let editing = null; // { type: 'vendor'|'spawner', ref: overlay object }
+
+function addGoodsRow(g) {
+  const wrap = document.getElementById('goods-rows');
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.dataset.goods = '1';
+  if (g.type === 'weapon') {
+    row.dataset.kind = 'weapon';
+    const item = document.createElement('select');
+    for (const w of world.weaponKinds || []) item.add(new Option(w, w));
+    item.value = g.item || 'sword';
+    const q = document.createElement('select');
+    ['Shoddy', 'Plain', 'Fine', 'Exceptional', 'Masterwork'].forEach((n, i) => q.add(new Option(n, i)));
+    q.value = g.q | 0;
+    row.append(item, q);
+  } else {
+    row.dataset.kind = 'misc';
+    const item = document.createElement('select');
+    for (const m of ['heal', 'mana', 'arrow']) item.add(new Option(m, m));
+    item.value = g.item || 'heal';
+    const price = document.createElement('input');
+    price.type = 'number';
+    price.min = 1;
+    price.value = g.price || 45;
+    price.style.width = '64px';
+    row.append(item, price);
+  }
+  const del = document.createElement('button');
+  del.textContent = '×';
+  del.onclick = () => row.remove();
+  row.append(del);
+  wrap.appendChild(row);
+}
+
+function readGoodsRows() {
+  const out = [];
+  for (const row of document.querySelectorAll('#goods-rows [data-goods]')) {
+    const sels = row.querySelectorAll('select, input[type=number]');
+    if (row.dataset.kind === 'weapon') {
+      out.push({ type: 'weapon', item: sels[0].value, q: +sels[1].value });
+    } else {
+      out.push({ item: sels[0].value, price: +sels[1].value || 1 });
+    }
+  }
+  return out;
+}
+
+function setGoodsRows(goods) {
+  document.getElementById('goods-rows').innerHTML = '';
+  for (const g of goods || []) addGoodsRow(g);
+}
+
+const LOOT_CHOICES = ['gold', 'heal', 'mana', 'logs', 'ore', 'gems', 'food', 'meat', 'fish', 'tmap', 'weapon'];
+
+function addLootRow(e) {
+  const wrap = document.getElementById('loot-rows');
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.dataset.loot = '1';
+  const chance = document.createElement('input');
+  chance.type = 'number';
+  chance.min = 0.01; chance.max = 1; chance.step = 0.05;
+  chance.value = e[0];
+  chance.style.width = '52px';
+  chance.title = 'chance';
+  const item = document.createElement('select');
+  for (const c of LOOT_CHOICES) item.add(new Option(c, c));
+  item.value = e[1];
+  const a = document.createElement('input');
+  a.type = 'number'; a.style.width = '46px'; a.title = 'min / weapon quality min';
+  const b = document.createElement('input');
+  b.type = 'number'; b.style.width = '46px'; b.title = 'max / weapon quality max';
+  const wsel = document.createElement('select');
+  for (const w of world.weaponKinds || []) wsel.add(new Option(w, w));
+  wsel.style.display = 'none';
+  const sync = () => {
+    const isW = item.value === 'weapon';
+    const isT = item.value === 'tmap';
+    wsel.style.display = isW ? '' : 'none';
+    a.style.display = b.style.display = isT ? 'none' : '';
+  };
+  if (e[1] === 'weapon') { wsel.value = Array.isArray(e[2]) ? e[2][0] : e[2]; a.value = e[3] || 0; b.value = e[4] || 1; }
+  else { a.value = e[2] || 0; b.value = e[3] || 1; }
+  item.onchange = sync;
+  sync();
+  const del = document.createElement('button');
+  del.textContent = '×';
+  del.onclick = () => row.remove();
+  row.append(chance, item, wsel, a, b, del);
+  wrap.appendChild(row);
+}
+
+function readLootRows() {
+  const out = [];
+  for (const row of document.querySelectorAll('#loot-rows [data-loot]')) {
+    const chance = +row.children[0].value || 0.3;
+    const item = row.children[1].value;
+    if (item === 'tmap') out.push([chance, 'tmap']);
+    else if (item === 'weapon') out.push([chance, 'weapon', [row.children[2].value], +row.children[3].value | 0, +row.children[4].value | 0]);
+    else out.push([chance, item, +row.children[3].value | 0, +row.children[4].value | 0]);
+  }
+  return out;
+}
+
+function setLootRows(loot) {
+  document.getElementById('loot-rows').innerHTML = '';
+  for (const e of loot || []) addLootRow(e);
+}
+
+function readSpawnerExtras() {
+  const out = {};
+  const lines = document.getElementById('mob-lines').value
+    .split('\n').map((l) => l.trim()).filter(Boolean);
+  if (lines.length) out.lines = lines;
+  const loot = readLootRows();
+  if (loot.length) out.loot = loot;
+  return out;
+}
+
+function readMerchantPanel(x, y) {
+  return {
+    x, y,
+    name: document.getElementById('v-name').value.trim() || 'A Wandering Trader',
+    model: document.getElementById('v-model').value,
+    ...(document.getElementById('v-forge').checked ? { forge: true } : {}),
+    ...(document.getElementById('v-greeting').value.trim()
+      ? { greeting: document.getElementById('v-greeting').value.trim() } : {}),
+    goods: readGoodsRows(),
+  };
+}
+
+function loadIntoPanels(entity, type) {
+  if (type === 'vendor') {
+    document.getElementById('v-name').value = entity.name || '';
+    document.getElementById('v-model').value = entity.model || 'vendor';
+    document.getElementById('v-forge').checked = !!entity.forge;
+    document.getElementById('v-greeting').value = entity.greeting || '';
+    setGoodsRows(entity.goods);
+  } else {
+    document.getElementById('mob-kind').value = entity.kind;
+    drawMobThumb();
+    document.getElementById('mob-count').value = entity.count;
+    document.getElementById('mob-r').value = entity.r;
+    document.getElementById('mob-lines').value = (entity.lines || []).join('\n');
+    setLootRows(entity.loot);
+  }
+}
+
+function selectForEdit(wx, wy) {
+  const near = (e) => Math.abs(e.x - wx) <= 1 && Math.abs(e.y - wy) <= 1;
+  let hit = edits.vendors.find(near);
+  if (hit) {
+    editing = { type: 'vendor', ref: hit };
+  } else if ((hit = edits.spawners.find(near))) {
+    editing = { type: 'spawner', ref: hit };
+  } else if ((hit = world.vendors.find((v) => near(v) &&
+      !edits.removeVendors.some(([x, y]) => x === v.x && y === v.y)))) {
+    // adopt a worldgen merchant: mark the original removed, edit a copy
+    edits.removeVendors.push([hit.x, hit.y]);
+    const full = (world.vendorsFull || []).find((v) => v.x === hit.x && v.y === hit.y) || hit;
+    const copy = { x: full.x, y: full.y, name: full.name, model: full.model,
+      ...(full.forge ? { forge: true } : {}), goods: full.goods || [] };
+    edits.vendors.push(copy);
+    editing = { type: 'vendor', ref: copy };
+    dirty = true;
+  } else if ((hit = world.spawners.find((s) => near(s) &&
+      !edits.removeSpawners.some(([x, y]) => x === s.x && y === s.y)))) {
+    edits.removeSpawners.push([hit.x, hit.y]);
+    const copy = { kind: hit.kind, count: hit.count, x: hit.x, y: hit.y, r: hit.r };
+    edits.spawners.push(copy);
+    editing = { type: 'spawner', ref: copy };
+    dirty = true;
+  } else {
+    editing = null;
+    document.getElementById('apply-edit').style.display = 'none';
+    return setStatus('nothing editable here (props are erase-and-replace)');
+  }
+  loadIntoPanels(editing.ref, editing.type);
+  document.getElementById('apply-edit').style.display = '';
+  setStatus(`editing the ${editing.type} at ${editing.ref.x}, ${editing.ref.y} — ` +
+    'change the sidebar, then “Apply to selected”');
+  draw();
+}
+
+function applyToSelected() {
+  if (!editing) return;
+  if (editing.type === 'vendor') {
+    Object.keys(editing.ref).forEach((k) => { if (k !== 'x' && k !== 'y') delete editing.ref[k]; });
+    Object.assign(editing.ref, readMerchantPanel(editing.ref.x, editing.ref.y));
+  } else {
+    editing.ref.kind = document.getElementById('mob-kind').value;
+    editing.ref.count = +document.getElementById('mob-count').value || 4;
+    editing.ref.r = +document.getElementById('mob-r').value || 8;
+    delete editing.ref.lines;
+    delete editing.ref.loot;
+    Object.assign(editing.ref, readSpawnerExtras());
+  }
+  dirty = true;
+  setStatus(`updated the ${editing.type} at ${editing.ref.x}, ${editing.ref.y} — remember to Save`);
+  draw();
 }
 
 function pickTool(t) {
@@ -314,6 +530,12 @@ function drawSprites() {
   };
   for (const sp of world.spawners) if (!removedPair(edits.removeSpawners, sp.x, sp.y)) pushMob(sp, false);
   for (const sp of edits.spawners) pushMob(sp, true);
+  for (const v of edits.vendors) {
+    if (v.x < x0 || v.x > x1 || v.y < y0 || v.y > y1) continue;
+    const o = worldToScreen(v.x, v.y);
+    drawables.push({ depth: v.y, kind: 'mob', mob: v.model || 'vendor',
+      x: o.x / k + 24, y: o.y / k + 46, bright: true });
+  }
 
   drawables.sort((a, b) => a.depth - b.depth);
   for (const d of drawables) {
@@ -407,7 +629,10 @@ function draw() {
       if (sc.dead || removedPair(edits.removeSecrets, sc.x, sc.y)) continue;
       mark(sc.x, sc.y, '#c08aff', '◆', false);
     }
-    for (const v of world.vendors) mark(v.x, v.y, '#7ad07a', '■', false);
+    for (const v of world.vendors) {
+      if (!removedPair(edits.removeVendors, v.x, v.y)) mark(v.x, v.y, '#7ad07a', '■', false);
+    }
+    for (const v of edits.vendors) mark(v.x, v.y, '#7ad07a', '■', true);
     for (const sc of edits.secrets) mark(sc.x, sc.y, '#c08aff', '◆', true);
     // portal lines to their twins, so links read at a glance
     ctx.strokeStyle = 'rgba(192,138,255,0.45)';
@@ -539,8 +764,12 @@ function placeAt(wx, wy) {
       count: +document.getElementById('mob-count').value || 4,
       x: wx, y: wy,
       r: +document.getElementById('mob-r').value || 8,
+      ...readSpawnerExtras(),
     });
     undoStack.push({ kind: 'spawner' });
+  } else if (tool === 'merchant') {
+    edits.vendors.push(readMerchantPanel(wx, wy));
+    undoStack.push({ kind: 'merchant' });
   } else if (tool === 'building') {
     const name = document.getElementById('building-kind').value;
     const cells = stampBuildingTiles(wx, wy);
@@ -581,7 +810,7 @@ function eraseAt(wx, wy) {
   const near = (e) => Math.abs(e.x - wx) <= 1 && Math.abs(e.y - wy) <= 1;
   // hand edits go first — they simply vanish from the overlay
   const editLists = [['props', 'prop'], ['spawners', 'spawner'], ['secrets', 'secret'],
-    ['buildings', 'building']];
+    ['buildings', 'building'], ['vendors', 'merchant']];
   for (const [listName, what] of editLists) {
     const i = edits[listName].findIndex(near);
     if (i >= 0) {
@@ -595,7 +824,7 @@ function eraseAt(wx, wy) {
   }
   // then generated entities — recorded as removals in the overlay
   for (const [srcName, rmName] of [['props', 'removeProps'], ['spawners', 'removeSpawners'],
-    ['secrets', 'removeSecrets']]) {
+    ['secrets', 'removeSecrets'], ['vendors', 'removeVendors']]) {
     const hit = world[srcName].find((e) => near(e) && !e.dead &&
       !edits[rmName].some(([x, y]) => x === e.x && y === e.y));
     if (hit) {
@@ -652,6 +881,8 @@ function payload() {
     secrets: edits.secrets,
     removeSecrets: edits.removeSecrets,
     buildings: edits.buildings,
+    vendors: edits.vendors,
+    removeVendors: edits.removeVendors,
   };
 }
 
@@ -710,6 +941,7 @@ cv.addEventListener('mousedown', (ev) => {
     paintAt(wx, wy);
     draw();
   } else if (tool === 'erase') eraseAt(wx, wy);
+  else if (tool === 'edit') selectForEdit(wx, wy);
   else placeAt(wx, wy);
 });
 

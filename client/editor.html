@@ -82,6 +82,8 @@
         <button data-tool="portal">🌀 Portal</button>
         <button data-tool="whisper">💬 Whisper</button>
         <button data-tool="cache">💰 Cache</button>
+        <button data-tool="merchant">🧺 Merchant</button>
+        <button data-tool="edit">🔍 Edit</button>
         <button data-tool="erase">🧹 Erase</button>
         <button id="undo">↶ Undo</button>
       </div>
@@ -101,6 +103,23 @@
       <div class="row"><label>Preview</label><canvas id="mob-thumb" width="48" height="48"></canvas></div>
       <div class="row"><label>Count</label><input id="mob-count" type="number" min="1" max="12" value="4" /></div>
       <div class="row"><label>Radius</label><input id="mob-r" type="number" min="1" max="24" value="8" /></div>
+      <details><summary style="color:var(--dim);font-size:12px">Dialogue &amp; loot (optional)</summary>
+        <textarea id="mob-lines" rows="3" style="width:100%;margin-top:4px;background:#1a1d22;color:var(--text);border:1px solid #3a352a;border-radius:3px;font-family:inherit;font-size:12px" placeholder="one gossip line per row — the camp will speak them"></textarea>
+        <div id="loot-rows"></div>
+        <button id="loot-add" style="width:100%;margin-top:3px">+ loot row</button>
+      </details>
+
+      <h2>Merchant</h2>
+      <div class="row"><label>Name</label><input id="v-name" placeholder="Sella of the Road" style="width:120px" /></div>
+      <div class="row"><label>Sprite</label><select id="v-model"></select></div>
+      <div class="row"><label>Forge</label><input id="v-forge" type="checkbox" /></div>
+      <input id="v-greeting" placeholder="greeting when the shop opens…" style="width:100%;margin:3px 0" />
+      <div id="goods-rows"></div>
+      <div class="minor-btns" style="margin-top:3px">
+        <button id="goods-add-eq">+ equipment</button>
+        <button id="goods-add-misc">+ potion/misc</button>
+      </div>
+      <button id="apply-edit" style="width:100%;margin-top:6px;display:none">✔ Apply to selected</button>
 
       <h2>Building</h2>
       <div class="row"><label>Kind</label><select id="building-kind"></select></div>

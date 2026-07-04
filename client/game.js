@@ -232,6 +232,9 @@ function handleMessage(msg) {
       // The world builder redressed the world while we stand in it.
       state.props = msg.props || [];
       break;
+    case 'vendors':
+      state.vendors = msg.vendors || [];
+      break;
     case 'mini':
       state.mini = msg.mini;
       buildMinimap();
@@ -890,6 +893,9 @@ document.getElementById('actions').addEventListener('click', (ev) => {
 const shopPanel = document.getElementById('shop');
 
 function openShop(vendor) {
+  if (vendor.greeting) {
+    state.speech.set(vendor.id, { text: vendor.greeting, until: Date.now() + 5000 });
+  }
   const lines = vendor.goods.map((g, idx) => {
     if (g.type === 'weapon') {
       const def = state.weapons[g.item] || {};

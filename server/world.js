@@ -1203,11 +1203,64 @@ function nearestWalkable(map, x, y) {
 // Shape: { tiles: [[x,y,tile]], props: [{x,y,name}], removeProps: [[x,y]],
 //          spawners: [{kind,count,x,y,r}], removeSpawners: [[x,y]],
 //          secrets: [{type:'whisper'|'cache', x, y, text?, loot?}] }
+// What loot rows and shop goods may reference. Weapons are validated
+// against the caller-supplied set (WEAPONS lives in game.js).
+const LOOT_ITEMS = new Set(['gold', 'heal', 'mana', 'logs', 'ore', 'gems', 'food', 'meat', 'fish']);
+const MISC_GOODS = {
+  heal: 'Greater Heal Potion',
+  mana: 'Mana Potion',
+  arrow: 'Bundle of Arrows (20)',
+};
+
+function sanitizeLoot(list, validWeapons) {
+  const out = [];
+  for (const e of (Array.isArray(list) ? list : []).slice(0, 10)) {
+    if (!Array.isArray(e)) continue;
+    const chance = Math.max(0.01, Math.min(1, +e[0] || 0));
+    if (e[1] === 'tmap') { out.push([chance, 'tmap']); continue; }
+    if (e[1] === 'weapon') {
+      const pool = (Array.isArray(e[2]) ? e[2] : [e[2]])
+        .filter((w) => !validWeapons || validWeapons.has(w));
+      if (!pool.length) continue;
+      const qMin = Math.max(0, Math.min(4, e[3] | 0));
+      const qMax = Math.max(qMin, Math.min(4, e[4] | 0));
+      out.push([chance, 'weapon', pool, qMin, qMax]);
+      continue;
+    }
+    if (LOOT_ITEMS.has(e[1])) {
+      const min = Math.max(0, e[2] | 0);
+      const max = Math.max(min, e[3] | 0);
+      out.push([chance, e[1], min, max]);
+    }
+  }
+  return out;
+}
+
+function sanitizeGoods(list, validWeapons) {
+  const out = [];
+  for (const g of (Array.isArray(list) ? list : []).slice(0, 14)) {
+    if (!g) continue;
+    if (g.type === 'weapon') {
+      if (!validWeapons || validWeapons.has(g.item)) {
+        out.push({ type: 'weapon', item: g.item, q: Math.max(0, Math.min(4, g.q | 0)) });
+      }
+    } else if (MISC_GOODS[g.item]) {
+      out.push({
+        item: g.item,
+        name: typeof g.name === 'string' && g.name.trim() ? g.name.trim().slice(0, 40) : MISC_GOODS[g.item],
+        price: Math.max(1, Math.min(100000, g.price | 0)),
+        desc: typeof g.desc === 'string' ? g.desc.slice(0, 80) : '',
+      });
+    }
+  }
+  return out;
+}
+
 // Validate and normalise a raw overlay into exactly the shape applyEdits
 // consumes. The boot path and the live-apply path both feed through this,
 // so their validation can never drift apart. Keys are set only when they
 // carry entries, keeping the saved file lean; v1 files pass unchanged.
-function sanitizeEdits(map, edits, { validKinds } = {}) {
+function sanitizeEdits(map, edits, { validKinds, validWeapons } = {}) {
   const out = { v: 2 };
   if (!edits || typeof edits !== 'object') return out;
   if (Number.isFinite(edits.savedAt)) out.savedAt = edits.savedAt;
@@ -1234,8 +1287,32 @@ function sanitizeEdits(map, edits, { validKinds } = {}) {
       const o = { kind: s.kind, count: Math.max(1, Math.min(12, s.count | 0)),
         x: s.x, y: s.y, r: Math.max(1, Math.min(24, s.r | 0)) };
       if (s.nightOnly === true) o.nightOnly = true;
+      // the keeper may give a camp its own voice and its own spoils
+      if (Array.isArray(s.lines)) {
+        const lines = s.lines.filter((l) => typeof l === 'string' && l.trim())
+          .map((l) => l.trim().slice(0, 140)).slice(0, 8);
+        if (lines.length) o.lines = lines;
+      }
+      if (Array.isArray(s.loot)) {
+        const loot = sanitizeLoot(s.loot, validWeapons);
+        if (loot.length) o.loot = loot;
+      }
       return o;
     }));
+  keep('vendors', (Array.isArray(edits.vendors) ? edits.vendors : [])
+    .filter((v) => v && okXY(v.x, v.y) && typeof v.name === 'string' && v.name.trim())
+    .map((v) => {
+      const o = { x: v.x, y: v.y, name: v.name.trim().slice(0, 40),
+        goods: sanitizeGoods(v.goods, validWeapons) };
+      if (typeof v.model === 'string' && /^[a-z0-9]{1,24}$/.test(v.model)) o.model = v.model;
+      if (v.forge === true) o.forge = true;
+      if (typeof v.greeting === 'string' && v.greeting.trim()) {
+        o.greeting = v.greeting.trim().slice(0, 140);
+      }
+      return o;
+    })
+    .slice(0, 40));
+  keep('removeVendors', pairs(edits.removeVendors));
   keep('secrets', (Array.isArray(edits.secrets) ? edits.secrets : [])
     .map((sc) => {
       if (!sc || !okXY(sc.x, sc.y)) return null;
@@ -1263,7 +1340,7 @@ function sanitizeEdits(map, edits, { validKinds } = {}) {
 }
 
 function applyEdits(map, edits, opts = {}) {
-  const counts = { tiles: 0, props: 0, spawners: 0, secrets: 0, buildings: 0, removed: 0 };
+  const counts = { tiles: 0, props: 0, spawners: 0, secrets: 0, buildings: 0, vendors: 0, removed: 0 };
   const clean = sanitizeEdits(map, edits, opts);
   for (const [x, y] of clean.removeProps || []) {
     const i = map.props.findIndex((p) => p.x === x && p.y === y);
@@ -1277,6 +1354,14 @@ function applyEdits(map, edits, opts = {}) {
     // boot-time only: nothing holds indexes into map.secrets yet
     const i = map.secrets.findIndex((s) => s.x === x && s.y === y);
     if (i >= 0) { map.secrets.splice(i, 1); counts.removed++; }
+  }
+  for (const [x, y] of clean.removeVendors || []) {
+    const i = map.vendors.findIndex((v) => v.x === x && v.y === y);
+    if (i >= 0) { map.vendors.splice(i, 1); counts.removed++; }
+  }
+  for (const v of clean.vendors || []) {
+    map.vendors.push({ ...v });
+    counts.vendors++;
   }
   // buildings stamp before hand paints, so manual touch-ups win
   (clean.buildings || []).forEach((b, i) => {

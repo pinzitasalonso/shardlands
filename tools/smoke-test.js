@@ -949,6 +949,57 @@ const c5 = game.applyEditsLive({ spawners: [{ kind: 'titan', count: 1, x: spot.x
 assert.strictEqual(c5.spawners, 1, 'a titan camp takes');
 assert([...game.mobs.values()].some((m) => m.kind === 'titan'), 'and a titan walks the world');
 
+// -- the keeper shapes the people too: merchants, dialogue, loot ----------------------
+const npcOverlay = {
+  vendors: [{
+    x: spot.x + 16, y: spot.y, name: 'Sella of the Road', model: 'bard',
+    greeting: 'Fresh wares, straight off the cart!',
+    goods: [
+      { type: 'weapon', item: 'sword', q: 2 },
+      { type: 'weapon', item: 'notaweapon', q: 1 },
+      { item: 'heal', price: 40 },
+      { item: 'contraband', price: 9 },
+    ],
+  }],
+  spawners: [{
+    kind: 'goblin', count: 1, x: spot.x + 20, y: spot.y, r: 3,
+    lines: ['We wuz here first.', ''],
+    loot: [[1, 'gems', 2, 3], [1, 'weapon', ['dagger'], 1, 1], [0.5, 'nonsense', 1, 2]],
+  }],
+};
+ws.sent.length = 0;
+const c6 = game.applyEditsLive(npcOverlay);
+assert.strictEqual(c6.vendors, 1, 'the merchant sets up shop');
+assert(ws.sent.some((m) => m.t === 'vendors'), 'players heard the market change');
+const sella = game.vendors.find((v) => v.name === 'Sella of the Road');
+assert(sella && sella.greeting && sella.goods.length === 2,
+  'her goods survived sanitising: fake weapon and contraband refused');
+// buying from her works end to end
+p.dead = false;
+p.gold = 500;
+p.x = sella.x;
+p.y = sella.y + 1;
+const purseBefore = p.gold;
+game.handleBuy(p, 0); // the Fine sword
+assert(p.gold < purseBefore, 'coin changed hands');
+assert(p.items.some((i) => i.id === 'sword' && i.q === 2), 'and the Fine sword is real');
+// the camp speaks with its own voice and drops its own spoils
+const talker = [...game.mobs.values()].find((m) => m.kind === 'goblin' &&
+  m.spawner && m.spawner.lines);
+assert(talker, 'the chatty goblin camp stands');
+assert.deepStrictEqual(talker.spawner.lines, ['We wuz here first.'], 'empty lines dropped');
+assert.strictEqual(talker.spawner.loot.length, 2, 'nonsense loot rows refused');
+const dropsBefore = game.drops.size;
+game.rollLoot(talker);
+assert(game.drops.size >= dropsBefore + 2, 'the override table paid out gems and a dagger');
+assert([...game.drops.values()].some((d) => d.item === 'gems'), 'gems dropped');
+assert([...game.drops.values()].some((d) => d.item === 'weapon' && d.w.id === 'dagger'),
+  'the dagger dropped');
+// removing the merchant clears her stall live
+const c7 = game.applyEditsLive({ ...npcOverlay, vendors: [] });
+assert(!game.vendors.some((v) => v.name === 'Sella of the Road'), 'the stall folds');
+assert(c7.removed >= 1, 'and it counts as a removal');
+
 // -- the builder's lock ---------------------------------------------------------------
 const ed = require('../server/editor');
 ed.configure('smoke-key');

@@ -247,11 +247,14 @@ function handle(req, res, url, game) {
         ...(s.dead ? { dead: true } : {}),
       })),
       vendors: game.map.vendors.map((v) => ({ name: v.name, x: v.x, y: v.y })),
+      // full terms for the Edit tool (stories stay server-side; they are long)
+      vendorsFull: game.map.vendors.map(({ stories, ...v }) => v),
       villages: game.map.villages,
       cities: game.map.cities,
       mobKinds: Object.keys(MOB_KINDS_REF()),
       tileNames: Object.fromEntries(Object.entries(TILE).map(([k, v]) => [v, k])),
       buildingKinds: BUILDING_KINDS,
+      weaponKinds: Object.keys(weaponsRef),
       limits: { count: [1, 12], r: [1, 24] },
       passwordRequired: passwordRequired(),
       savedAt: (game.appliedEdits && game.appliedEdits.savedAt) || null,
@@ -304,8 +307,9 @@ function handle(req, res, url, game) {
 // MOB_KINDS lives in game.js, which requires this file's sibling world.js;
 // requiring game.js from here would be circular, so it is injected.
 let mobKindsRef = {};
+let weaponsRef = {};
 const MOB_KINDS_REF = () => mobKindsRef;
-function setMobKinds(mk) { mobKindsRef = mk; }
+function setMobKinds(mk, weapons) { mobKindsRef = mk; weaponsRef = weapons || {}; }
 
 configure(process.env.EDITOR_PASSWORD);
 
