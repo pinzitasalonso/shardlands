@@ -149,6 +149,7 @@ function handleMessage(msg) {
       if (msg.charName) localStorage.setItem('shardlands:char', msg.charName);
       state.spells = msg.spells;
       state.weapons = msg.weapons || {};
+      state.bestiary = msg.bestiary || {};
       state.qualities = msg.qualities || [];
       state.vendors = (msg.vendors || []).map((v) => ({ ...v, rx: v.x, ry: v.y, heading: 1 }));
       state.map = { w: msg.map.w, h: msg.map.h, chunk: msg.map.chunk };
@@ -1763,7 +1764,15 @@ function entityShadow(sx, sy, r) {
 }
 
 function drawMob(m, cam, time) {
-  const style = MOB_STYLE[m.kind];
+  // hand-tuned styles first; anything else (the builder can place the whole
+  // bestiary) gets its plate name and disposition from the server
+  const info = (state.bestiary || {})[m.kind];
+  const style = MOB_STYLE[m.kind] || {
+    color: '#c08a5a', size: 0.7,
+    name: info ? info.n : 'a creature',
+    friendly: info && info.d === 'friendly',
+    neutral: info && info.d === 'neutral',
+  };
   const s = worldToScreen(m.rx + 0.5, m.ry + 0.5, cam);
 
   if (m.id === state.target) {
