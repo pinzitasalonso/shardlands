@@ -1,13 +1,14 @@
 # Shardlands
 
-A small browser-based MMO in the spirit of **Ultima Online**: one persistent
-shared world, named characters that survive logout, use-based skills, real-time
-combat, magic, gathering, and overhead speech — all over a single WebSocket.
+A small browser MMO in the spirit of **Ultima Online**: one persistent shared
+world, named characters that survive logout, use-based skills, real-time
+combat, magic, gathering, crime, and overhead speech — all over a single
+WebSocket, drawn in the pixel style of KingRabbit's **Heroic Asset Series**.
 
 No build step, no framework. One Node.js server (two dependencies: `ws` for
 the socket, `better-sqlite3` for saves) and a plain HTML5 canvas client.
-Playable on phones too: the HUD compacts and a virtual joystick appears
-under your thumb.
+Playable on phones: the HUD compacts and a virtual joystick appears under
+your thumb.
 
 ## Run it
 
@@ -17,224 +18,204 @@ npm start          # listens on :8080 (override with PORT=...)
 ```
 
 Open http://localhost:8080 in as many browser tabs (or machines) as you like —
-each tab is a player in the same world.
+each tab is a player in the same world. Sign in with email and password; your
+account and character are created on first login (passwords scrypt-hashed,
+and a rotating week-long session token walks you straight back in next time).
 
-## Deploying to Railway
-
-The repo is Railway-ready (`railway.json` + the `PORT` env var are honoured):
-
-```bash
-npm i -g @railway/cli
-railway login
-railway init     # create a project from this directory
-railway up       # build & deploy
-railway domain   # mint a public https URL
-```
-
-Player accounts and characters live in `data/`. Containers are ephemeral, so
-attach a volume (Railway dashboard → service → Volumes) mounted at `/app/data`
-to keep accounts across deploys.
-
-## The world
-
-A 2048×2048 island, generated deterministically from a seed and streamed to
-the client in chunks as you explore:
-
-- **Briarhaven**, the town at the crossroads, with a stone plaza, four
-  buildings, **Mira the Alchemist** selling potions, and the **glowing ankh
-  shrine** — walk your ghost onto it to resurrect.
-- **Nine villages** scattered across the island, each with a potion vendor
-  and a road back to the capital — all buildings wear proper roofs, which
-  fade away when you step inside.
-- **Three walled cities** — Frosthelm under the northern snows, Sunwatch by
-  the desert, Mirehold on the swamp road — plus the capital. Stone walls,
-  gates, full vendor plazas, and **town guards** who cut down anything
-  hostile that slips in. Cities are **sanctuary** (nothing hunts you inside
-  the walls), and touching a city shrine **binds your recall**: `/home`
-  carries you back from anywhere.
-- **Six dungeons** beneath the world: four barrow-deeps under the ruined
-  keeps, a wolfden grotto cracked open in the northern ice, and a goblin-dug
-  sunken warren in the mires — dark tunnels, dense with keepers, a hoard at
-  the deepest point. The music changes when you go under.
-- **Ruined keeps** crawling with skeletons, watchtowers, deep pine and oak
-  forests, deadwood groves, a vast southeastern desert, **snowfields**
-  with frosted pines across the far north, and lowland **mires** where
-  bog serpents, marsh crabs and wild boar hunt among the drowned trees.
-- **Secrets**: twin stone circles that teleport travellers between them,
-  treasure caches in the far corners of the world, whispering places, a
-  hermit with suspiciously cheap potions, and dragon hoards beside the
-  three dragon roosts.
-- **Storytellers** hold court by the inn hearths — click them and listen:
-  some of their tales are tavern nonsense, but some point at real treasure,
-  real doors and real dangers, with true directions.
-- A thousand creatures roam: deer herds, wolf packs, livestock, named
-  **villagers** who gossip at passers-by, goblin warrens, skeleton barrows,
-  orc warbands — and three **named bosses** (Skarg the Goblin King, the Bone
-  Lord, Greyfang the Wolf King) that respawn slowly and always drop gems.
-- The wilds are dotted with **farmsteads, campsites (fires still burning),
-  quarries, menhirs and hermit huts** — many hide treasure or trouble.
-- **Weapons**: daggers to greatswords in five quality tiers (Shoddy to
-  Masterwork), visible in your character's hand. Buy them from **Bren the
-  Blacksmith** in the capital, loot them from monsters (bosses carry the
-  best), or **forge your own** from ore and logs — your gathering skills
-  decide the quality. Steel wears out: every weapon eventually **shatters**,
-  so keep a spare.
-- Monsters sometimes **drop loot** — gold, potions, materials, even gems —
-  walk over it to pick it up. Press **I** for your backpack. Trees and rocks
-  **deplete** after a few harvests and regrow.
-- Sign in with **email and password**; your account and character are created
-  on first login (passwords are scrypt-hashed). A rotating week-long session
-  token means reopening the game walks you straight back into the world.
-
-## The world builder
-
-The shard ships with a password-protected WYSIWYG world builder. With the
-server running, open:
-
-```
-http://localhost:8080/editor.html
-```
-
-**Access:** set `EDITOR_PASSWORD=...` on the server and the builder asks for
-it (from anywhere, loopback included) at `/editor-login.html` — sessions last
-12 hours, five wrong tries per quarter-hour. With no password set it answers
-from **localhost only**. (The old `EDITOR=1` open-door flag is gone.)
-
-What you can do:
-
-- **See the real game** — zoom in past ~20px/tile and the builder switches
-  from the overview palette to the game's own renderer: real terrain,
-  transitions, animated water, props as sprites, spawners as the creature
-  itself. What you see is exactly what players see.
-- **Paint tiles** — every terrain (grass, road, water, mountains, walls, …)
-  with a 1/3/5/9 brush.
-- **Place anything** — the *Props* catalog holds **every object sprite in
-  the packs** (~700, searchable, grouped: trees, mountains, plants,
-  furniture, town, faction, landmarks…); *Spawner* places any creature camp
-  (kind/count/radius, with a live preview); *Building* raises a complete
-  shopfront — lawn, footprint, doorstep and a furnished interior joined by
-  a door portal; *Portal* links any two points (two-way by default — doors,
-  cave mouths or standing stones), dungeons included; *Whisper* and *Cache*
-  as before.
-- **Erase** — your edits vanish outright; world-generated props, spawners
-  AND secrets are marked for removal.
-- **Save to the running world** — everything applies to the live server
-  immediately: mobs spawn, props appear, the minimap refreshes for every
-  connected player. No restart. The overlay persists in `data/edits.json`
-  (a mounted volume in prod, so it survives redeploys).
-- **Publish to GitHub** — commits the overlay to `world/edits.json` in the
-  repo (needs `GITHUB_TOKEN` + `GITHUB_REPO=owner/name`, optional
-  `GITHUB_BRANCH`, set on the server). *Download edits.json* grabs the file
-  for a manual commit instead.
-
-How it persists: the world stays 100% procedurally generated and your edits
-are an **overlay** stamped on top of worldgen at boot — regenerating the
-world never destroys hand-made work. At boot the server loads whichever of
-`data/edits.json` / `world/edits.json` is newer, so a published commit takes
-hold on the next deploy.
-
-To add or hand-edit the prop art itself, see `art/README.md` (the
-`--export-props` staging folder and the committed `art/props/` folder).
-
-## Editing the sprites (Photoshop / Figma / any editor)
-
-The renderer is top-down square: **16px tiles drawn at 3×** (48px on
-screen), sized for classic pixel-art packs. Terrain and scenery live in
-`ground16.png` / `objects16.png` — currently procedural placeholders,
-generated in the exact atlas format that purchased pixel art (e.g.
-KingRabbit's packs) will use. Drop bought sheets into
-`tools/asset-src/heroic/` (gitignored — **never commit paid art**) and swap
-the drawing code in `build_topdown()` for slicing recipes; nothing else in
-the engine changes.
-
-All art is generated into `client/assets/` by `tools/build-assets.py`
-(needs `pillow` + `numpy`). To restyle it by hand:
+Before pushing changes, run the test suite:
 
 ```sh
-python3 tools/build-assets.py --export
+node tools/smoke-test.js
 ```
-
-That writes two things into `art/editable/`:
-
-1. an editable copy of **every atlas PNG** (terrain, buildings, each creature)
-2. a `*.guide.png` next to each one with the frame grid drawn on top —
-   magenta lines are frame/cell boundaries, cyan marks the animation bands
-   (`stance` / `run` / `melee`, with frame counts), and each creature row is
-   one of the 8 facing directions
-
-Then:
-
-1. Open the atlas PNG in your editor and drop the matching guide on top as a
-   ~50%-opacity locked reference layer. In Figma, turn on *Pixel preview* and
-   work at 100% zoom multiples.
-2. Edit the pixels. Keep the **exact canvas size**, keep each frame inside its
-   cell, keep the background transparent.
-3. Hide the guide layer and export as PNG at **1x** (no resampling).
-4. Save it to `art/overrides/<same relative path>` — e.g.
-   `art/overrides/creatures/goblin.png` or `art/overrides/terrain.png`.
-5. Rebuild: `python3 tools/build-assets.py` — your file is stamped over the
-   generated atlas. Refresh the browser; no code changes needed.
-
-Overrides are reapplied on **every** rebuild, so source-art updates never
-clobber your work; delete the file from `art/overrides/` to go back to the
-generated version. Full details (including how to add brand-new creatures)
-are in `art/README.md`. Licensing rules live in `client/assets/CREDITS.md` —
-free-licensed art only, never actual Ultima Online assets.
 
 ## How to play
 
 | Input | Action |
 | --- | --- |
-| WASD / arrows | walk (click the ground to path-walk there instead) |
+| WASD / arrows | walk (or click the ground to path-walk there) |
 | Click a monster | attack it (melee auto-swings when adjacent) |
-| `Space` | attack the nearest hostile (re-engages your current target first; never auto-picks townsfolk or livestock) |
-| `1` / `2` / `3` | cast Magic Arrow / Fireball / Greater Heal |
-| `6` / `7` / `8` | cast Bless / Poison / Energy Bolt |
+| `Space` | attack the nearest hostile (never auto-picks townsfolk or livestock) |
+| `1` `2` `3` | Magic Arrow · Fireball · Greater Heal |
+| `6` `7` `8` | Bless · Poison · Energy Bolt |
+| `9` `0` `H` | Ice Bolt (slows) · Chain Lightning (arcs) · Haste |
 | `4` / `5` | drink a heal / mana potion |
 | `B` | bandage your wounds |
 | `G` | chop / mine / fish, depending on what you stand beside |
-| `I` / `C` / `M` / `O` | backpack / character sheet / world map / settings |
+| `I` `C` `M` `O` | backpack · character sheet · world map · settings |
 | `F` | fullscreen |
 | `Enter` | chat — your words appear above your head, UO style |
 | `/home` | recall to your bound city shrine |
 
-On touch screens: drag anywhere to steer with the joystick, tap to
-walk/attack/talk, and a second finger can tap-attack while you steer.
+On touch screens: drag anywhere to steer, tap to walk/attack/talk, and a
+second finger can tap-attack while you steer.
+
+Name plates tell you who's who: **gold** for bosses, **blue** for friends of
+the realm, **pale tan** for harmless beasts, **red** for everything that
+bites.
+
+## The world
+
+A 2048×2048 island, generated deterministically from a seed and streamed in
+chunks as you explore — dressed edge to edge in the Heroic Asset Series
+style: interlocking mountain ranges, tufted biome transitions, an animated
+sea, and a 20-minute day/night cycle where braziers, hearths and windows
+push back the dark.
+
+- **Briarhaven**, the walled capital: a snug plaza with fountain, statue,
+  market kiosk and brazier-lit king's way; smithy, inn, chapel and mage
+  tower — **step on any doorstep to go inside**, where the shopkeepers
+  keep shop by the hearth. The royal castle joins the north rampart, and
+  its gate is a stair down into the crown's undercroft.
+- **Three more walled cities** — Frosthelm under the snows, Sunwatch by the
+  desert, Mirehold on the swamp road. Walls are sanctuary… from monsters.
+  **Guards can be fought** — but strike one and the whole watch answers
+  (*"Criminal! To arms!"*), and the walls are precisely their jurisdiction.
+  Touching a city shrine binds your `/home` recall.
+- **A ring of villages**, each with a shop, a lodge, a green with signpost
+  and lamps, and a road back to the capital. Bards hold court in the inn
+  common rooms — some of their tales point at real treasure, with true
+  directions.
+- **Seven dungeons** beneath the world: barrow-deeps under the ruined keeps,
+  a wolfden grotto in the northern ice, the sunken warren the goblins dug
+  and the **lizardmen took**, and the royal undercroft. Dark tunnels, dense
+  keepers, a hoard at the deepest point. The dead can walk back out — the
+  stairs work for ghosts.
+- **The factions keep their corners**: dwarf clans work half the quarries
+  (miners, halberdier wardens, rune-priests — the other half fell to the
+  ettins), wood-elf groves guard the deepest pines with rangers, dryads and
+  an elder treant, harpies wheel over the crags, and the orc warbands
+  answer to **Gruk, Warlord of the Wastes** at his banner camp — his
+  wolf-riders lead every raid on a village.
+- **The restless dead**: shambling corpses haunt the barrows by day; after
+  dark the **ghosts rise with them**. The **Crimson Count** sleeps beneath
+  the second ruined keep, and every wound he deals feeds him.
+- **Six named terrors** in all (Skarg the Goblin King, the Bone Lord,
+  Greyfang the Wolf King, the Crimson Count, Gruk, and Vyrmaur the Undying
+  at the rim of the world), plus dragon roosts, a White Stag for the
+  patient, and world events — warbands marching on villages with rewards
+  for the defenders.
+- **Secrets everywhere**: twin stone circles that teleport, whispering
+  places, buried caches, treasure maps dropped by monsters, waymark stones
+  along a dead knight's road, and one legendary blade no forge will ever
+  make again.
+- **Weapons and armor** in five quality tiers (Shoddy → Masterwork), all
+  visible on your character and in every shop, forge and backpack as their
+  own icons. Buy, loot, or **forge your own** from ore and logs. Steel
+  wears out — every blade eventually shatters, so keep a spare.
 
 ## UO-style systems
 
 - **Use-based skills** — Swordsmanship, Tactics, Magery, Healing,
   Lumberjacking, Mining, Fishing, Cooking, Blacksmithy. No levels, no XP
-  bar: skills rise as you use them
-  ("Your Swordsmanship has risen to 43.5"), with gains getting rarer as you
-  approach the 100 cap. Stats (STR/DEX/INT) creep up the same way.
-- **Magic with power words** — casting shouts *In Por Ylem* / *Vas Flam* /
-  *In Vas Mani* overhead, costs mana, and can fizzle at low Magery.
-- **Death is a journey** — die and you become a ghost; walk to the shrine in
-  Briarhaven to be resurrected.
+  bar: skills rise as you use them, gains rarer near the 100 cap, titles at
+  grandmastery. Stats (STR/DEX/INT) creep up the same way.
+- **Magic with power words** — nine spells that shout *In Por Ylem* /
+  *Vas Ort Grav* / *Rel Por* overhead, cost mana, fizzle at low Magery, and
+  land with animated impacts.
+- **Death is a journey** — die and you become a ghost; walk to a shrine to
+  live again.
 - **Persistence** — accounts and characters (position, stats, skills, gold,
   items, bound home) live in SQLite (`data/shardlands.db`), written through
-  on every character creation and disconnect, and on SIGINT/SIGTERM.
+  on disconnect and on SIGINT/SIGTERM.
+
+## Deploying to Railway
+
+The repo is Railway-ready (`railway.json`; `PORT` honoured):
+
+```bash
+npm i -g @railway/cli
+railway login
+railway init
+railway up
+railway domain
+```
+
+Attach a volume mounted at `/app/data` so accounts, characters and world
+edits survive redeploys.
+
+| Env var | Purpose |
+| --- | --- |
+| `PORT` | HTTP/WebSocket port (default 8080) |
+| `EDITOR_PASSWORD` | arms the world builder's password gate (else loopback-only) |
+| `GITHUB_TOKEN` | repo-scoped token for the builder's *Publish* button |
+| `GITHUB_REPO` | e.g. `owner/shardlands`, the publish target |
+| `GITHUB_BRANCH` | publish branch (default `main`) |
+
+## The world builder
+
+A password-protected WYSIWYG editor for the live world, at
+`http://<server>/editor.html`:
+
+- **See the real game** — zoom past ~20px/tile and the builder renders with
+  the game's own pass: real terrain, animated water, props as sprites,
+  spawners as the creature itself, ghost previews under the cursor.
+- **Place anything** — paint every terrain; a searchable catalog of **every
+  object sprite in the packs** (~700, grouped: trees, mountains, plants,
+  furniture, town, faction, landmarks…); creature camps with live preview;
+  whole **buildings** (lawn, footprint, doorstep, furnished interior and
+  its door portal in one click); **portals** between any two points —
+  dungeons included; whispers and caches. Erase removes anything, worldgen
+  or yours.
+- **Save applies to the running server instantly** — mobs spawn, props
+  appear, minimaps refresh for every connected player; no restart. Edits
+  persist in `data/edits.json` on the volume.
+- **Publish** commits the overlay to `world/edits.json` on GitHub (see env
+  vars above), or *Download edits.json* for a manual commit. At boot the
+  server loads whichever copy is newer.
+
+The world stays 100% procedurally generated — edits are an overlay stamped
+on top at boot, so regeneration never destroys hand-made work.
+
+## The art pipeline
+
+The renderer is top-down square, **16px art at 3×** (48px tiles), sliced
+from the purchased KingRabbit Heroic Asset Series packs by
+`tools/build-assets.py` (needs `pillow` + `numpy`). The raw packs live in
+`tools/asset-src/heroic/` — **gitignored, never commit paid art**; only
+game-composed atlases ship, credited in `client/assets/CREDITS.md`. Without
+the packs the build falls back to an original procedural tileset, so the
+public repo always builds.
+
+Hand-editing and adding art (full guide in `art/README.md`):
+
+- `python3 tools/build-assets.py --export` dumps every atlas plus grid
+  guides to `art/editable/`; save edits to `art/overrides/…` and rebuild —
+  overrides are stamped on top of every rebuild.
+- `python3 tools/build-assets.py --export-props` stages every catalog prop
+  as a loose PNG for editing; your **own original props** go in
+  `art/props/<category>/` and join the builder's palettes automatically.
 
 ## Architecture
 
 ```
 server/
-  index.js    HTTP static files + WebSocket + the editor API on one port
-  world.js    seeded worldgen (terrain, cities, dungeons) + the edits overlay
-  game.js     authoritative simulation: 10 Hz tick, combat, AI, skills
-  persist.js  SQLite storage (accounts + characters, JSON migration on boot)
+  index.js         HTTP static + WebSocket + routing, one port
+  game.js          authoritative simulation: 10 Hz tick, combat, AI, skills,
+                   live edit application
+  world.js         seeded worldgen (terrain, cities, dungeons, factions),
+                   placeBuilding, the edits overlay
+  editor.js        world-builder auth, edit API, GitHub publish
+  persist.js       SQLite storage (accounts + characters)
 client/
-  game.js     canvas renderer, A* click-to-move, input → intents
-  assets.js   sprite atlas loader (drawing falls back to flat shading)
-  audio.js    all-procedural WebAudio: SFX + a seven-track chiptune OST
-  editor.*    the internal visual map editor
+  game.js          canvas renderer, click-to-move, input → intents
+  tiles-render.js  the shared ground pass (game and builder draw through it)
+  assets.js        sprite atlas loader (falls back to flat shading)
+  audio.js         all-procedural WebAudio: SFX + a chiptune OST per biome
+  editor.*         the world builder
 tools/
-  smoke-test.js      in-process test suite (run before pushing)
-  build-assets.py    regenerates client/assets/ from free-licensed sources
+  smoke-test.js    in-process test suite (run before pushing)
+  build-assets.py  regenerates client/assets/ from the source packs
 ```
 
-The server is fully authoritative — clients only send intents (`move`, `say`,
-`attack`, `cast`, `bandage`, `gather`) and render the broadcast state. Mob AI
-aggros within range, chases, leashes back to its spawn, and respawns ~20s
-after dying.
+The server is fully authoritative — clients send intents (`move`, `say`,
+`attack`, `cast`, `gather`, …) and render broadcast state. Mob AI aggros,
+chases, leashes home, socially pulls its campmates, and respawns; guards
+rally as one; night raises the dead.
+
+## Credits
+
+Art from the **Heroic Asset Series** by **Aleksandr Makarov**
+([@IKnowKingRabbit](https://iknowkingrabbit.itch.io)) — purchased packs,
+composed into game atlases per the pack license. Full attribution and
+licensing rules in `client/assets/CREDITS.md`. No Ultima Online assets are
+used; EA owns those.
