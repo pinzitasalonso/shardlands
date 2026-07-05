@@ -24,7 +24,8 @@ const MINI_SCALE = 8;
 const VIEW_RADIUS = 60;          // tiles; entities beyond this aren't sent
 const CACHE_RESPAWN_MS = 15 * 60_000;
 
-const SKILLS = ['swordsmanship', 'tactics', 'magery', 'healing', 'lumberjacking', 'mining', 'fishing', 'cooking', 'blacksmithy'];
+const SKILLS = ['swordsmanship', 'tactics', 'magery', 'healing', 'lumberjacking', 'mining',
+  'fishing', 'cooking', 'blacksmithy', 'alchemy', 'taming', 'treasurehunting'];
 
 const SPELLS = {
   magicarrow: { name: 'Magic Arrow', mana: 4, minSkill: 0, dmg: [5, 10], words: 'In Por Ylem' },
@@ -218,7 +219,7 @@ const LOOT_TABLES = {
   dragon: [[1, 'gold', 150, 400], [0.8, 'heal', 1, 2], [0.6, 'mana', 1, 2], [0.5, 'gems', 1, 2], [0.5, 'weapon', ['greatsword'], 3, 4]],
   wolf: [[0.3, 'gold', 3, 10]],
   deer: [[0.35, 'gold', 2, 6], [0.5, 'meat', 1, 1]],
-  snake: [[0.3, 'gold', 3, 9], [0.06, 'mana', 1, 1]],
+  snake: [[0.3, 'gold', 3, 9], [0.06, 'mana', 1, 1], [0.35, 'herbs', 1, 2]],
   crab: [[0.3, 'gold', 2, 7]],
   boar: [[0.35, 'gold', 3, 10], [0.08, 'heal', 1, 1], [0.6, 'meat', 1, 2]],
   whitestag: [[1, 'gold', 40, 90], [1, 'gems', 2, 4]],
@@ -237,8 +238,8 @@ const LOOT_TABLES = {
   orcwarlord: [[1, 'gold', 250, 500], [1, 'gems', 2, 3], [0.7, 'heal', 1, 2],
                [1, 'weapon', ['battleaxe', 'greatsword'], 2, 4], [0.6, 'tmap']],
   elfranger: [[0.3, 'gold', 12, 30], [0.1, 'mana', 1, 1], [0.1, 'weapon', ['longbow'], 1, 3]],
-  dryad: [[0.3, 'gold', 8, 20], [0.15, 'mana', 1, 2], [0.2, 'logs', 1, 3]],
-  treant: [[0.6, 'gold', 40, 100], [0.8, 'logs', 4, 9], [0.3, 'gems', 1, 2]],
+  dryad: [[0.3, 'gold', 8, 20], [0.15, 'mana', 1, 2], [0.2, 'logs', 1, 3], [0.6, 'herbs', 1, 3]],
+  treant: [[0.6, 'gold', 40, 100], [0.8, 'logs', 4, 9], [0.3, 'gems', 1, 2], [0.5, 'herbs', 2, 4]],
   lizardman: [[0.3, 'gold', 14, 34], [0.1, 'heal', 1, 1], [0.08, 'gems', 1, 1],
               [0.06, 'weapon', ['sword', 'mace'], 0, 2]],
   raptor: [[0.3, 'gold', 5, 14], [0.4, 'meat', 1, 2]],
@@ -259,6 +260,22 @@ const RESOURCE_RESPAWN_MS = 90_000;
 const POTIONS = {
   heal: { name: 'Greater Heal Potion', restore: [25, 40] },
   mana: { name: 'Mana Potion', restore: [20, 30] },
+};
+
+// Alchemy: herbs + a little gold become potions at any alchemist's bench.
+const BREWS = {
+  heal: { name: 'Greater Heal Potion', herbs: 2, gold: 8 },
+  mana: { name: 'Mana Potion', herbs: 2, gold: 5 },
+};
+
+// What a beast-tamer may win over, and the skill it takes to try.
+// Chance also weighs the beast's own prowess, so a wolf resists harder
+// than a chicken even for the same doorstep skill.
+const TAMEABLE = {
+  chicken: 0, rabbit: 0, sheep: 0, pig: 5, deer: 10, fox: 15,
+  giantrat: 20, crab: 20, badger: 25, boar: 30, snake: 40, wolf: 45,
+  blackboar: 50, silverstag: 50, greatelk: 55, warram: 55, direwolf: 60,
+  brownbear: 70, cavebear: 75,
 };
 
 // dur is how many durability points a common example has; each landed hit
@@ -325,12 +342,15 @@ const DEED_NAMES = {
   smith: 'At the Anvil',
   wayfarer: 'Wayfarer',
   grandmaster: 'Grandmaster',
+  brewer: 'First Draught',
+  beastfriend: 'A Loyal Companion',
+  digger: 'X Marks the Spot',
 };
 
 function titleOf(p) {
   for (const sk of SKILLS) {
     if (p.skills[sk] >= 100) {
-      return 'Grandmaster ' + sk.charAt(0).toUpperCase() + sk.slice(1);
+      return 'Grandmaster ' + skillName(sk);
     }
   }
   return '';
@@ -554,6 +574,7 @@ class Game {
       skills: { ...Object.fromEntries(SKILLS.map((sk) => [sk, 20])), ...rec.skills },
       gold: rec.gold, logs: rec.logs, ore: rec.ore, gems: rec.gems || 0,
       fish: rec.fish || 0, meat: rec.meat || 0, food: rec.food || 0,
+      herbs: rec.herbs || 0,
       // drop map indices that no longer point at a cache (the world layout
       // can change between versions; old saves must not crash the dig check)
       tmaps: (rec.tmaps || []).filter((i) => Number.isInteger(i) &&
@@ -577,6 +598,11 @@ class Game {
     ws.player = p;
     this.players.set(p.id, p);
 
+    // A faithful companion waits out its master's absence at the door.
+    if (rec.pet && MOB_KINDS[rec.pet.kind] && TAMEABLE[rec.pet.kind] !== undefined) {
+      this.spawnPet(p, rec.pet.kind, rec.pet.hp);
+    }
+
     this.send(ws, {
       t: 'welcome',
       id: p.id,
@@ -592,11 +618,13 @@ class Game {
       spells: SPELLS,
       weapons: WEAPONS,
       qualities: QUALITIES,
+      brews: BREWS,
       vendors: this.vendors,
       // every kind's plate name + disposition, so the client can label
       // builder-placed creatures it has no hand-written style for
       bestiary: Object.fromEntries(Object.entries(MOB_KINDS).map(([k, d]) =>
-        [k, { n: d.name, d: d.peaceful ? 'friendly' : d.aggro === 0 ? 'neutral' : 'hostile' }])),
+        [k, { n: d.name, d: d.peaceful ? 'friendly' : d.aggro === 0 ? 'neutral' : 'hostile',
+              ...(TAMEABLE[k] !== undefined ? { tm: TAMEABLE[k] } : {}) }])),
     });
     this.sendYou(p);
     this.sys(p, `Welcome to Shardlands, ${p.name}. The shrine in Briarhaven will raise you if you fall.`);
@@ -606,8 +634,13 @@ class Game {
   leave(ws) {
     const p = ws.player;
     if (!p) return;
+    this.persistPlayer(p); // records the pet before it leaves the world
+    const pet = this.petOf(p);
+    if (pet) {
+      this.mobs.delete(pet.id);
+      pet.spawner.alive.delete(pet.id);
+    }
     this.players.delete(p.id);
-    this.persistPlayer(p);
     // straight to disk: a crash after a disconnect must not lose the session
     persist.save(this.records);
     this.dirty = false;
@@ -624,6 +657,8 @@ class Game {
       skills: { ...p.skills },
       gold: p.gold, logs: p.logs, ore: p.ore, gems: p.gems,
       fish: p.fish, meat: p.meat, food: p.food,
+      herbs: p.herbs,
+      pet: (() => { const pet = this.petOf(p); return pet ? { kind: pet.kind, hp: pet.hp } : null; })(),
       tmaps: (p.tmaps || []).slice(),
       mats: { ...p.mats },
       deeds: { ...p.deeds },
@@ -677,6 +712,8 @@ class Game {
       case 'story': return this.handleStory(p, msg.id | 0);
       case 'cook': return this.handleCook(p);
       case 'eat': return this.handleEat(p);
+      case 'brew': return this.handleBrew(p, String(msg.kind || ''));
+      case 'tame': return this.handleTame(p, msg.id | 0);
       case 'chunks': return this.handleChunks(p, msg.l);
     }
   }
@@ -725,6 +762,158 @@ class Game {
     p.fedUntil = now() + 20_000;
     this.sys(p, 'You eat well. Warmth spreads through you.');
     this.sendYou(p);
+  }
+
+  // ---- alchemy: herbs into bottles at an alchemist's bench --------------------
+
+  handleBrew(p, kind) {
+    if (p.dead) return this.sys(p, 'The dead cannot work a mortar.');
+    const brew = BREWS[kind];
+    if (!brew) return;
+    const bench = this.vendors.find((v) => dist(p, v) <= 3 &&
+      (v.goods || []).some((g) => g.item === 'heal' || g.item === 'mana' || g.item === 'herbs'));
+    if (!bench) return this.sys(p, 'You need an alchemist\'s bench to brew.');
+    const t = now();
+    if (t < (p.brewAt || 0)) return;
+    p.brewAt = t + 1500;
+    if (p.herbs < brew.herbs || p.gold < brew.gold) {
+      return this.sys(p, `Brewing a ${brew.name} takes ${brew.herbs} herbs and ${brew.gold} gold for the bottle.`);
+    }
+    p.herbs -= brew.herbs;
+    p.gold -= brew.gold;
+    this.gainSkill(p, 'alchemy');
+    if (Math.random() * 100 < p.skills.alchemy + 35) {
+      p.pots[kind] += 1;
+      this.deed(p, 'brewer');
+      // A practiced hand sometimes draws a double measure from the same herbs.
+      if (Math.random() * 100 < p.skills.alchemy / 2) {
+        p.pots[kind] += 1;
+        this.sys(p, `The mixture runs rich — two ${brew.name}s from one brewing!`);
+      } else {
+        this.sys(p, `You decant a ${brew.name}.`);
+      }
+      this.gainStat(p, 'int');
+    } else {
+      this.sys(p, 'The mixture curdles into worthless sludge.');
+    }
+    this.sendYou(p);
+  }
+
+  // ---- taming: win a wild heart, keep a companion ------------------------------
+
+  petOf(p) {
+    for (const m of this.mobs.values()) {
+      if (m.owner === p.id) return m;
+    }
+    return null;
+  }
+
+  spawnPet(p, kind, hp) {
+    const def = MOB_KINDS[kind];
+    const stub = { alive: new Set(), x: p.x, y: p.y, r: 2, kind, respawnMs: 0 };
+    this.spawnMob(stub);
+    const id = [...stub.alive][0];
+    const pet = id && this.mobs.get(id);
+    if (!pet) return null;
+    pet.owner = p.id;
+    pet.name = `${p.name}'s ${def.name.replace(/^an? /, '')}`;
+    if (hp) pet.hp = Math.min(pet.maxhp, hp);
+    return pet;
+  }
+
+  handleTame(p, mobId) {
+    if (p.dead) return this.sys(p, 'The dead keep no company.');
+    const mob = this.mobs.get(mobId);
+    if (!mob || dist(p, mob) > 4) return this.sys(p, 'No creature close enough to tame.');
+    const def = MOB_KINDS[mob.kind];
+    const minSkill = TAMEABLE[mob.kind];
+    if (minSkill === undefined) return this.sys(p, `${def.name} cannot be tamed.`);
+    if (mob.owner) return this.sys(p, 'That creature already answers to another.');
+    if (this.petOf(p)) return this.sys(p, 'You already have a companion. /release it first.');
+    if (p.skills.taming < minSkill) {
+      return this.sys(p, `You need ${minSkill} Taming to approach ${def.name}.`);
+    }
+    const t = now();
+    if (t < (p.tameAt || 0)) return;
+    p.tameAt = t + 2000;
+    this.gainSkill(p, 'taming');
+    const chance = clamp(40 + p.skills.taming - def.skill, 5, 95);
+    if (Math.random() * 100 < chance) {
+      // Won over: it leaves its old life behind (the wilds send another).
+      mob.spawner.alive.delete(mob.id);
+      mob.spawner.respawnAt = t + (mob.spawner.respawnMs || 20_000);
+      mob.spawner = { alive: new Set([mob.id]), x: mob.x, y: mob.y, r: 2, kind: mob.kind, respawnMs: 0 };
+      mob.owner = p.id;
+      mob.name = `${p.name}'s ${def.name.replace(/^an? /, '')}`;
+      mob.target = 0;
+      mob.fleeUntil = 0;
+      mob.dest = null;
+      this.deed(p, 'beastfriend');
+      this.fxNear(mob, { t: 'fx', kind: 'heal', x: mob.x, y: mob.y, amount: 0 });
+      this.sys(p, `${def.name.charAt(0).toUpperCase() + def.name.slice(1)} accepts you as its master.`);
+    } else {
+      mob.fleeUntil = t + 3000;
+      mob.fleeFrom = { x: p.x, y: p.y };
+      this.sys(p, `${def.name.charAt(0).toUpperCase() + def.name.slice(1)} shies away from you.`);
+    }
+  }
+
+  // The companion's turn: heel to its master, savage its master's quarry.
+  petTick(pet, t, def) {
+    const owner = this.players.get(pet.owner);
+    if (!owner) { // orphaned somehow: the bond breaks, the beast goes wild
+      pet.owner = null;
+      return;
+    }
+    let foe = owner.target ? this.mobs.get(owner.target) : null;
+    if (foe && (foe === pet || foe.owner ||
+        (MOB_KINDS[foe.kind].peaceful) || dist(owner, foe) > 12)) {
+      foe = null;
+    }
+    if (foe && !owner.dead) {
+      if (dist(pet, foe) <= 1.5) {
+        if (t >= pet.swingAt) {
+          pet.swingAt = t + 1200;
+          pet.swungAt = t;
+          const dmg = rand(def.dmg[0], def.dmg[1]) + Math.floor(owner.skills.taming / 20);
+          foe.hp -= dmg;
+          this.fxNear(foe, { t: 'fx', kind: 'hit', x: foe.x, y: foe.y, amount: dmg });
+          if (foe.hp <= 0) return this.killMob(owner, foe);
+        }
+        // The quarry bites back: a beast in melee takes its share of wounds.
+        const fdef = MOB_KINDS[foe.kind];
+        if (t >= foe.swingAt) {
+          foe.swingAt = t + 1600;
+          foe.swungAt = t;
+          const dmg = rand(fdef.dmg[0], fdef.dmg[1]);
+          pet.hp -= dmg;
+          this.fxNear(pet, { t: 'fx', kind: 'hit', x: pet.x, y: pet.y, amount: dmg });
+          if (pet.hp <= 0) {
+            this.mobs.delete(pet.id);
+            pet.spawner.alive.delete(pet.id);
+            this.fxNear(pet, { t: 'fx', kind: 'die', x: pet.x, y: pet.y });
+            this.sys(owner, `${pet.name} has died defending you.`);
+          }
+        }
+      } else if (t >= pet.moveAt) {
+        pet.moveAt = t + (t < (pet.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
+        this.stepToward(pet, foe.x, foe.y);
+      }
+      return;
+    }
+    // No fight: keep to heel. A pet left far behind finds its own way over.
+    const d = dist(pet, owner);
+    if (d > 18) {
+      const spot = nearestWalkable(this.map, owner.x, owner.y);
+      pet.x = spot.x;
+      pet.y = spot.y;
+    } else if (d > 2 && t >= pet.moveAt) {
+      pet.moveAt = t + def.speedMs;
+      this.stepToward(pet, owner.x, owner.y);
+    }
+    pet.homeX = pet.x;
+    pet.homeY = pet.y;
+    if (pet.hp < pet.maxhp && Math.random() < 0.03) pet.hp += 1;
   }
 
   chunkData(cx, cy) {
@@ -776,6 +965,9 @@ class Game {
     if (good.item === 'arrow') {
       p.arrows += ARROW_BUNDLE;
       this.sys(p, `You buy ${ARROW_BUNDLE} arrows for ${good.price} gold.`);
+    } else if (good.item === 'herbs') {
+      p.herbs += 4;
+      this.sys(p, `You buy a bundle of herbs for ${good.price} gold.`);
     } else {
       p.pots[good.item] = (p.pots[good.item] || 0) + 1;
       this.sys(p, `You buy a ${good.name} for ${good.price} gold.`);
@@ -1172,6 +1364,16 @@ class Game {
       this.sys(p, `You let your ${skillName(sk)} fade back to instinct. (now 20.0)`);
       return this.sendYou(p);
     }
+    if (cmd === 'release') {
+      const pet = this.petOf(p);
+      if (!pet) return this.sys(p, 'You have no companion to release.');
+      pet.owner = null;
+      pet.name = undefined;
+      pet.homeX = pet.x;
+      pet.homeY = pet.y;
+      this.sys(p, `You release ${MOB_KINDS[pet.kind].name} back to the wild.`);
+      return;
+    }
     if (cmd === 'teleport' || cmd === 'home' || cmd === 'recall') {
       if (p.dead) return this.sys(p, 'The dead must walk to a shrine.');
       const t = now();
@@ -1202,6 +1404,9 @@ class Game {
     // and every guard in earshot will make that point together.
     if (def.peaceful && !def.guard) {
       return this.sys(p, 'The townsfolk are under the crown\'s protection.');
+    }
+    if (mob.owner) {
+      return this.sys(p, 'That creature answers to another. Leave it be.');
     }
     p.target = mobId;
     this.sys(p, `You attack ${mob.name || def.name}.`);
@@ -1246,8 +1451,9 @@ class Game {
       const mob = this.mobs.get(targetId || p.target);
       if (!mob || dist(p, mob) > 10) {
         this.sys(p, 'No target in range.');
-      } else if (MOB_KINDS[mob.kind].peaceful && !MOB_KINDS[mob.kind].guard) {
-        this.sys(p, 'The townsfolk are under the crown\'s protection.');
+      } else if (mob.owner || (MOB_KINDS[mob.kind].peaceful && !MOB_KINDS[mob.kind].guard)) {
+        this.sys(p, mob.owner ? 'That creature answers to another. Leave it be.'
+          : 'The townsfolk are under the crown\'s protection.');
       } else {
         mob.poison = { left: 5, dmg: rand(spell.dot[0], spell.dot[1]), nextAt: t + 2000, by: p.id };
         this.fxNear(mob, { t: 'fx', kind: 'poison', x: mob.x, y: mob.y });
@@ -1258,8 +1464,9 @@ class Game {
       const mob = this.mobs.get(targetId || p.target);
       if (!mob || dist(p, mob) > 10) {
         this.sys(p, 'No target in range.');
-      } else if (MOB_KINDS[mob.kind].peaceful && !MOB_KINDS[mob.kind].guard) {
-        this.sys(p, 'The townsfolk are under the crown\'s protection.');
+      } else if (mob.owner || (MOB_KINDS[mob.kind].peaceful && !MOB_KINDS[mob.kind].guard)) {
+        this.sys(p, mob.owner ? 'That creature answers to another. Leave it be.'
+          : 'The townsfolk are under the crown\'s protection.');
       } else {
         const dmg = rand(spell.dmg[0], spell.dmg[1]) + Math.floor(p.skills.magery / (spellId === 'energybolt' ? 8 : 12));
         this.fxNear(p, { t: 'fx', kind: spellId, x: p.x, y: p.y, tx: mob.x, ty: mob.y, amount: dmg });
@@ -1270,7 +1477,7 @@ class Game {
           let struck = 0;
           for (const m2 of this.mobs.values()) {
             if (struck >= spell.chain) break;
-            if (m2 === mob || MOB_KINDS[m2.kind].peaceful || dist(mob, m2) > 5) continue;
+            if (m2 === mob || m2.owner || MOB_KINDS[m2.kind].peaceful || dist(mob, m2) > 5) continue;
             const d2 = Math.round(dmg * 0.7);
             this.fxNear(m2, { t: 'fx', kind: 'chainarc', x: mob.x, y: mob.y, tx: m2.x, ty: m2.y, amount: d2 });
             this.damageMob(p, m2, d2);
@@ -1361,7 +1568,21 @@ class Game {
         return;
       }
     }
-    this.sys(p, 'There is nothing here to gather. Stand beside a tree, rock face or water.');
+    // Mire ground grows what the alchemists want.
+    for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      if (tileAt(this.map, p.x + dx, p.y + dy) === TILE.SWAMP) {
+        if (Math.random() * 100 < p.skills.alchemy + 50) {
+          p.herbs += rand(1, 2);
+          this.sys(p, 'You gather a handful of marsh herbs.');
+        } else {
+          this.sys(p, 'Nothing here but reeds and stinging flies.');
+        }
+        this.gainSkill(p, 'alchemy');
+        this.sendYou(p);
+        return;
+      }
+    }
+    this.sys(p, 'There is nothing here to gather. Stand beside a tree, rock face, water or marsh.');
   }
 
   // Each tree or rock yields a few harvests, then vanishes and regrows later.
@@ -1590,6 +1811,10 @@ class Game {
           p.meat += d.amount;
           this.sys(p, `You take ${d.amount > 1 ? d.amount + ' cuts' : 'a cut'} of meat.`);
           break;
+        case 'herbs':
+          p.herbs += d.amount;
+          this.sys(p, `You gather ${d.amount > 1 ? d.amount + ' sprigs' : 'a sprig'} of herbs.`);
+          break;
         case 'tmap': {
           p.tmaps = p.tmaps || [];
           p.tmaps.push(d.m);
@@ -1785,6 +2010,9 @@ class Game {
       }
     }
 
+    // A tamed beast follows its own drum: its master's.
+    if (mob.owner) return this.petTick(mob, t, def);
+
     // The frightened run first and think later.
     if (mob.fleeUntil && t < mob.fleeUntil) {
       if (t >= mob.moveAt) {
@@ -1804,7 +2032,7 @@ class Game {
         let best = 12;
         for (const m of this.mobs.values()) {
           const mdef = MOB_KINDS[m.kind];
-          if (mdef.peaceful || (mdef.aggro === 0 && !m.aggroBoost)) continue;
+          if (mdef.peaceful || m.owner || (mdef.aggro === 0 && !m.aggroBoost)) continue;
           // never abandon the walls: only foes near the guard's post matter
           if (Math.abs(m.x - mob.homeX) > 14 || Math.abs(m.y - mob.homeY) > 14) continue;
           const d = dist(mob, m);
@@ -2097,6 +2325,22 @@ class Game {
               this.cacheRespawns.delete(i);
               this.stockCache(sc, i);
             }
+            // A practiced eye reads the ground itself: the better the
+            // treasure hunter, the more the dig turns up beyond the cache.
+            const th = p.skills.treasurehunting;
+            this.drops.set(this.nextId, {
+              id: this.nextId++, x: sc.x, y: sc.y,
+              item: 'gold', amount: rand(5, 5 + Math.round(th * 2)),
+              despawnAt: t + DROP_TTL_MS,
+            });
+            if (Math.random() * 100 < th / 2) {
+              this.drops.set(this.nextId, {
+                id: this.nextId++, x: sc.x, y: sc.y,
+                item: 'gems', amount: rand(1, 2), despawnAt: t + DROP_TTL_MS,
+              });
+            }
+            this.deed(p, 'digger');
+            this.gainSkill(p, 'treasurehunting');
             this.sys(p, 'This is the place. X marks the spot — and the ground gives easily.');
             this.sendYou(p);
           }
@@ -2177,6 +2421,7 @@ class Game {
           id: m.id, kind: m.kind, x: m.x, y: m.y, hp: m.hp, maxhp: m.maxhp,
           a: t - (m.swungAt || 0) < 700 ? 1 : 0,
           name: m.name,
+          pet: m.owner ? 1 : undefined,
         })),
         drops: drops.filter(near).map((d) => ({ id: d.id, x: d.x, y: d.y, item: d.item, q: d.w ? d.w.q : undefined })),
       });
@@ -2194,7 +2439,7 @@ class Game {
       str: p.str, dex: p.dex, int: p.int,
       skills: p.skills,
       gold: p.gold, logs: p.logs, ore: p.ore, gems: p.gems,
-      fish: p.fish, meat: p.meat, food: p.food,
+      fish: p.fish, meat: p.meat, food: p.food, herbs: p.herbs,
       tmaps: (p.tmaps || []).map((i) => {
         const sc = this.map.secrets[i];
         return { i, x: sc.x, y: sc.y };
@@ -2255,6 +2500,7 @@ function clamp(v, lo, hi) {
 }
 
 function skillName(skill) {
+  if (skill === 'treasurehunting') return 'Treasure Hunting';
   return skill.charAt(0).toUpperCase() + skill.slice(1);
 }
 

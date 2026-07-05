@@ -376,18 +376,21 @@ for (let i = 0; i < 20 && dummy2.hp === hpBefore; i++) { p.swingAt = 0; game.mel
 assert(dummy2.hp < hpBefore, 'arrow found its mark');
 assert(p.arrows < 20, 'arrows are consumed');
 
-// poison dot ticks a mob down
+// poison dot ticks a mob down (a fizzle is 5% per cast; ten can't all fizzle)
 p.skills.magery = 60;
-p.mana = 50;
-p.castAt = 0;
-game.handleCast(p, 'poison', dummy2.id);
+for (let i = 0; i < 10 && !dummy2.poison; i++) {
+  p.mana = 50;
+  p.castAt = 0;
+  game.handleCast(p, 'poison', dummy2.id);
+}
 assert(dummy2.poison, 'poison applied');
 dummy2.poison.nextAt = 0;
 const hpBeforeDot = dummy2.hp;
 game.mobTick(dummy2, Date.now());
 assert(dummy2.hp < hpBeforeDot, 'poison ticked');
 
-// bless raises damage output
+// bless raises damage output (GM magery: the fizzle roll cannot fail)
+p.skills.magery = 100;
 p.castAt = 0;
 p.mana = 50;
 game.handleCast(p, 'bless', 0);
@@ -1017,6 +1020,181 @@ assert(gh.options.hostname === 'api.github.com' &&
   gh.options.headers.Authorization === 'Bearer tkn' && gh.payload === '{"a":1}',
   'the publish request is well-formed');
 ed.configure(undefined); // disarm so nothing else in this run is gated
+
+// -- batch F: the new arts — alchemy, taming, treasure hunting ------------------------
+assert(welcome.brews && welcome.brews.heal && welcome.brews.mana, 'welcome carries the brew recipes');
+for (const sk of ['alchemy', 'taming', 'treasurehunting']) {
+  assert(typeof p.skills[sk] === 'number', `${sk} is on the sheet`);
+}
+assert(welcome.bestiary.wolf.tm !== undefined && welcome.bestiary.dragon.tm === undefined,
+  'the bestiary says who may be tamed');
+
+// alchemy: buy herbs, brew at the bench, fail away from it
+const mira2 = game.vendors.find((v) => v.goods.some((g) => g.item === 'herbs'));
+assert(mira2, 'an alchemist sells herbs');
+p.dead = false;
+p.x = mira2.x;
+p.y = mira2.y - 1;
+p.gold = 500;
+p.herbs = 0;
+game.handleBuy(p, mira2.goods.findIndex((g) => g.item === 'herbs'));
+assert.strictEqual(p.herbs, 4, 'a bundle holds four herbs');
+p.skills.alchemy = 100;
+p.pots.heal = 0;
+p.brewAt = 0;
+const goldAtBench = p.gold;
+const rBrew = Math.random;
+Math.random = () => 0.5; // succeeds at GM skill, no double measure
+game.handleBrew(p, 'heal');
+Math.random = rBrew;
+assert.strictEqual(p.pots.heal, 1, 'the brew decants');
+assert.strictEqual(p.herbs, 2, 'herbs went into the pot');
+assert.strictEqual(p.gold, goldAtBench - 8, 'the bottle cost its gold');
+assert(p.deeds.brewer, 'the first draught is a deed');
+p.skills.alchemy = 0;
+p.brewAt = 0;
+Math.random = () => 0.99; // a novice botches it
+game.handleBrew(p, 'heal');
+Math.random = rBrew;
+assert.strictEqual(p.pots.heal, 1, 'the novice mixture curdles');
+assert.strictEqual(p.herbs, 0, 'and still wastes the herbs');
+ws.sent.length = 0;
+p.x = 5;
+p.y = 5;
+p.brewAt = 0;
+game.handleBrew(p, 'heal');
+assert(ws.sent.some((m) => m.t === 'sys' && /bench/.test(m.text)), 'no brewing in the wilds');
+
+// taming: the wolf resists the doorstep skill, obeys the master
+p.x = mira2.x;
+p.y = mira2.y - 1;
+const wolfStub = { alive: new Set(), x: p.x, y: p.y, r: 2, kind: 'wolf', respawnMs: 0 };
+game.spawnMob(wolfStub);
+const wolf = game.mobs.get([...wolfStub.alive][0]);
+assert(wolf, 'a wolf stands for the tamer');
+wolf.x = p.x + 1;
+wolf.y = p.y;
+p.skills.taming = 0;
+p.tameAt = 0;
+ws.sent.length = 0;
+game.handleTame(p, wolf.id);
+assert(ws.sent.some((m) => m.t === 'sys' && /need 45 Taming/.test(m.text)),
+  'wolves are beyond a novice');
+p.skills.taming = 100;
+p.tameAt = 0;
+const rTame = Math.random;
+Math.random = () => 0;
+game.handleTame(p, wolf.id);
+Math.random = rTame;
+assert.strictEqual(wolf.owner, p.id, 'the wolf is won over');
+assert(wolf.name.includes(p.name), 'and bears its master\'s name');
+assert.strictEqual(wolfStub.alive.size, 0, 'its old pack forgets it');
+assert(p.deeds.beastfriend, 'a loyal companion is a deed');
+ws.sent.length = 0;
+p.tameAt = 0;
+game.handleTame(p, wolf.id);
+assert(ws.sent.some((m) => m.t === 'sys' && /answers to another|already have/.test(m.text)),
+  'no taming what is already tamed');
+ws.sent.length = 0;
+game.handleAttack(p, wolf.id);
+assert(ws.sent.some((m) => m.t === 'sys' && /answers to another/.test(m.text)),
+  'pets are safe from other blades');
+// it heels — staged on open grass so walls can't excuse it
+let run = null;
+outer3:
+for (let y = game.map.h / 2 - 200; y < game.map.h / 2 + 200; y++) {
+  for (let x = game.map.w / 2 - 200; x < game.map.w / 2 + 200; x++) {
+    let clear = true;
+    for (let i = 0; i < 7; i++) {
+      if (game.map.tiles[y * game.map.w + x + i] !== TILE.GRASS) { clear = false; break; }
+    }
+    if (clear) { run = { x, y }; break outer3; }
+  }
+}
+assert(run, 'found an open meadow');
+p.x = run.x;
+p.y = run.y;
+wolf.x = run.x + 5;
+wolf.y = run.y;
+wolf.moveAt = 0;
+p.target = 0;
+game.mobTick(wolf, Date.now());
+assert(Math.hypot(wolf.x - p.x, wolf.y - p.y) < 5, 'the wolf heels');
+wolf.x = p.x + 30; // left far behind, it finds its own way over
+wolf.moveAt = 0;
+game.mobTick(wolf, Date.now());
+assert(Math.hypot(wolf.x - p.x, wolf.y - p.y) <= 2, 'a far-flung pet catches up');
+// it fights its master's quarry
+const gobStub = { alive: new Set(), x: p.x, y: p.y, r: 2, kind: 'goblin', respawnMs: 0 };
+game.spawnMob(gobStub);
+const gob = game.mobs.get([...gobStub.alive][0]);
+gob.x = p.x + 1;
+gob.y = p.y;
+gob.hp = 1;
+wolf.x = p.x;
+wolf.y = p.y + 1;
+wolf.swingAt = 0;
+p.target = gob.id;
+const goldBeforeHunt = p.gold;
+game.mobTick(wolf, Date.now());
+assert(!game.mobs.has(gob.id), 'the wolf savaged the quarry');
+assert(p.gold > goldBeforeHunt, 'and the spoils fall to the master');
+p.target = 0;
+// the companion survives a save and a farewell
+game.persistPlayer(p);
+assert.strictEqual(game.records[p.key].pet.kind, 'wolf', 'the companion is remembered');
+game.handleCommand(p, '/release');
+assert(!wolf.owner, 'released back to the wild');
+game.persistPlayer(p);
+assert(!game.records[p.key].pet, 'and forgotten by the record');
+game.mobs.delete(wolf.id); // clear the stage
+
+// gathering herbs from the mire
+let marsh = null;
+outer2:
+for (let y = 1; y < game.map.h - 1; y++) {
+  for (let x = 1; x < game.map.w - 1; x++) {
+    if (game.map.tiles[y * game.map.w + x] !== TILE.SWAMP) continue;
+    const around = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]
+      .every(([dx, dy]) => game.map.tiles[(y + dy) * game.map.w + x + dx] === TILE.SWAMP);
+    if (around) { marsh = { x, y }; break outer2; }
+  }
+}
+assert(marsh, 'the mire has deep ground');
+p.x = marsh.x;
+p.y = marsh.y;
+p.skills.alchemy = 100;
+p.swingAt = 0;
+const herbsBefore = p.herbs;
+game.handleGather(p);
+assert(p.herbs > herbsBefore, 'marsh herbs come up by the handful');
+
+// treasure hunting: a practiced dig pays beyond the cache
+const digIdx2 = game.map.secrets.findIndex((s, i) => s.type === 'cache' && !s.dead && i !== digIdx);
+assert(digIdx2 >= 0, 'another cache waits');
+const spot2 = game.map.secrets[digIdx2];
+for (const [id, d] of [...game.drops]) {
+  if (d.cacheIdx === digIdx2 || (d.x === spot2.x && d.y === spot2.y)) game.drops.delete(id);
+}
+// the boot-time applyEdits exercise above pushed raw spawners onto the live
+// map; give them what the boot loop would before ticking again
+for (const sp of game.spawners) if (!sp.alive) sp.alive = new Set();
+p.tmaps = [digIdx2];
+p.skills.treasurehunting = 100;
+p.x = spot2.x;
+p.y = spot2.y;
+p.hp = 100000;
+p.target = 0;
+const rDig = Math.random;
+Math.random = () => 0; // the gem roll cannot miss at GM skill
+game.tick();
+Math.random = rDig;
+assert.strictEqual(p.tmaps.length, 0, 'the second map is spent');
+assert([...game.drops.values()].some((d) => d.item === 'gold' && d.x === spot2.x && d.y === spot2.y &&
+  d.cacheIdx === undefined), 'the practiced eye turns up loose gold');
+assert([...game.drops.values()].some((d) => d.item === 'gems' && d.x === spot2.x && d.y === spot2.y &&
+  d.cacheIdx === undefined), 'and buried gems besides');
+assert(p.deeds.digger, 'X marks the spot is a deed');
 
 console.log('smoke test: all assertions passed');
 process.exit(0);

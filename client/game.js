@@ -149,6 +149,7 @@ function handleMessage(msg) {
       if (msg.charName) localStorage.setItem('shardlands:char', msg.charName);
       state.spells = msg.spells;
       state.weapons = msg.weapons || {};
+      state.brews = msg.brews || {};
       state.bestiary = msg.bestiary || {};
       state.qualities = msg.qualities || [];
       state.vendors = (msg.vendors || []).map((v) => ({ ...v, rx: v.x, ry: v.y, heading: 1 }));
@@ -483,6 +484,7 @@ document.addEventListener('keydown', (ev) => {
     case '5': triggerAction('drink:mana'); break;
     case 'b': case 'B': triggerAction('bandage'); break;
     case 'g': case 'G': triggerAction('gather'); break;
+    case 't': case 'T': tameTarget(); break;
     case 'i': case 'I': toggleInventory(); break;
     case 'f': case 'F': toggleFullscreen(); break;
     case 'm': case 'M': toggleWorldMap(); break;
@@ -498,6 +500,11 @@ window.addEventListener('blur', () => keys.clear());
 function castSpell(id) {
   send({ t: 'cast', spell: id, id: state.target });
 }
+
+function tameTarget() {
+  if (state.target) send({ t: 'tame', id: state.target });
+}
+document.getElementById('target-tame').addEventListener('click', tameTarget);
 
 // Visual cooldown sweeps on the hotbar. The server stays authoritative;
 // these only mirror the known cooldowns for feedback.
@@ -557,6 +564,9 @@ function updateTargetFrame() {
   tf.classList.remove('hidden');
   tf.classList.toggle('boss', !!style.boss);
   document.getElementById('target-name').textContent = mob.name || style.name || mob.kind;
+  const beast = (state.bestiary || {})[mob.kind];
+  document.getElementById('target-tame').classList.toggle('hidden',
+    !beast || beast.tm === undefined || !!mob.pet);
   const frac = Math.max(0, Math.min(1, mob.hp / mob.maxhp));
   document.getElementById('target-fill').style.width = (100 * frac) + '%';
   document.getElementById('target-text').textContent = `${Math.max(0, mob.hp)} / ${mob.maxhp}`;
@@ -705,7 +715,7 @@ function attackNearest() {
   let best = null;
   let bestD = 8;
   for (const m of state.mobs.values()) {
-    if (AUTO_ATTACK_EXCLUDE.has(m.kind)) continue;
+    if (AUTO_ATTACK_EXCLUDE.has(m.kind) || m.pet) continue;
     const d = Math.max(Math.abs(m.x - state.me.x), Math.abs(m.y - state.me.y));
     if (d < bestD) { bestD = d; best = m; }
   }
@@ -923,8 +933,19 @@ function openShop(vendor) {
            <button data-craft="${esc(id)}">Forge</button>
          </div>`).join('');
   }
+  // Anyone selling potions or herbs keeps a bench a brewer may borrow.
+  let bench = '';
+  if ((vendor.goods || []).some((g) => g.item === 'heal' || g.item === 'mana' || g.item === 'herbs')) {
+    bench = '<div class="shop-title" style="margin-top:10px">Brew (Alchemy)</div>' +
+      Object.entries(state.brews || {}).map(([kind, b]) =>
+        `<div class="shop-row">
+           <img class="eq-icon" src="assets/ui/icons/${esc(kind)}.png" alt="">
+           <span>${esc(b.name)}<small>${b.herbs} herbs · ${b.gold} gp</small></span>
+           <button data-brew="${esc(kind)}">Brew</button>
+         </div>`).join('');
+  }
   shopPanel.innerHTML =
-    `<div class="shop-title">${esc(vendor.name)}</div>${lines}${forge}
+    `<div class="shop-title">${esc(vendor.name)}</div>${lines}${forge}${bench}
      <button class="shop-close">Close</button>`;
   shopPanel.classList.remove('hidden');
   if (state.me && Math.hypot(vendor.x - state.me.x, vendor.y - state.me.y) > 3) {
@@ -940,6 +961,7 @@ shopPanel.addEventListener('click', (ev) => {
   if (ev.target.classList.contains('shop-close')) return closeShop();
   if (ev.target.dataset.idx !== undefined) send({ t: 'buy', idx: ev.target.dataset.idx | 0 });
   if (ev.target.dataset.craft) send({ t: 'craft', id: ev.target.dataset.craft });
+  if (ev.target.dataset.brew) send({ t: 'brew', kind: ev.target.dataset.brew });
 });
 
 // ---- login --------------------------------------------------------------------
@@ -1000,7 +1022,8 @@ function updateHud() {
   const eq = y.weapon != null && (y.items || []).find((i) => i.uid === y.weapon);
   document.getElementById('pack-line').textContent =
     `⛀ ${y.gold} gold · ${y.logs} logs · ${y.ore} ore` + (y.gems ? ` · ${y.gems} gems` : '') +
-    (y.fish ? ` · ${y.fish} fish` : '') + (y.food ? ` · ${y.food} meals` : '');
+    (y.fish ? ` · ${y.fish} fish` : '') + (y.food ? ` · ${y.food} meals` : '') +
+    (y.herbs ? ` · ${y.herbs} herbs` : '');
   const eqA = y.armor != null && (y.items || []).find((i) => i.uid === y.armor);
   const eqO = y.offhand != null && (y.items || []).find((i) => i.uid === y.offhand);
   document.getElementById('weapon-line').textContent =
@@ -1013,8 +1036,9 @@ function updateHud() {
   document.getElementById('pot-mana-count').textContent = pots.mana || 0;
 
   const list = document.getElementById('skills-list');
+  const pretty = (k) => k === 'treasurehunting' ? 'Treasure Hunting' : k[0].toUpperCase() + k.slice(1);
   list.innerHTML = Object.entries(y.skills)
-    .map(([k, v]) => `<div class="skill-row"><span>${k[0].toUpperCase() + k.slice(1)}</span><span>${Number(v).toFixed(1)}</span></div>`)
+    .map(([k, v]) => `<div class="skill-row"><span>${pretty(k)}</span><span>${Number(v).toFixed(1)}</span></div>`)
     .join('');
 }
 
@@ -1079,6 +1103,7 @@ function renderInventory() {
     ['🐟', 'Raw fish', y.fish || 0, 'cook'],
     ['🍖', 'Raw meat', y.meat || 0, 'cook'],
     [px('food'), 'Hot meals', y.food || 0, 'eat'],
+    ['🌱', 'Herbs', y.herbs || 0, ''],
     ['❄', 'Frostwood', mats.frostwood || 0, ''],
     ['☀', 'Sunsteel', mats.sunsteel || 0, ''],
     ['🌿', 'Ironbark', mats.ironbark || 0, ''],
@@ -1677,6 +1702,7 @@ const DROP_COLORS = {
   mana: ['#5070d0', '#283870'],
   logs: ['#8a6a42', '#4a3520'],
   ore: ['#9a968a', '#56524a'],
+  herbs: ['#5aa04a', '#2c5c24'],
 };
 
 function drawDrop(d, cam, time) {
@@ -1701,6 +1727,20 @@ function drawDrop(d, cam, time) {
     ctx.fillRect(s.x - 6, s.y - 6 , 12, 7);
     ctx.strokeStyle = dark;
     ctx.strokeRect(s.x - 6.5, s.y - 6.5, 13, 8);
+  } else if (d.item === 'herbs') {
+    // A little sprig bundle.
+    ctx.strokeStyle = dark;
+    ctx.beginPath();
+    ctx.moveTo(s.x, s.y + 1 + bob); ctx.lineTo(s.x, s.y - 9 + bob);
+    ctx.moveTo(s.x, s.y - 4 + bob); ctx.lineTo(s.x - 4, s.y - 8 + bob);
+    ctx.moveTo(s.x, s.y - 4 + bob); ctx.lineTo(s.x + 4, s.y - 8 + bob);
+    ctx.stroke();
+    ctx.fillStyle = main;
+    for (const [ox, oy] of [[0, -10], [-5, -9], [5, -9], [0, -5]]) {
+      ctx.beginPath();
+      ctx.ellipse(s.x + ox, s.y + oy + bob, 3, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
   } else if (d.item === 'weapon') {
     // A little sword, tinted by quality.
     const tint = QUALITY_COLORS[d.q ?? 1];
