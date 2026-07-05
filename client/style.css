@@ -165,6 +165,20 @@ button { font-family: inherit; cursor: pointer; }
 
 #target-frame.boss { border-color: var(--gold); box-shadow: 0 0 14px rgba(212, 175, 90, 0.35); }
 
+#target-tame {
+  flex: none;
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--gold);
+  background: rgba(216, 179, 94, 0.12);
+  border: 1px solid var(--gold-dim);
+  border-radius: 4px;
+  cursor: pointer;
+}
+#target-tame:hover { background: rgba(216, 179, 94, 0.25); }
+#target-tame.hidden { display: none; }
+
 #portrait, #target-portrait {
   border: 1px solid var(--gold-dim);
   border-radius: 4px;

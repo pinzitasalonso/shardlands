@@ -261,7 +261,7 @@ function addGoodsRow(g) {
   } else {
     row.dataset.kind = 'misc';
     const item = document.createElement('select');
-    for (const m of ['heal', 'mana', 'arrow']) item.add(new Option(m, m));
+    for (const m of ['heal', 'mana', 'arrow', 'herbs']) item.add(new Option(m, m));
     item.value = g.item || 'heal';
     const price = document.createElement('input');
     price.type = 'number';
@@ -295,7 +295,7 @@ function setGoodsRows(goods) {
   for (const g of goods || []) addGoodsRow(g);
 }
 
-const LOOT_CHOICES = ['gold', 'heal', 'mana', 'logs', 'ore', 'gems', 'food', 'meat', 'fish', 'tmap', 'weapon'];
+const LOOT_CHOICES = ['gold', 'heal', 'mana', 'logs', 'ore', 'gems', 'food', 'meat', 'fish', 'herbs', 'tmap', 'weapon'];
 
 function addLootRow(e) {
   const wrap = document.getElementById('loot-rows');

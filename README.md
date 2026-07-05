@@ -106,9 +106,20 @@ push back the dark.
 ## UO-style systems
 
 - **Use-based skills** — Swordsmanship, Tactics, Magery, Healing,
-  Lumberjacking, Mining, Fishing, Cooking, Blacksmithy. No levels, no XP
-  bar: skills rise as you use them, gains rarer near the 100 cap, titles at
-  grandmastery. Stats (STR/DEX/INT) creep up the same way.
+  Lumberjacking, Mining, Fishing, Cooking, Blacksmithy, Alchemy, Taming,
+  Treasure Hunting. No levels, no XP bar: skills rise as you use them,
+  gains rarer near the 100 cap, titles at grandmastery. Stats
+  (STR/DEX/INT) creep up the same way.
+- **Alchemy** — buy or gather herbs (marsh ground, dryads, serpents),
+  then brew heal and mana potions at any alchemist's bench. Practiced
+  hands sometimes pull a double measure from one brewing.
+- **Animal taming** — from chickens to cave bears, win a wild heart
+  (press T or the Tame button) and it heels, hunts your quarry, takes its
+  share of wounds, and waits out your logouts. One companion at a time;
+  `/release` sets it free.
+- **Treasure hunting** — the skill behind the shovel: every dig off a
+  weathered map trains it, and a practiced eye turns up loose gold and
+  buried gems beyond the cache itself.
 - **Magic with power words** — nine spells that shout *In Por Ylem* /
   *Vas Ort Grav* / *Rel Por* overhead, cost mana, fizzle at low Magery, and
   land with animated impacts.

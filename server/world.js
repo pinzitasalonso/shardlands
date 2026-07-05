@@ -312,6 +312,7 @@ function generate(seed = 1337) {
     goods: [
       { item: 'heal', name: 'Greater Heal Potion', price: 45, desc: 'Restores 25-40 health.' },
       { item: 'mana', name: 'Mana Potion', price: 35, desc: 'Restores 20-30 mana.' },
+      { item: 'herbs', name: 'Bundle of Herbs (4)', price: 14, desc: 'For brewing your own at my bench.' },
     ],
   });
   // ---- the capital's ramparts: the crown city finally wears its walls ---------
@@ -486,6 +487,7 @@ function generate(seed = 1337) {
       goods: [
         { item: 'heal', name: 'Greater Heal Potion', price: 45, desc: 'Restores 25-40 health.' },
         { item: 'mana', name: 'Mana Potion', price: 35, desc: 'Restores 20-30 mana.' },
+        { item: 'herbs', name: 'Bundle of Herbs (4)', price: 14, desc: 'For brewing your own at the bench.' },
       ],
     });
     spawners.push({ kind: 'villager', count: 4, x: cx, y: cy, r: 6 });
@@ -979,6 +981,7 @@ function generate(seed = 1337) {
       goods: [
         { item: 'heal', name: 'Greater Heal Potion', price: 25, desc: 'They will not say where they get them.' },
         { item: 'mana', name: 'Mana Potion', price: 20, desc: 'Tastes faintly of moss.' },
+        { item: 'herbs', name: 'Bundle of Herbs (4)', price: 8, desc: 'Picked at moonrise, they claim.' },
       ],
     });
     secrets.push({ type: 'whisper', x: hermitSpot.x, y: hermitSpot.y + 2,
@@ -1205,11 +1208,12 @@ function nearestWalkable(map, x, y) {
 //          secrets: [{type:'whisper'|'cache', x, y, text?, loot?}] }
 // What loot rows and shop goods may reference. Weapons are validated
 // against the caller-supplied set (WEAPONS lives in game.js).
-const LOOT_ITEMS = new Set(['gold', 'heal', 'mana', 'logs', 'ore', 'gems', 'food', 'meat', 'fish']);
+const LOOT_ITEMS = new Set(['gold', 'heal', 'mana', 'logs', 'ore', 'gems', 'food', 'meat', 'fish', 'herbs']);
 const MISC_GOODS = {
   heal: 'Greater Heal Potion',
   mana: 'Mana Potion',
   arrow: 'Bundle of Arrows (20)',
+  herbs: 'Bundle of Herbs (4)',
 };
 
 function sanitizeLoot(list, validWeapons) {
