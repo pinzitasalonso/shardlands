@@ -749,7 +749,7 @@ button { font-family: inherit; cursor: pointer; }
 @media (max-width: 1080px) {
   #chat { width: min(300px, calc(50vw - 292px)); min-width: 180px; }
   #chat-log { max-height: 34px; overflow-y: hidden; }
-  #chat-log.expanded { max-height: 174px; overflow-y: auto; }
+  #chat.expanded #chat-log { max-height: 174px; overflow-y: auto; }
 }
 
 /* narrower still: the corner can't fit a chat beside the hotbar at all,
@@ -770,15 +770,32 @@ button { font-family: inherit; cursor: pointer; }
   .bar { height: 13px; margin-bottom: 3px; }
   .bar span { font-size: 9.5px; line-height: 13px; }
 
-  /* target frame tucks under the player frame instead of mid-screen */
-  #target-frame { top: 66px; left: 8px; transform: none; min-width: 0; width: 180px; padding: 4px 8px 4px 4px; }
+  /* The chat docks right under the player frame at its width: a one-line
+     ticker of the latest entry. A tap unfolds the log and opens the
+     keyboard; the input stays hidden until then. */
+  #chat {
+    top: 76px;
+    left: 8px;
+    bottom: auto;
+    width: 180px; /* matches the player frame's border-box width */
+    min-width: 0;
+    z-index: 12;
+  }
+  #chat-log { max-height: 21px; overflow-y: hidden; font-size: 11px; padding: 3px 6px; }
+  #chat-input { display: none; }
+  #chat.expanded { width: min(84vw, 330px); }
+  #chat.expanded #chat-log { max-height: 180px; overflow-y: auto; }
+  #chat.expanded #chat-input { display: block; padding: 6px 8px; font-size: 16px; } /* 16px stops iOS focus-zoom */
+
+  /* target frame tucks under the chat ticker */
+  #target-frame { top: 128px; left: 8px; transform: none; min-width: 0; width: 180px; padding: 4px 8px 4px 4px; }
   #target-portrait { width: 36px; height: 36px; }
   #target-name { font-size: 12.5px; margin-bottom: 2px; }
 
   /* only the spirits' gifts stay on the strip here — the resource ledger
      is hidden further down, past the chip styles it must outrank. (The
-     target frame occupies 66-126 when something is selected.) */
-  #status-strip { top: 132px; left: 10px; max-width: 180px; font-size: 10.5px; }
+     target frame occupies 128-188 when something is selected.) */
+  #status-strip { top: 194px; left: 10px; max-width: 180px; font-size: 10.5px; }
 
   #minimap-wrap { top: 8px; right: 8px; padding: 2px; }
   #minimap { width: 76px; height: 76px; }
@@ -806,17 +823,6 @@ button { font-family: inherit; cursor: pointer; }
   #actions button { flex: none; width: 36px; height: 36px; }
   .slot-icon { font-size: 15px; line-height: 32px; }
   #actions kbd { display: none; } /* no keyboard on a phone */
-
-  /* chat: a one-line ticker above the hotbar; tap it to unfold */
-  #chat {
-    left: 8px;
-    bottom: calc(104px + env(safe-area-inset-bottom));
-    width: min(72vw, 300px);
-    min-width: 0;
-  }
-  #chat-log { max-height: 30px; overflow-y: hidden; font-size: 12px; padding: 4px 8px; }
-  #chat-log.expanded { max-height: 160px; overflow-y: auto; }
-  #chat-input { padding: 6px 8px; font-size: 16px; } /* 16px stops iOS focus-zoom */
 
   /* dialogs fit the screen */
   #shop, #inventory, #settings, #charsheet { width: min(330px, calc(100vw - 16px)); max-height: 72vh; }
