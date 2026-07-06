@@ -51,7 +51,14 @@ const GroundRender = (() => {
       const set = rows[((ty % rows.length) + rows.length) % rows.length];
       Assets.drawFrame(ctx, set[Math.floor(time / 180) % set.length], sx, sy);
     } else {
-      Assets.drawGround(ctx, recipe, h, sx, sy);
+      // A hand-picked ground variant overrides the position hash; anything
+      // else (or an out-of-range pick) falls back to the shuffled default.
+      const v = sink.tileVariant ? sink.tileVariant(tx, ty) : -1;
+      if (v >= 0 && recipe.ground && v < recipe.ground.length) {
+        Assets.drawFrame(ctx, recipe.ground[v], sx, sy);
+      } else {
+        Assets.drawGround(ctx, recipe, h, sx, sy);
+      }
     }
     // mountain ranges: interlocking peak cells picked by map position,
     // grass showing through the gaps exactly like the pack's own maps

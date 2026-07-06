@@ -26,6 +26,7 @@ let world = null;   // { w, h, tiles: Uint8Array, props, spawners, secrets, ... 
 let base = null;    // offscreen canvas, 1px per tile
 let tool = 'pan';
 let paintTile = 4;  // road
+let paintVariant = null; // hand-picked ground variant index; null = auto (hash)
 let propName = null; // selected catalog prop, e.g. 'prop.trees0'
 let customArt = [];  // the keeper's own pieces: [{name, w, h, t}]
 let dirty = false;
@@ -36,6 +37,7 @@ let cursor = { x: -1, y: -1 };
 // The edit overlay being built. Tiles use a Map for dedupe ("x,y" -> tile).
 const edits = {
   tiles: new Map(),
+  tileVariants: new Map(), // "x,y" -> variant index
   props: [], removeProps: [],
   spawners: [], removeSpawners: [],
   secrets: [], removeSecrets: [],
@@ -65,6 +67,7 @@ async function load() {
   // resume the saved overlay so editing is cumulative
   if (meta.edits) {
     for (const [x, y, v] of meta.edits.tiles || []) edits.tiles.set(x + ',' + y, v);
+    for (const [x, y, v] of meta.edits.tileVariants || []) edits.tileVariants.set(x + ',' + y, v);
     edits.props = meta.edits.props || [];
     edits.removeProps = meta.edits.removeProps || [];
     edits.spawners = meta.edits.spawners || [];
@@ -114,7 +117,11 @@ function thumbnail(frameName, w = 34, h = 34) {
   g.imageSmoothingEnabled = false;
   const f = Assets.state.manifest && Assets.state.manifest.frames[frameName];
   if (!f) return c;
-  const k = Math.min(w / (f.w * 1.05), h / (f.h * 1.05), 2);
+  // fit the WHOLE sprite: drawFrame renders at f.w*f.scale, so the fit must
+  // reckon with the pixel scale (usually 3x) or big art gets cropped/zoomed.
+  // Allow a little upscale (1.5x) so a lone 16px prop isn't a speck.
+  const scale = f.scale || 1;
+  const k = Math.min(w / (f.w * scale * 1.08), h / (f.h * scale * 1.08), 1.5);
   g.setTransform(k, 0, 0, k, 0, 0);
   Assets.drawFrame(g, frameName, (w / k) / 2, (h / k) - 1);
   return c;
@@ -209,6 +216,48 @@ function drawMobThumb() {
   g.setTransform(1, 0, 0, 1, 0, 0);
 }
 
+// A square swatch of one ground frame, drawn at its native 48px into a
+// canvas the CSS then sizes down.
+function groundThumb(frameName) {
+  const c = document.createElement('canvas');
+  c.width = 48;
+  c.height = 48;
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  Assets.drawFrame(g, frameName, 0, 0);
+  return c;
+}
+
+// The variant strip: the ground frames a tile can wear, plus "auto" (the
+// position-hashed shuffle). Empty for tiles with a single look.
+function buildTileVariants() {
+  const box = document.getElementById('tile-variants');
+  box.innerHTML = '';
+  const recipe = Assets.state.ok && Assets.state.manifest.tilesTD
+    && Assets.state.manifest.tilesTD[paintTile];
+  const variants = (recipe && recipe.ground) || [];
+  if (variants.length <= 1) return; // nothing to choose between
+  const mark = () => {
+    for (const o of box.children) o.classList.remove('on');
+    const which = paintVariant == null ? box.firstChild : box.children[paintVariant + 1];
+    if (which) which.classList.add('on');
+  };
+  const auto = document.createElement('button');
+  auto.className = 'auto';
+  auto.textContent = '🎲 auto';
+  auto.title = 'a shuffled mix, chosen by position';
+  auto.onclick = () => { paintVariant = null; mark(); pickTool('paint'); };
+  box.appendChild(auto);
+  variants.forEach((frame, i) => {
+    const b = document.createElement('button');
+    b.title = 'variant ' + (i + 1);
+    b.appendChild(groundThumb(frame));
+    b.onclick = () => { paintVariant = i; mark(); pickTool('paint'); };
+    box.appendChild(b);
+  });
+  mark();
+}
+
 function buildSidebar() {
   const pal = document.getElementById('palette');
   tileNames.forEach((name, i) => {
@@ -220,12 +269,15 @@ function buildSidebar() {
     if (i === paintTile) b.classList.add('on');
     b.onclick = () => {
       paintTile = i;
+      paintVariant = null; // a fresh tile starts on auto
       for (const o of pal.children) o.classList.remove('on');
       b.classList.add('on');
+      buildTileVariants();
       pickTool('paint');
     };
     pal.appendChild(b);
   });
+  buildTileVariants();
   buildPropPalette();
   document.getElementById('prop-search').oninput = (ev) =>
     buildPropPalette(ev.target.value.trim().toLowerCase());
@@ -526,7 +578,14 @@ function drawSprites() {
   const tileAt = (x, y) =>
     (x < 0 || y < 0 || x >= world.w || y >= world.h) ? 0 : world.tiles[y * world.w + x];
   const drawables = [];
-  const sink = { underworld: false, push: (d) => drawables.push(d) };
+  const sink = {
+    underworld: false,
+    push: (d) => drawables.push(d),
+    tileVariant: (tx, ty) => {
+      const v = edits.tileVariants.get(tx + ',' + ty);
+      return v === undefined ? -1 : v;
+    },
+  };
   const time = performance.now();
   ctx.setTransform(k, 0, 0, k, 0, 0);
   ctx.imageSmoothingEnabled = false;
@@ -698,12 +757,24 @@ function draw() {
         Assets.drawCreature(ctx, document.getElementById('mob-kind').value, 2, 'stance', 0,
           p.x / k + 24, p.y / k + 46, 1);
       } else if (tool === 'paint') {
-        ctx.globalAlpha = 0.4;
-        const c = TILE_COLORS[paintTile];
-        ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
         const size = +document.getElementById('brush').value;
         const half = size >> 1;
-        ctx.fillRect(p.x / k - half * 48, p.y / k - half * 48, size * 48, size * 48);
+        const recipe = Assets.state.manifest.tilesTD && Assets.state.manifest.tilesTD[paintTile];
+        const frame = paintVariant != null && recipe && recipe.ground && recipe.ground[paintVariant];
+        if (frame) {
+          // a chosen variant previews as its actual sprite under the brush
+          ctx.globalAlpha = 0.7;
+          for (let dy = -half; dy <= half; dy++) {
+            for (let dx = -half; dx <= half; dx++) {
+              Assets.drawFrame(ctx, frame, p.x / k + dx * 48, p.y / k + dy * 48);
+            }
+          }
+        } else {
+          ctx.globalAlpha = 0.4;
+          const c = TILE_COLORS[paintTile];
+          ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+          ctx.fillRect(p.x / k - half * 48, p.y / k - half * 48, size * 48, size * 48);
+        }
       }
       ctx.globalAlpha = 1;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -751,12 +822,16 @@ function paintAt(wx, wy) {
       const y = wy + dy;
       if (x < 0 || y < 0 || x >= world.w || y >= world.h) continue;
       const key = x + ',' + y;
-      if (world.tiles[y * world.w + x] === paintTile && !edits.tiles.has(key)) continue;
+      const curVar = edits.tileVariants.has(key) ? edits.tileVariants.get(key) : null;
+      // nothing to do only when both the tile AND the chosen variant already match
+      if (world.tiles[y * world.w + x] === paintTile && curVar === paintVariant) continue;
       cells.push([x, y, edits.tiles.has(key) ? edits.tiles.get(key) : null,
-        world.tiles[y * world.w + x]]);
+        world.tiles[y * world.w + x], curVar]);
       edits.tiles.set(key, paintTile);
       world.tiles[y * world.w + x] = paintTile;
       paintBasePixel(x, y, paintTile);
+      if (paintVariant == null) edits.tileVariants.delete(key);
+      else edits.tileVariants.set(key, paintVariant);
     }
   }
   if (cells.length) {
@@ -877,11 +952,13 @@ function undo() {
     for (const cell of op.cells) {
       const [x, y] = cell;
       if (op.kind === 'tiles') {
-        const [, , prevEdit, prevWorld] = cell;
+        const [, , prevEdit, prevWorld, prevVariant] = cell;
         if (prevEdit === null) edits.tiles.delete(x + ',' + y);
         else edits.tiles.set(x + ',' + y, prevEdit);
         world.tiles[y * world.w + x] = prevWorld;
         paintBasePixel(x, y, prevWorld);
+        if (prevVariant == null) edits.tileVariants.delete(x + ',' + y);
+        else edits.tileVariants.set(x + ',' + y, prevVariant);
       } else {
         const prev = cell[2];
         world.tiles[y * world.w + x] = prev;
@@ -902,6 +979,10 @@ function undo() {
 function payload() {
   return {
     tiles: [...edits.tiles.entries()].map(([k, v]) => {
+      const [x, y] = k.split(',').map(Number);
+      return [x, y, v];
+    }),
+    tileVariants: [...edits.tileVariants.entries()].map(([k, v]) => {
       const [x, y] = k.split(',').map(Number);
       return [x, y, v];
     }),
