@@ -1774,13 +1774,19 @@ const artCounts = game.applyEditsLive({ props: [{ x: run.x, y: run.y, name: 'cus
 assert.strictEqual(artCounts.props, 1, 'the keeper\'s own piece stands in the world');
 assert(game.map.props.some((pr) => pr.name === 'custom.smoke-rose'), 'and the world remembers it');
 
-// hand-placed animated coast stamps ride the same prop pipeline: named
-// 'coast.<row>', they survive sanitising and go live (the client draws them
-// flat and cycles their foam frames)
-const coastCounts = game.applyEditsLive({ props: [{ x: run.x + 1, y: run.y, name: 'coast.2' }] });
-assert.strictEqual(coastCounts.props, 1, 'a coast stamp stands in the world');
+// hand-placed animated coast stamps ride the same prop pipeline: sand is
+// named 'coast.<row>' and the other biomes 'coast.<biome>.<row>' — both
+// survive sanitising and go live (the client draws them flat and cycles
+// their foam frames)
+const coastCounts = game.applyEditsLive({ props: [
+  { x: run.x + 1, y: run.y, name: 'coast.2' },
+  { x: run.x + 2, y: run.y, name: 'coast.grass.9' },
+] });
+assert.strictEqual(coastCounts.props, 2, 'sand and grass coast stamps stand in the world');
 assert(game.map.props.some((pr) => pr.name === 'coast.2' && pr.x === run.x + 1),
-  'and the world remembers the coast stamp');
+  'the world remembers the sand coast stamp');
+assert(game.map.props.some((pr) => pr.name === 'coast.grass.9' && pr.x === run.x + 2),
+  'the world remembers the biome-prefixed coast stamp');
 
 // -- batch J: hand-picked ground variants ------------------------------------------
 const varKey = (spot.x + 30) + ',' + spot.y;
