@@ -820,7 +820,8 @@ function pointerAction(cx, cy, pickR) {
   }
 }
 
-canvas.addEventListener('mousedown', (ev) => pointerAction(ev.clientX, ev.clientY, 38));
+canvas.addEventListener('mousedown', (ev) =>
+  pointerAction(ev.clientX / VIEW_ZOOM, ev.clientY / VIEW_ZOOM, 38 / VIEW_ZOOM));
 
 // Spacebar: engage. Keeps hitting your current target while it lives and
 // stays close; otherwise picks the nearest hostile. Townsfolk, guards and
@@ -887,7 +888,7 @@ canvas.addEventListener('touchstart', (ev) => {
       joy.startAt = Date.now();
     } else {
       // second finger: instant tap while the first keeps steering
-      pointerAction(t.clientX, t.clientY, 52);
+      pointerAction(t.clientX / VIEW_ZOOM, t.clientY / VIEW_ZOOM, 52 / VIEW_ZOOM);
     }
   }
 }, { passive: false });
@@ -919,7 +920,7 @@ function endTouch(ev) {
   for (const t of ev.changedTouches) {
     if (t.identifier !== joy.touchId) continue;
     if (!joy.engaged && Date.now() - joy.startAt < 450) {
-      pointerAction(t.clientX, t.clientY, 52);
+      pointerAction(t.clientX / VIEW_ZOOM, t.clientY / VIEW_ZOOM, 52 / VIEW_ZOOM);
     }
     joy.touchId = null;
     joy.engaged = false;
@@ -1375,12 +1376,24 @@ function esc(s) {
 
 // ---- rendering ---------------------------------------------------------------------
 
+// Phones render through a wider lens: the backing canvas holds more
+// logical pixels than the glass shows, so a thumb-sized screen still
+// reads the dance around you. Text drawn on the canvas compensates
+// (FS below) so nameplates stay legible.
+let VIEW_ZOOM = 1;
+
 function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  VIEW_ZOOM = window.matchMedia('(max-width: 700px)').matches ? 0.72 : 1;
+  canvas.width = Math.round(window.innerWidth / VIEW_ZOOM);
+  canvas.height = Math.round(window.innerHeight / VIEW_ZOOM);
 }
 window.addEventListener('resize', resize);
 resize();
+
+// canvas font sizes, zoom-compensated: the world shrinks, the words don't
+function FS(px) {
+  return Math.round(px / VIEW_ZOOM) + 'px Georgia';
+}
 
 function tileAt(x, y) {
   const m = state.map;
@@ -1748,7 +1761,7 @@ function render() {
     ctx.fillStyle = 'rgba(40, 50, 70, 0.45)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = '#c8d0e0';
-    ctx.font = '22px Georgia';
+    ctx.font = FS(22);
     ctx.textAlign = 'center';
     ctx.fillText('You are dead. Walk to the glowing ankh in Briarhaven to resurrect.', canvas.width / 2, 60);
     ctx.textAlign = 'left';
@@ -2109,7 +2122,7 @@ function drawMob(m, cam, time) {
     : style.friendly ? 'rgba(140, 199, 255, 0.92)'
     : style.neutral ? 'rgba(208, 202, 173, 0.85)'
     : 'rgba(255, 150, 132, 0.92)';
-  ctx.font = style.boss ? 'bold 12px Georgia' : '11px Georgia';
+  ctx.font = style.boss ? 'bold ' + FS(12) : FS(11);
   ctx.textAlign = 'center';
   ctx.fillText(m.name || style.name, s.x, labelY);
   if (m.st) { // a rung bell sees stars
@@ -2189,7 +2202,7 @@ function drawPlayer(p, cam, time) {
 
   if (!p.dead && p.hp < p.maxhp) drawHpBar(s.x, labelY + 4, p.hp, p.maxhp);
   ctx.fillStyle = p.id === state.myId ? '#ffd870' : '#dce4f0';
-  ctx.font = '12px Georgia';
+  ctx.font = FS(12);
   ctx.textAlign = 'center';
   ctx.fillText(p.name, s.x, labelY);
   ctx.textAlign = 'left';
@@ -2220,7 +2233,7 @@ function drawVendor(v, cam, time) {
     labelY = s.y - 38;
   }
   ctx.fillStyle = v.stories ? '#c8a8e8' : '#88e0a0';
-  ctx.font = '12px Georgia';
+  ctx.font = FS(12);
   ctx.textAlign = 'center';
   ctx.fillText(v.name, s.x, labelY);
   ctx.textAlign = 'left';
@@ -2350,7 +2363,7 @@ function drawSpellFx(cam, time) {
 
 function drawFloaters(cam, time) {
   state.floaters = state.floaters.filter((f) => time - f.born < 1100);
-  ctx.font = 'bold 13px Georgia';
+  ctx.font = 'bold ' + FS(13);
   ctx.textAlign = 'center';
   for (const f of state.floaters) {
     const k = (time - f.born) / 1100;
@@ -2367,7 +2380,7 @@ function drawFloaters(cam, time) {
 }
 
 function drawSpeech(cam, time) {
-  ctx.font = '13px Georgia';
+  ctx.font = FS(13);
   ctx.textAlign = 'center';
   for (const [id, s] of state.speech) {
     if (time > s.until) {

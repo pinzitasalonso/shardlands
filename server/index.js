@@ -36,6 +36,12 @@ const server = http.createServer((req, res) => {
     }
     return fs.readFile(path.join(editor.artDir(game), base), (err, data) => {
       if (err) {
+        // no studio pieces yet is a normal state, not a client error
+        if (base === 'index.json') {
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8',
+            'Cache-Control': 'no-store' });
+          return res.end('{"art":[]}');
+        }
         res.writeHead(404);
         return res.end('Not found');
       }
