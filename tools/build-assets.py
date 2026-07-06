@@ -1202,6 +1202,8 @@ def build_coast(frames, images_out):
         ('grass', 'GrassBiome/Animated Tiles/GB-GrassLand-Coast-Animated.png', 'coastanim-grass', 'grass.'),
         ('snow',  'IceBiome/Animated Tiles/IB-Snow-Coast-Animated.png',        'coastanim-snow',  'snow.'),
         ('swamp', 'MarshBiome/Animated Tiles/MB-Swamp-Coast-Animated.png',     'coastanim-swamp', 'swamp.'),
+        ('dirt',  'DirtBiome/Animated Tiles/DB-Land-Coast-Animated.png',       'coastanim-dirt',  'dirt.'),
+        ('lava',  'LavaBiome/Animated Tiles/LB-LavaLand-Coast-Animated.png',   'coastanim-lava',  'lava.'),
     ]
     pieces = {}
     for biome, rel, img, pfx in sheets:
