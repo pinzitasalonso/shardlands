@@ -283,7 +283,12 @@ function buildSidebar() {
     buildPropPalette(ev.target.value.trim().toLowerCase());
   const mobSel = document.getElementById('mob-kind');
   for (const k of world.mobKinds) mobSel.add(new Option(k, k));
-  mobSel.onchange = drawMobThumb;
+  // touching any spawner setting arms the Spawner tool, so a click on the
+  // map places it — otherwise picking a kind quietly does nothing
+  mobSel.onchange = () => { drawMobThumb(); pickTool('spawner'); };
+  for (const id of ['mob-count', 'mob-r']) {
+    document.getElementById(id).addEventListener('focus', () => pickTool('spawner'));
+  }
   drawMobThumb();
   const vSel = document.getElementById('v-model');
   for (const k of ['vendor', 'smith', 'bard', 'hermit', ...world.mobKinds]) {
@@ -525,6 +530,20 @@ function applyToSelected() {
   draw();
 }
 
+const TOOL_HINT = {
+  pan: 'Drag to pan, scroll to zoom.',
+  paint: 'Click or drag on the map to paint tiles.',
+  prop: 'Click on the map to place the chosen prop.',
+  spawner: 'Click on the map to drop a spawner (kind / count / radius above).',
+  building: 'Click on the map to raise the building.',
+  portal: 'Click the entrance, then click its destination.',
+  whisper: 'Click on the map to leave a whisper.',
+  cache: 'Click on the map to bury a treasure cache.',
+  merchant: 'Click on the map to set up the merchant.',
+  edit: 'Click a spawner or merchant to edit it.',
+  erase: 'Click a placed thing to remove it.',
+};
+
 function pickTool(t) {
   tool = t;
   portalFrom = null;
@@ -532,6 +551,7 @@ function pickTool(t) {
     b.classList.toggle('on', b.dataset.tool === t);
   }
   cv.style.cursor = t === 'pan' ? 'grab' : 'crosshair';
+  if (TOOL_HINT[t]) setStatus(TOOL_HINT[t]);
 }
 
 // ---- view & drawing --------------------------------------------------------------
