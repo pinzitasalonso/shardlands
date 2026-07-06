@@ -1807,5 +1807,19 @@ assert(MOB_KINDS.cyclopsking.hp > MOB_KINDS.cyclops.hp &&
   MOB_KINDS.cyclopsking.dmg[1] > MOB_KINDS.cyclops.dmg[1],
   'the cyclops king stays the tougher one');
 
+// -- batch L: every city keeps its resurrection ankh -------------------------------
+const capital = game.map.cities.find((c) => c.name === 'Briarhaven');
+assert(capital && capital.sx != null, 'the capital records its shrine spot');
+assert.strictEqual(game.map.tiles[capital.sy * game.map.w + capital.sx], TILE.SHRINE,
+  'and wears its ankh');
+// paint over it in the live overlay, then a fresh boot must set it back
+game.applyEditsLive({ tiles: [[capital.sx, capital.sy, TILE.FLOOR]] });
+assert.strictEqual(game.map.tiles[capital.sy * game.map.w + capital.sx], TILE.FLOOR,
+  'a builder can paint over the ankh live');
+const reborn = new Game(); // re-reads worldgen AND the overlay that removed it
+const cap2 = reborn.map.cities.find((c) => c.name === 'Briarhaven');
+assert.strictEqual(reborn.map.tiles[cap2.sy * reborn.map.w + cap2.sx], TILE.SHRINE,
+  'yet the city rises from boot with its ankh restored');
+
 console.log('smoke test: all assertions passed');
 process.exit(0);

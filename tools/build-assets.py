@@ -637,6 +637,34 @@ def build_topdown_heroic(frames, images_out):
     wat.save(os.path.join(OUT, 'wateranim.png'))
     images_out['wateranim'] = 'wateranim.png'
 
+    # Roads autotile the way the pack draws them: a 16-piece set keyed by
+    # which cardinal neighbours are also road (center fill, four edges, four
+    # outer corners, two corridors, four end-caps, one isolated). Each piece
+    # is the tan road cell composited onto grass, so it's a complete opaque
+    # tile — a path reads as a path, not a flat tan slab. Keys list the OPEN
+    # (non-road) sides in n,e,s,w order.
+    roadsheet = sheets['ROAD']
+    grass_cell = cell(HAS_GROUNDS['grass'][0])
+    ROAD_CELLS = {
+        '': (6, 1),
+        'n': (6, 0), 'e': (7, 1), 's': (6, 2), 'w': (5, 1),
+        'nw': (5, 0), 'ne': (7, 0), 'sw': (5, 2), 'se': (7, 2),
+        'ew': (1, 2), 'ns': (3, 0),
+        'esw': (1, 3), 'nsw': (2, 0), 'new': (1, 1), 'nes': (4, 0),
+        'nesw': (0, 4),
+    }
+    road_keys = list(ROAD_CELLS)
+    roadatlas = Image.new('RGBA', (len(road_keys) * TD, TD), (0, 0, 0, 0))
+    for i, key in enumerate(road_keys):
+        cx, cy = ROAD_CELLS[key]
+        comp = grass_cell.copy()
+        comp.alpha_composite(roadsheet.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16)))
+        roadatlas.paste(comp, (i * TD, 0))
+        frames[f'td.road.{key}'] = {'img': 'roadauto', 'x': i * TD, 'y': 0,
+                                    'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+    roadatlas.save(os.path.join(OUT, 'roadauto.png'))
+    images_out['roadauto'] = 'roadauto.png'
+
     # dungeon brick wall cells + a torch, straight from the dungeon tileset
     dng = sheets['DNG'] if False else Image.open(os.path.join(HEROIC, HAS_SHEETS['DNG'])).convert('RGBA')
     extra = Image.new('RGBA', (9 * TD, 2 * TD), (0, 0, 0, 0))
@@ -729,7 +757,10 @@ def build_topdown_heroic(frames, images_out):
               ]},
         # mountains sit straight on the grass, ranges of interlocking peaks
         '3': {'ground': g('grass'), 'peaks': [f'td.mtn.{i}' for i in range(9)]},
-        '4': {'ground': g('road')},
+        '4': {'ground': g('road'),
+              'autoroad': {k: f'td.road.{k}' for k in
+                           ['', 'n', 'e', 's', 'w', 'nw', 'ne', 'sw', 'se',
+                            'ew', 'ns', 'esw', 'nsw', 'new', 'nes', 'nesw']}},
         '5': {'ground': g('floor')},
         '6': {'ground': g('grass'), 'autowall': autowall},
         '7': {'ground': g('sand'),

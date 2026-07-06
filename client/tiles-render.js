@@ -43,7 +43,19 @@ const GroundRender = (() => {
     const under = sink.underworld && Assets.tileTD('u' + tile);
     const recipe = under || Assets.tileTD(tile) || Assets.tileTD(T.WATER);
 
-    if (recipe.wanim) {
+    if (recipe.autoroad) {
+      // Roads autotile like the pack intends: each cell picks its piece by
+      // which cardinal neighbours are also road, so a path reads as a path
+      // — tan surface, grass shoulders, rounded ends — not a flat slab.
+      // (The pieces come with grass baked in, so no base layer is needed.)
+      const rd = (nx, ny) => tileAt(nx, ny) === T.ROAD;
+      let key = '';
+      if (!rd(tx, ty - 1)) key += 'n';
+      if (!rd(tx + 1, ty)) key += 'e';
+      if (!rd(tx, ty + 1)) key += 's';
+      if (!rd(tx - 1, ty)) key += 'w';
+      Assets.drawFrame(ctx, recipe.autoroad[key] || recipe.autoroad[''], sx, sy);
+    } else if (recipe.wanim) {
       // The living sea: each map row wears its band of the pack's
       // vertically repeating ocean, and that band's frames shimmer in
       // place — the waves stay put, only the light moves.
@@ -68,8 +80,9 @@ const GroundRender = (() => {
 
     // Soft biome seams: a higher-priority neighbour lays its tufty
     // fringe over this tile's edge — grass over sand, snow over grass.
+    // autotiled roads bring their own grass shoulders; don't double them
     const fr = FRINGES[tile];
-    if (fr && !sink.underworld) {
+    if (fr && !sink.underworld && !recipe.autoroad) {
       const pr = fr[1];
       const spill = (fx, fy) => {
         const f = FRINGES[tileAt(fx, fy)];

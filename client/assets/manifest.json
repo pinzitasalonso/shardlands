@@ -162,7 +162,8 @@
   "rabbit": "creatures/rabbit.png",
   "giantrat": "creatures/giantrat.png",
   "fox": "creatures/fox.png",
-  "badger": "creatures/badger.png"
+  "badger": "creatures/badger.png",
+  "roadauto": "roadauto.png"
  },
  "frames": {
   "grass.0": {
@@ -17878,6 +17879,166 @@
    "ax": 0,
    "ay": 0,
    "scale": 3
+  },
+  "td.road.": {
+   "img": "roadauto",
+   "x": 0,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.road.n": {
+   "img": "roadauto",
+   "x": 16,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.road.e": {
+   "img": "roadauto",
+   "x": 32,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.road.s": {
+   "img": "roadauto",
+   "x": 48,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.road.w": {
+   "img": "roadauto",
+   "x": 64,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.road.nw": {
+   "img": "roadauto",
+   "x": 80,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.road.ne": {
+   "img": "roadauto",
+   "x": 96,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.road.sw": {
+   "img": "roadauto",
+   "x": 112,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.road.se": {
+   "img": "roadauto",
+   "x": 128,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.road.ew": {
+   "img": "roadauto",
+   "x": 144,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.road.ns": {
+   "img": "roadauto",
+   "x": 160,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.road.esw": {
+   "img": "roadauto",
+   "x": 176,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.road.nsw": {
+   "img": "roadauto",
+   "x": 192,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.road.new": {
+   "img": "roadauto",
+   "x": 208,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.road.nes": {
+   "img": "roadauto",
+   "x": 224,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.road.nesw": {
+   "img": "roadauto",
+   "x": 240,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
   }
  },
  "tiles": {
@@ -18311,7 +18472,25 @@
   "4": {
    "ground": [
     "td.g.road.0"
-   ]
+   ],
+   "autoroad": {
+    "": "td.road.",
+    "n": "td.road.n",
+    "e": "td.road.e",
+    "s": "td.road.s",
+    "w": "td.road.w",
+    "nw": "td.road.nw",
+    "ne": "td.road.ne",
+    "sw": "td.road.sw",
+    "se": "td.road.se",
+    "ew": "td.road.ew",
+    "ns": "td.road.ns",
+    "esw": "td.road.esw",
+    "nsw": "td.road.nsw",
+    "new": "td.road.new",
+    "nes": "td.road.nes",
+    "nesw": "td.road.nesw"
+   }
   },
   "5": {
    "ground": [
