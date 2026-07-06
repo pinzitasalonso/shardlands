@@ -11,7 +11,7 @@
 // Top-down square projection, sized for 16px pixel-art packs drawn at 3x.
 const TP = 48;      // tile size on screen
 const HT = TP / 2;  // half tile — offset from a tile's top-left to its centre
-const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SAND: 7, SHRINE: 8, SNOW: 9, SNOWTREE: 10, PLANKS: 11, SWAMP: 12, SWAMPTREE: 13, CAVE: 14 };
+const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SAND: 7, SHRINE: 8, SNOW: 9, SNOWTREE: 10, PLANKS: 11, SWAMP: 12, SWAMPTREE: 13, CAVE: 14, STONEROAD: 15 };
 
 const WALKABLE = new Set([T.GRASS, T.ROAD, T.FLOOR, T.SAND, T.SHRINE, T.SNOW, T.PLANKS, T.SWAMP, T.CAVE]);
 
@@ -1489,6 +1489,7 @@ const TILE_COLORS = {
   [T.SWAMP]: ['#5a6b42', '#52613c'],
   [T.SWAMPTREE]: ['#4c5c3a', '#46553a'],
   [T.CAVE]: ['#4a443c', '#423d36'],
+  [T.STONEROAD]: ['#8a8ea0', '#7e8296'],
 };
 
 // A short kick of the whole view: big impacts should be felt in the hands.
@@ -2428,6 +2429,7 @@ const MINI_COLORS = {
   [T.WALL]: [70, 66, 60], [T.SAND]: [192, 174, 124], [T.SHRINE]: [240, 210, 110],
   [T.SNOW]: [228, 234, 240], [T.SNOWTREE]: [196, 210, 218], [T.PLANKS]: [148, 110, 72],
   [T.SWAMP]: [90, 107, 66], [T.SWAMPTREE]: [70, 86, 56], [T.CAVE]: [50, 46, 40],
+  [T.STONEROAD]: [138, 142, 160],
 };
 
 function buildMinimap() {

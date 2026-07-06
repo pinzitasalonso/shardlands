@@ -645,48 +645,51 @@ def build_topdown_heroic(frames, images_out):
     # each an 8px crop of a road cell composited onto grass.
     roadsheet = sheets['ROAD']
     grass_cell = cell(HAS_GROUNDS['grass'][0])
-    def road_on_grass(cx, cy):
-        c = grass_cell.copy()
-        c.alpha_composite(roadsheet.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16)))
-        return c
-    CENTER = road_on_grass(6, 1)
-    EDGE = {'n': road_on_grass(6, 0), 's': road_on_grass(6, 2),
-            'w': road_on_grass(5, 1), 'e': road_on_grass(7, 1)}
-    CORNER = {'nw': road_on_grass(5, 0), 'ne': road_on_grass(7, 0),
-              'sw': road_on_grass(5, 2), 'se': road_on_grass(7, 2)}
-    CONCAVE = {'nw': road_on_grass(6, 3), 'ne': road_on_grass(7, 3),
-               'sw': road_on_grass(6, 4), 'se': road_on_grass(7, 4)}
     QOFF = {'nw': (0, 0), 'ne': (8, 0), 'sw': (0, 8), 'se': (8, 8)}
     def subq(img, pos):
         ox, oy = QOFF[pos]
         return img.crop((ox, oy, ox + 8, oy + 8))
-    POS_SRC = {
-        'nw': {'edgeV': EDGE['w'], 'edgeH': EDGE['n'], 'outer': CORNER['nw'], 'inner': CONCAVE['nw']},
-        'ne': {'edgeV': EDGE['e'], 'edgeH': EDGE['n'], 'outer': CORNER['ne'], 'inner': CONCAVE['ne']},
-        'sw': {'edgeV': EDGE['w'], 'edgeH': EDGE['s'], 'outer': CORNER['sw'], 'inner': CONCAVE['sw']},
-        'se': {'edgeV': EDGE['e'], 'edgeH': EDGE['s'], 'outer': CORNER['se'], 'inner': CONCAVE['se']},
-    }
     positions = ['nw', 'ne', 'sw', 'se']
     qtypes = ['int', 'inner', 'edgeV', 'edgeH', 'outer']
-    # 20 quadrant pieces, then two whole-tile corridor pieces (vmid/hmid) so
-    # pure straight roads draw as one clean tile with no centre seam
-    roadatlas = Image.new('RGBA', (len(positions) * len(qtypes) * 8 + 2 * TD, TD), (0, 0, 0, 0))
-    qi = 0
-    for pos in positions:
-        for t in qtypes:
-            img = subq(CENTER, pos) if t == 'int' else subq(POS_SRC[pos][t], pos)
-            roadatlas.paste(img, (qi * 8, 0))
-            frames[f'td.rq.{pos}.{t}'] = {'img': 'roadauto', 'x': qi * 8, 'y': 0,
-                                          'w': 8, 'h': 8, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
-            qi += 1
-    xoff = len(positions) * len(qtypes) * 8
-    for name, (cx, cy) in [('vmid', (1, 2)), ('hmid', (3, 0))]:
-        roadatlas.paste(road_on_grass(cx, cy), (xoff, 0))
-        frames[f'td.rd.{name}'] = {'img': 'roadauto', 'x': xoff, 'y': 0,
-                                   'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
-        xoff += TD
-    roadatlas.save(os.path.join(OUT, 'roadauto.png'))
-    images_out['roadauto'] = 'roadauto.png'
+
+    # One road autotile set. `dr` shifts down to the grey cobblestone block
+    # (its layout mirrors the tan one, +5 rows); `qpfx`/`cpfx` name the frames
+    # and `img_name` the atlas. 20 quadrant pieces + two corridor tiles.
+    def bake_road(dr, qpfx, cpfx, img_name):
+        def rog(cx, cy):
+            c = grass_cell.copy()
+            c.alpha_composite(roadsheet.crop((cx * 16, (cy + dr) * 16, cx * 16 + 16, (cy + dr) * 16 + 16)))
+            return c
+        CENTER = rog(6, 1)
+        EDGE = {'n': rog(6, 0), 's': rog(6, 2), 'w': rog(5, 1), 'e': rog(7, 1)}
+        CORNER = {'nw': rog(5, 0), 'ne': rog(7, 0), 'sw': rog(5, 2), 'se': rog(7, 2)}
+        CONCAVE = {'nw': rog(6, 3), 'ne': rog(7, 3), 'sw': rog(6, 4), 'se': rog(7, 4)}
+        POS_SRC = {
+            'nw': {'edgeV': EDGE['w'], 'edgeH': EDGE['n'], 'outer': CORNER['nw'], 'inner': CONCAVE['nw']},
+            'ne': {'edgeV': EDGE['e'], 'edgeH': EDGE['n'], 'outer': CORNER['ne'], 'inner': CONCAVE['ne']},
+            'sw': {'edgeV': EDGE['w'], 'edgeH': EDGE['s'], 'outer': CORNER['sw'], 'inner': CONCAVE['sw']},
+            'se': {'edgeV': EDGE['e'], 'edgeH': EDGE['s'], 'outer': CORNER['se'], 'inner': CONCAVE['se']},
+        }
+        atlas = Image.new('RGBA', (len(positions) * len(qtypes) * 8 + 2 * TD, TD), (0, 0, 0, 0))
+        qi = 0
+        for pos in positions:
+            for t in qtypes:
+                img = subq(CENTER, pos) if t == 'int' else subq(POS_SRC[pos][t], pos)
+                atlas.paste(img, (qi * 8, 0))
+                frames[f'{qpfx}.{pos}.{t}'] = {'img': img_name, 'x': qi * 8, 'y': 0,
+                                               'w': 8, 'h': 8, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+                qi += 1
+        xoff = len(positions) * len(qtypes) * 8
+        for name, (cx, cy) in [('vmid', (1, 2)), ('hmid', (3, 0))]:
+            atlas.paste(rog(cx, cy), (xoff, 0))
+            frames[f'{cpfx}.{name}'] = {'img': img_name, 'x': xoff, 'y': 0,
+                                        'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+            xoff += TD
+        atlas.save(os.path.join(OUT, img_name + '.png'))
+        images_out[img_name] = img_name + '.png'
+
+    bake_road(0, 'td.rq', 'td.rd', 'roadauto')    # tan road (tile 4)
+    bake_road(5, 'td.rqs', 'td.rds', 'roadstone')  # grey stone road (tile 15)
 
     # dungeon brick wall cells + a torch, straight from the dungeon tileset
     dng = sheets['DNG'] if False else Image.open(os.path.join(HEROIC, HAS_SHEETS['DNG'])).convert('RGBA')
@@ -780,7 +783,7 @@ def build_topdown_heroic(frames, images_out):
               ]},
         # mountains sit straight on the grass, ranges of interlocking peaks
         '3': {'ground': g('grass'), 'peaks': [f'td.mtn.{i}' for i in range(9)]},
-        '4': {'ground': g('road'), 'autoroadq': True},
+        '4': {'ground': g('road'), 'autoroadq': {'tile': 4, 'q': 'td.rq', 'c': 'td.rd'}},
         '5': {'ground': g('floor')},
         '6': {'ground': g('grass'), 'autowall': autowall},
         '7': {'ground': g('sand'),
@@ -795,6 +798,9 @@ def build_topdown_heroic(frames, images_out):
         '13': {'ground': g('swamp'),
                'object': ['td.o.swamptree0', 'td.o.swamptree1']},
         '14': {'ground': g('cave')},
+        # grey cobblestone road: same corner autotiling as the tan road, its
+        # own connecting set. Ground fallback is the floor's grey stonework.
+        '15': {'ground': g('floor'), 'autoroadq': {'tile': 15, 'q': 'td.rqs', 'c': 'td.rds'}},
         # underground overrides (the barrow-deeps strip, y < 64): rock reads
         # as worked brick, and torches bracket the tunnel walls client-side
         'u3': {'ground': ['td.g.ubrick.0', 'td.g.ubrick.1'], 'torch': True},
