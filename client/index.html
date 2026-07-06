@@ -47,6 +47,7 @@
       <div id="stats-line"></div>
       <div id="pack-line"></div>
       <div id="weapon-line"></div>
+      <div id="boons-line"></div>
       <button id="skills-toggle" aria-expanded="false">Skills ▾</button>
       <div id="skills-list" class="hidden"></div>
       <button id="deeds-toggle" aria-expanded="false">Deeds ▾</button>
@@ -62,6 +63,12 @@
         </div>
       </div>
       <button id="target-tame" class="hidden" title="Tame (T)">Tame</button>
+      <span id="target-bond" class="hidden">
+        <button data-bondtalk title="Talk">💬</button>
+        <button data-bondgift="fish" title="Gift a fish">🐟</button>
+        <button data-bondgift="food" title="Gift a meal">🍲</button>
+        <button data-bondgift="gems" title="Gift a gem">💎</button>
+      </span>
     </div>
 
     <div id="minimap-wrap">
@@ -83,6 +90,9 @@
       <button data-act="drink:mana" data-cd="4000" aria-label="Drink mana potion, key 5" title="Drink a mana potion"><img class="slot-img" src="assets/ui/icons/mana.png" alt=""><kbd>5</kbd><span id="pot-mana-count" class="count">0</span><div class="cd" aria-hidden="true"></div></button>
       <button data-act="bandage" data-cd="8000" aria-label="Bandage wounds, key B" title="Bandage wounds"><span class="slot-icon">⊕</span><kbd>B</kbd><div class="cd" aria-hidden="true"></div></button>
       <button data-act="gather" data-cd="1200" aria-label="Chop or mine, key G" title="Chop trees / mine rock"><img class="slot-img" src="assets/ui/icons/pick.png" alt=""><kbd>G</kbd><div class="cd" aria-hidden="true"></div></button>
+      <button data-act="dash" data-cd="3000" aria-label="Dash, Shift key" title="Dash — 3 tiles, a heartbeat of untouchability (Shift + direction)"><span class="slot-icon">»</span><kbd>⇧</kbd><div class="cd" aria-hidden="true"></div></button>
+      <button data-act="special" data-cd="6000" aria-label="Weapon special, key Q" title="Weapon special (Q)"><span class="slot-icon">❖</span><kbd>Q</kbd><div class="cd" aria-hidden="true"></div></button>
+      <button data-act="pray" aria-label="Pray at a shrine, key P" title="Pray at a shrine for a boon (P)"><span class="slot-icon">☩</span><kbd>P</kbd></button>
       <button id="char-toggle" aria-label="Character sheet, key C" title="Character sheet" onclick="toggleCharPanel()"><span class="slot-icon">⚔</span><kbd>C</kbd></button>
       <button id="inv-toggle" aria-label="Inventory, key I" title="Inventory" onclick="toggleInventory()"><span class="slot-icon">🎒</span><kbd>I</kbd></button>
       <button id="map-toggle" aria-label="World map, key M" title="World map" onclick="toggleWorldMap()"><span class="slot-icon">🗺</span><kbd>M</kbd></button>
@@ -93,6 +103,8 @@
     <div id="worldmap" class="hidden" role="dialog" aria-label="World map">
       <canvas id="worldmap-canvas" width="640" height="640"></canvas>
     </div>
+
+    <div id="boons" class="hidden" role="dialog" aria-label="The shrine's offer"></div>
 
     <div id="settings" class="hidden" role="dialog" aria-label="Settings">
       <div class="shop-title">Settings</div>

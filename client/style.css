@@ -179,6 +179,63 @@ button { font-family: inherit; cursor: pointer; }
 #target-tame:hover { background: rgba(216, 179, 94, 0.25); }
 #target-tame.hidden { display: none; }
 
+#target-bond { flex: none; display: flex; gap: 4px; }
+#target-bond.hidden { display: none; }
+#target-bond button, .shop-bond button {
+  padding: 2px 6px;
+  font-size: 13px;
+  background: rgba(216, 179, 94, 0.12);
+  border: 1px solid var(--gold-dim);
+  border-radius: 4px;
+  cursor: pointer;
+}
+#target-bond button:hover, .shop-bond button:hover { background: rgba(216, 179, 94, 0.25); }
+.shop-bond { float: right; display: inline-flex; gap: 4px; }
+.brand-btns { display: inline-flex; gap: 4px; }
+.brand-btns button {
+  padding: 2px 7px;
+  background: rgba(216, 179, 94, 0.12);
+  border: 1px solid var(--gold-dim);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.brand-btns button:hover { background: rgba(216, 179, 94, 0.25); }
+
+#boons-line { color: var(--gold); font-size: 12px; }
+#boons-line:empty { display: none; }
+
+/* The shrine's offer: three gifts float on the water. */
+#boons {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, 92vw);
+  padding: 14px;
+  background: linear-gradient(160deg, rgba(38, 29, 18, 0.97), rgba(22, 16, 10, 0.97));
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  box-shadow: 0 0 30px rgba(212, 175, 90, 0.35), 0 8px 30px rgba(0, 0, 0, 0.7);
+  z-index: 40;
+}
+#boons.hidden { display: none; }
+#boons .boon-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 8px 0;
+  padding: 10px 12px;
+  font-family: inherit;
+  color: var(--text);
+  background: rgba(216, 179, 94, 0.08);
+  border: 1px solid var(--gold-dim);
+  border-radius: 6px;
+  cursor: pointer;
+}
+#boons .boon-card:hover { background: rgba(216, 179, 94, 0.22); border-color: var(--gold); }
+#boons .boon-card b { display: block; color: var(--gold); font-family: 'MiKroll Fantasy', Georgia, serif; font-size: 15px; }
+#boons .boon-card small { display: block; margin-top: 3px; color: var(--text); opacity: 0.85; line-height: 1.35; }
+
 #portrait, #target-portrait {
   border: 1px solid var(--gold-dim);
   border-radius: 4px;

@@ -278,6 +278,181 @@ const TAMEABLE = {
   brownbear: 70, cavebear: 75,
 };
 
+// ---- the shrine spirits' gifts -----------------------------------------------
+// Boons are lent, not given: death repossesses all of them. They survive
+// logout. Hold at most three; after the first, further offers must be earned
+// in qualifying kills (no chicken coops, no grandmasters farming goblins).
+const BOON_CAP = 3;
+const BOON_KILL_GATES = [0, 15, 25]; // kills owed for your 1st, 2nd, 3rd boon
+const BOONS = {
+  lifesteal: { name: 'Wolfsblood',
+    desc: 'Every wound thou dealest feeds thee a little in return.',
+    grant: 'The shrine-water tastes of iron. Something old and hungry settles behind your teeth — on your side, mostly.' },
+  dashcd: { name: 'The Hare\'s Bargain',
+    desc: 'Thy dash returns twice as fast. The hare asks nothing in return. Yet.',
+    grant: 'Your legs feel briefly borrowed from something faster.' },
+  chainkill: { name: 'The Storm\'s Tithe',
+    desc: 'Each foe that falls gives up a spark, and the spark goes looking for its friends.',
+    grant: 'Thunder owes you now. It pays its debts promptly.' },
+  thorns: { name: 'Briarhide',
+    desc: 'Those who strike thee are answered in kind, without thy lifting a finger.',
+    grant: 'Your skin remembers the briar. Let them come.' },
+  venomhit: { name: 'The Adder\'s Kiss',
+    desc: 'Thy blows leave a slow green grudge in the flesh.',
+    grant: 'Your weapon-hand tingles faintly. Best not to lick it.' },
+  hitchance: { name: 'The Duelist\'s Eye',
+    desc: 'Thy strikes land as an old duelist\'s do: unhurried, and rarely wrong.',
+    grant: 'The world narrows agreeably. You see openings where there were none.' },
+  maxhp: { name: 'Oxheart',
+    desc: 'Thy heart beats slower, harder, and takes considerably more convincing to stop.',
+    grant: 'Your chest feels roomier. Whatever has moved in intends to stay.' },
+  atkspeed: { name: 'Quicksilver',
+    desc: 'Thy hands move a beat ahead of thy thoughts.',
+    grant: 'Your hands blur pleasantly. Try not to gesture.' },
+  goldfind: { name: 'The Miser\'s Luck',
+    desc: 'The dead give up their coin more freely, as the miser never did.',
+    grant: 'You hear a faint counting, always in your favour.' },
+  cheatdeath: { name: 'The Ferryman Blinks',
+    desc: 'Once, and once only, death will find thee otherwise engaged.',
+    grant: 'Somewhere a ferryman sets down his pole and closes his eyes. Once.' },
+  manaspring: { name: 'The Deep Well',
+    desc: 'Mana rises in thee unbidden, like water in a good well.',
+    grant: 'Something cool and bottomless opens beneath your thoughts.' },
+  crit: { name: 'The Headsman\'s Favour',
+    desc: 'Now and again thy blow lands as the headsman\'s does: once is enough.',
+    grant: 'Your grip settles of its own accord. The weapon knows the work.' },
+};
+
+// Weapon specials: one button, one shared cooldown, a different verb per
+// weapon class. All of them auto-hit — that is their identity next to the
+// hit-roll economy. A special that finds nothing to do is a free no-op.
+const SPECIAL_CD_MS = 6000;
+const SPECIALS = {
+  dagger: { name: 'Shadowstep',
+    cast: 'You are briefly nowhere, then precisely behind.',
+    miss: 'The dark takes you, and puts you back, unimpressed.' },
+  sword: { name: 'Riposte',
+    cast: 'You turn your blade flat and wait, politely.',
+    miss: 'Nothing takes the bait. You lower your blade and pretend you meant it.' },
+  mace: { name: 'Bellringer',
+    cast: 'You swing as though the skull owes you money.',
+    miss: 'The bell goes unrung. Embarrassing, at this range.' },
+  battleaxe: { name: 'The Reaper\'s Round',
+    cast: 'You spin, and the axe makes your argument to everyone at once.',
+    miss: 'You come full circle having convinced no one.' },
+  greatsword: { name: 'The Long Harvest',
+    cast: 'You swing wide enough to trouble geography.',
+    miss: 'The great blade parts the air, which was not the target.' },
+  longbow: { name: 'Heartseeker',
+    cast: 'You draw past the ear, past sense, and loose.',
+    miss: 'The arrow flies true to somewhere it was not needed.' },
+  unarmed: { name: 'The Commoner\'s Answer',
+    cast: 'You deliver the answer the commons have always favoured.',
+    miss: 'Your boot finds only air, and your dignity finds the floor.' },
+};
+const SPECIAL_CLASS = { dagger: 'dagger', sword: 'sword', mace: 'mace', battleaxe: 'battleaxe',
+  greatsword: 'greatsword', dawnbreaker: 'greatsword', longbow: 'longbow' };
+
+// Gem brands the alchemists can talk into a blade. One brand per weapon;
+// the steel will not hold two grudges. Procs roll on landed melee hits.
+const BRAND_COST = { gems: 3, gold: 50 };
+const BRANDS = {
+  flame: { adj: 'Smouldering', desc: 'now and again the blow burns deeper' },
+  frost: { adj: 'Rimed', desc: 'now and again the blow grips the legs with cold' },
+  venom: { adj: 'Envenomed', desc: 'now and again the blow leaves a slow green grudge' },
+};
+
+// ---- the bonds between people ------------------------------------------------
+// Gifts build favor; favor unlocks warmer words and, in time, real payback.
+// Favor is keyed by NAME (ids do not survive respawns and reboots).
+const GIFT_FAVOR = { fish: 1, food: 2, gems: 3 };
+const BOND_TIERS = [0, 5, 10]; // stranger, friendly, confidant
+const BOND_LINES = {
+  villager: [
+    ['Fair day to thee. Mind the road after dark.',
+      'We do not get many visitors. The wolves get most of them.',
+      'If thou art selling, the shop is that way. If thou art trouble, so is the shrine.'],
+    ['Back again! Sit — the fire has taken all evening to get like this.',
+      'My hens have laid double since thou began coming round. I take it as an omen.',
+      'The others say I talk to thee too much. The others also poke badgers.'],
+    ['Hear me: when night falls, the barrow-dead do not stay down, and the ghosts rise with them. Be indoors, or be ready.',
+      'Folk buried coin in the raid years and died proud of it. The far corners of the world are full of it, under ground that whispers.',
+      'If ever I go missing, I have gone to dig where the ground whispers. Do not follow. Or do. Bring a shovel.'],
+  ],
+  blacksmith: [
+    ['Steel wears out. Coin does not. What dost thou need?',
+      'Ore and logs make a blade. Everything else is chatter.',
+      'Do not lean on the forge. The last one who leaned is called Lefty now.'],
+    ['Thy blade rings true when it comes back to me. That speaks well of the arm.',
+      'For thee I check the temper twice. The guardsmen get one. Do not tell them.',
+      'A smith remembers every blade she makes. Thine are keeping better company of late.'],
+    ['There is one blade no forge will make again. Dawnbreaker, the Dawn-Knight\'s own. If it lies anywhere, it lies where he fell — at the rim of the world.',
+      'Sunsteel, glittering in desert quarry rubble. Bring me some and I will show thee what a battleaxe is truly for.',
+      'The frostwood in the north and the ironbark in the deep groves — a blade wants one, a shield the other. Now thou knowest what I pay the mad ones for.'],
+  ],
+  alchemist: [
+    ['Herbs, gold, and no questions. That is how a bench stays friendly.',
+      'Do not touch the green one. Or the other green one.',
+      'If it curdles, we do not speak of it, and thou payest anyway.'],
+    ['Thou hast a steady hand. Most who come here have already drunk the stock.',
+      'I set aside the herbs that do not scream. Just for thee.',
+      'Between us: half of alchemy is patience, and the other half is standing well back.'],
+    ['The marsh grows the best herbs, the serpents guard them, and the dryads part with theirs impolitely. Everything worth brewing bites.',
+      'Beneath the second ruined keep sleeps the Crimson Count. Every wound he deals feeds him — so wound him faster than he can dine, or not at all.',
+      'The hermits sell potions cheaper than I dare. I know where they get them. I keep buying my silence with theirs.'],
+  ],
+  hermit: [
+    ['Hm. A visitor. The last one was a badger.',
+      'I did not move all the way out here for company. And yet.',
+      'Buy something or admire the moss. Both are acceptable.'],
+    ['Thou again. Good. I had begun answering the kettle.',
+      'The moss likes thee. The moss is rarely wrong.',
+      'Sit. Touch nothing on the left shelf. The left shelf is a working shelf.'],
+    ['The standing stones are doors, and they are paired. Step into one and thou drawest thy next breath half a world away. I use them for errands.',
+      'The ground whispers where old things lie buried. Most folk walk past. Thou strikest me as one who carries a shovel.',
+      'Where do the potions come from? Picked at moonrise, brewed at moonset — and the less thou knowest of the hours between, the better they work.'],
+  ],
+  bard: [
+    ['A song is a coin that spends twice. Sit, stranger — the next one is starting.',
+      'Requests are welcome. Requests are also ignored.',
+      'Every tale I tell is true. Some are true somewhere else.'],
+    ['Ah, my favourite audience. Thou laughest in the right places, and only the right places.',
+      'For thee I sing the second verses. The first verses are for paying strangers.',
+      'A bard trades in secrets the way a smith trades in nails. Keep bringing me thine.'],
+    ['The songs say Ser Alarion rode to the rim and died glorious. They omit that his squire lives — grey, silent, keeping a lonely fire on the old road.',
+      'Follow the waymark stones if thou wouldst walk the Dawn-Knight\'s road. The last is scorched black. The songs end there. Thou needst not.',
+      'Never whistle in a stone circle at midnight. That one is not a tale. That one is advice.'],
+  ],
+  dwarf: [
+    ['We sell nothing. We owe nothing. State thy business or mind the gate.',
+      'The seam does not care who thou art. Neither, as yet, do I.',
+      'Boots off the rune-stones. That is the whole of the law here.'],
+    ['Thou swingest a pick like it wronged thee. The clans respect that.',
+      'Sit by the fire. The rune-priest says thou art no ettin, and he is seldom wrong twice.',
+      'The mountain gives to those who ask with a pick. Thou askest properly. Have an ale.'],
+    ['The east quarry. Aye. Ettins came in the night and the clan came out smaller. We do not speak of it — but wert thou to clear it, we would not speak of that either. Loudly.',
+      'The desert hides sunsteel, of all things. Glittering in the quarry rubble, southern rock. A dwarf will not dig in sand. Thou hast no such dignity.',
+      'The deepest seams hold gems the size of thy fist. The deepest tunnels hold the reason we stopped digging.'],
+  ],
+};
+const GIFT_REACTIONS = {
+  fish: ['A fish! It is... certainly a fish. Thou art kind.',
+    'Still fresh. Mostly. My thanks, traveller.',
+    'For me? The cat will be furious.'],
+  food: ['A hot meal! Thou hast made an entire day of mine.',
+    'This smells of an actual kitchen. I had forgotten those.',
+    'Share it with me — no? Then I shall think of thee with every bite.'],
+  gems: ['A gem?! Put thy hand down before someone sees. ...Too late. It is mine now.',
+    'This is worth more than my roof. I shall keep it under the roof regardless.',
+    'Such a stone. I have nothing worthy to give back. Yet. Mark me: yet.'],
+};
+const GIFT_FAVOR_MAXED = [
+  'Stop. Thou hast given me enough for one lifetime, and I intend to have only the one.',
+  'Keep it, friend. There is nothing of mine left to win — it is all thine already.',
+];
+
+const DWARF_NAMES = ['Brokk', 'Dvalin', 'Eitri', 'Nali', 'Regin', 'Thekk', 'Vit', 'Harr'];
+
 // dur is how many durability points a common example has; each landed hit
 // has a 25% chance to spend one. craft lists the forge recipe materials.
 const WEAPONS = {
@@ -312,7 +487,8 @@ const UNARMED = { dmg: [1, 4], speedMs: 1300 };
 
 function weaponLabel(item) {
   const q = QUALITIES[item.q].name;
-  return (q ? q + ' ' : '') + WEAPONS[item.id].name;
+  const b = item.brand && BRANDS[item.brand] ? BRANDS[item.brand].adj + ' ' : '';
+  return (q ? q + ' ' : '') + b + WEAPONS[item.id].name;
 }
 
 function weaponPrice(id, q) {
@@ -345,6 +521,8 @@ const DEED_NAMES = {
   brewer: 'First Draught',
   beastfriend: 'A Loyal Companion',
   digger: 'X Marks the Spot',
+  blessed: 'Touched by the Spirits',
+  confidant: 'A Friend Indeed',
 };
 
 function titleOf(p) {
@@ -404,6 +582,7 @@ class Game {
     this.depleted = new Map();  // "x,y" -> { tile, respawnAt }
     this.drops = new Map();     // id -> { id, x, y, item, amount, despawnAt, cacheIdx? }
     this.pendingAoes = [];      // telegraphed boss slams awaiting impact
+    this.pendingBolts = [];     // caster bolts in flight; dash-dodgeable at impact
     this.cacheRespawns = new Map(); // secret index -> respawn time
 
     // Vendors come from worldgen; negative ids keep them clear of mob ids.
@@ -593,6 +772,19 @@ class Game {
       dead: false,
       target: 0,
       moveAt: 0, swingAt: 0, castAt: 0, bandageAt: 0, regenAt: 0, drinkAt: 0, portalAt: 0,
+      // the spirits' gifts and the bonds of the living. The floated offer
+      // and the per-friend gift clocks persist too: a relog must not
+      // reroll the spirits or reset a neighbour's patience.
+      boons: (rec.boons || []).filter((b) => BOONS[b]).slice(0, BOON_CAP),
+      boonKills: rec.boonKills || 0,
+      boonOffer: Array.isArray(rec.boonOffer) && rec.boonOffer.every((b) => BOONS[b])
+        ? rec.boonOffer.slice(0, 3) : null,
+      favor: { ...rec.favor },
+      favorPaid: { ...rec.favorPaid },
+      // the new verbs of the dance
+      dashAt: 0, specialAt: 0, evadeUntil: 0, riposteUntil: 0,
+      faceDx: 0, faceDy: 1,
+      giftAt: 0, talkAt: 0, giftCdBy: { ...rec.giftCdBy },
       whispered: new Set(),
     };
     ws.player = p;
@@ -619,13 +811,19 @@ class Game {
       weapons: WEAPONS,
       qualities: QUALITIES,
       brews: BREWS,
+      boonDefs: BOONS,
+      specials: SPECIALS,
+      specialClass: SPECIAL_CLASS,
+      brands: Object.fromEntries(Object.entries(BRANDS).map(([k, b]) => [k, b.adj])),
       vendors: this.vendors,
       // every kind's plate name + disposition, so the client can label
       // builder-placed creatures it has no hand-written style for
       bestiary: Object.fromEntries(Object.entries(MOB_KINDS).map(([k, d]) =>
         [k, { n: d.name, d: d.peaceful ? 'friendly' : d.aggro === 0 ? 'neutral' : 'hostile',
-              ...(TAMEABLE[k] !== undefined ? { tm: TAMEABLE[k] } : {}) }])),
+              ...(TAMEABLE[k] !== undefined ? { tm: TAMEABLE[k] } : {}),
+              ...(k === 'villager' || k === 'dwarf' || k === 'dwarfpriest' ? { bd: 1 } : {}) }])),
     });
+    this.send(ws, { t: 'favor', favor: p.favor });
     this.sendYou(p);
     this.sys(p, `Welcome to Shardlands, ${p.name}. The shrine in Briarhaven will raise you if you fall.`);
     this.broadcastSys(`${p.name} has entered the world.`, p.id);
@@ -670,6 +868,14 @@ class Game {
       arrows: p.arrows,
       home: p.home ? { ...p.home } : null,
       itemUid: p.itemUid,
+      boons: (p.boons || []).slice(),
+      boonKills: p.boonKills || 0,
+      boonOffer: p.boonOffer ? p.boonOffer.slice() : null,
+      favor: { ...p.favor },
+      favorPaid: { ...p.favorPaid },
+      // only the clocks still running matter; spent ones can rot away
+      giftCdBy: Object.fromEntries(Object.entries(p.giftCdBy || {})
+        .filter(([, until]) => until > Date.now())),
     });
     this.dirty = true;
   }
@@ -714,6 +920,15 @@ class Game {
       case 'eat': return this.handleEat(p);
       case 'brew': return this.handleBrew(p, String(msg.kind || ''));
       case 'tame': return this.handleTame(p, msg.id | 0);
+      case 'dash': return this.handleDash(p, msg.dx | 0, msg.dy | 0);
+      case 'special': return this.handleSpecial(p);
+      case 'pray': return this.handlePray(p);
+      case 'boon': return this.handleBoon(p, String(msg.id || ''));
+      case 'talk': return this.handleTalk(p, msg.id | 0);
+      case 'gift': return this.handleGift(p, msg.id | 0, String(msg.kind || ''));
+      case 'salvage': return this.handleSalvage(p, msg.uid | 0);
+      case 'imbue': return this.handleImbue(p, msg.uid | 0, String(msg.brand || ''));
+      case 'feast': return this.handleFeast(p);
       case 'chunks': return this.handleChunks(p, msg.l);
     }
   }
@@ -848,6 +1063,7 @@ class Game {
       mob.target = 0;
       mob.fleeUntil = 0;
       mob.dest = null;
+      mob.pendingStrike = null; // a won heart drops its raised fist
       this.deed(p, 'beastfriend');
       this.fxNear(mob, { t: 'fx', kind: 'heal', x: mob.x, y: mob.y, amount: 0 });
       this.sys(p, `${def.name.charAt(0).toUpperCase() + def.name.slice(1)} accepts you as its master.`);
@@ -880,9 +1096,10 @@ class Game {
           this.fxNear(foe, { t: 'fx', kind: 'hit', x: foe.x, y: foe.y, amount: dmg });
           if (foe.hp <= 0) return this.killMob(owner, foe);
         }
-        // The quarry bites back: a beast in melee takes its share of wounds.
+        // The quarry bites back: a beast in melee takes its share of wounds
+        // — unless it is stunned, or frozen in a committed windup.
         const fdef = MOB_KINDS[foe.kind];
-        if (t >= foe.swingAt) {
+        if (t >= foe.swingAt && !(foe.stunUntil > t) && !foe.pendingStrike) {
           foe.swingAt = t + 1600;
           foe.swungAt = t;
           const dmg = rand(fdef.dmg[0], fdef.dmg[1]);
@@ -944,8 +1161,12 @@ class Game {
     const good = vendor.goods[idx];
     if (!good) return;
 
+    // A confidant pays the friend's price. Applied at charge time only —
+    // the goods lists are shared objects shipped to everyone.
+    const friendly = (p.favor[vendor.name] || 0) >= BOND_TIERS[2];
     if (good.type === 'weapon') {
-      const price = weaponPrice(good.item, good.q);
+      const price = friendly ? Math.round(weaponPrice(good.item, good.q) * 0.9)
+        : weaponPrice(good.item, good.q);
       if (p.gold < price) {
         return this.sys(p, `${vendor.name} says: That is ${price} gold, which thou dost not have.`);
       }
@@ -958,19 +1179,20 @@ class Game {
       return;
     }
 
-    if (p.gold < good.price) {
-      return this.sys(p, `${vendor.name} says: That is ${good.price} gold, which thou dost not have.`);
+    const price = friendly ? Math.round(good.price * 0.9) : good.price;
+    if (p.gold < price) {
+      return this.sys(p, `${vendor.name} says: That is ${price} gold, which thou dost not have.`);
     }
-    p.gold -= good.price;
+    p.gold -= price;
     if (good.item === 'arrow') {
       p.arrows += ARROW_BUNDLE;
-      this.sys(p, `You buy ${ARROW_BUNDLE} arrows for ${good.price} gold.`);
+      this.sys(p, `You buy ${ARROW_BUNDLE} arrows for ${price} gold.`);
     } else if (good.item === 'herbs') {
       p.herbs += 4;
-      this.sys(p, `You buy a bundle of herbs for ${good.price} gold.`);
+      this.sys(p, `You buy a bundle of herbs for ${price} gold.`);
     } else {
       p.pots[good.item] = (p.pots[good.item] || 0) + 1;
-      this.sys(p, `You buy a ${good.name} for ${good.price} gold.`);
+      this.sys(p, `You buy a ${good.name} for ${price} gold.`);
     }
     this.sendYou(p);
   }
@@ -1099,9 +1321,16 @@ class Game {
     if (p.dead && (nx < 0 || ny < 0 || nx >= this.map.w || ny >= this.map.h)) return;
     p.x = nx;
     p.y = ny;
+    p.faceDx = dx;
+    p.faceDy = dy;
     const stride = dx !== 0 && dy !== 0 ? 165 : 118;
     p.moveAt = t + (t < (p.hasteUntil || 0) ? Math.round(stride * 0.7) : stride);
+    this.arriveAt(p, t);
+  }
 
+  // Everything that happens when boots (or a dash) land on a tile: shrines
+  // bind and resurrect, portals carry, the ground whispers.
+  arriveAt(p, t) {
     if (tileAt(this.map, p.x, p.y) === TILE.SHRINE) {
       if (p.dead) this.resurrect(p);
       // touching any shrine binds your recall there — cities are bases
@@ -1117,6 +1346,439 @@ class Game {
     // of the deeps to reach a shrine — but the world only whispers to,
     // and buries treasure for, the living (handled in checkSecrets).
     this.checkSecrets(p, t);
+  }
+
+  // ---- the dance: dash, i-frames, the special ---------------------------------
+
+  // A short burst of speed and a heartbeat of untouchability. The dash is an
+  // escape, not a free reposition-and-shoot: it taxes the next step and swing.
+  handleDash(p, dx, dy) {
+    if (p.dead) return;
+    dx = Math.sign(dx);
+    dy = Math.sign(dy);
+    if (dx === 0 && dy === 0) { dx = p.faceDx; dy = p.faceDy; }
+    if (dx === 0 && dy === 0) return;
+    const t = now();
+    if (t < p.dashAt) return;
+    // Walk the line tile by tile; stop before the first blocked one. A dash
+    // straight into a wall is refused outright and costs nothing.
+    let landed = 0;
+    for (let i = 0; i < 3; i++) {
+      if (!isWalkable(this.map, p.x + dx, p.y + dy)) break;
+      p.x += dx;
+      p.y += dy;
+      landed++;
+    }
+    if (!landed) return this.sys(p, 'No room to dash that way.');
+    p.dashAt = t + (p.boons.includes('dashcd') ? 1800 : 3000);
+    p.evadeUntil = t + 600;
+    p.moveAt = t + 350;
+    p.swingAt = Math.max(p.swingAt, t + 350);
+    p.faceDx = dx;
+    p.faceDy = dy;
+    this.fxNear(p, { t: 'fx', kind: 'dash', x: p.x - dx * landed, y: p.y - dy * landed, tx: p.x, ty: p.y });
+    this.arriveAt(p, t);
+  }
+
+  // One weapon-damage formula for swings and specials alike.
+  weaponRoll(p, item, wdef, t, mult) {
+    const roll = rand(wdef.dmg[0], wdef.dmg[1]);
+    const blessBonus = p.buffUntil > t ? 3 : 0;
+    const base = (item ? Math.round(roll * QUALITIES[item.q].dmgMul) : roll) +
+      Math.floor(p.str / 10) + blessBonus;
+    return Math.max(1, Math.floor(base * (0.5 + p.skills.tactics / 150) * (mult || 1)));
+  }
+
+  // Mobs a sweeping special may lawfully hit: never townsfolk, never the
+  // watch, never anyone's companion. Targeted specials answer for their own
+  // crimes the same way a plain attack does.
+  sweepable(m) {
+    return !MOB_KINDS[m.kind].peaceful && !m.owner;
+  }
+
+  handleSpecial(p) {
+    if (p.dead) return this.sys(p, 'The dead have no tricks left.');
+    const t = now();
+    if (t < p.specialAt) return;
+    const item = this.equippedWeapon(p);
+    const cls = item ? (SPECIAL_CLASS[item.id] || 'unarmed') : 'unarmed';
+    const spec = SPECIALS[cls];
+    const wdef = item ? WEAPONS[item.id] : UNARMED;
+    const target = p.target ? this.mobs.get(p.target) : null;
+    // Facing: toward the target if there is one, else the way you last moved.
+    let fdx = p.faceDx;
+    let fdy = p.faceDy;
+    if (target) {
+      fdx = Math.sign(target.x - p.x);
+      fdy = Math.sign(target.y - p.y);
+    }
+    const spend = () => { p.specialAt = t + SPECIAL_CD_MS; this.sys(p, spec.cast); };
+    const whiff = () => this.sys(p, spec.miss);
+
+    if (cls === 'sword') {
+      // Riposte: the window is the bet; it spends the cooldown win or lose.
+      spend();
+      p.riposteUntil = t + 1500;
+      return;
+    }
+    if (cls === 'dagger') {
+      if (!target || target.owner || dist(p, target) > 4) return whiff();
+      // Step through the dark to the far side of the mark: one tile beyond
+      // it on your line of approach, or failing that any open side.
+      const candidates = [[target.x + Math.sign(target.x - p.x), target.y + Math.sign(target.y - p.y)]];
+      for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+        candidates.push([target.x + ox, target.y + oy]);
+      }
+      const spot = candidates.find(([x, y]) => isWalkable(this.map, x, y) && !(x === p.x && y === p.y));
+      if (!spot) return whiff();
+      spend();
+      this.fxNear(p, { t: 'fx', kind: 'portal', x: p.x, y: p.y });
+      p.x = spot[0];
+      p.y = spot[1];
+      this.fxNear(p, { t: 'fx', kind: 'portal', x: p.x, y: p.y });
+      this.damageMob(p, target, this.weaponRoll(p, item, wdef, t, 2.0));
+      if (item) this.wearWeapon(p, item);
+      this.arriveAt(p, t);
+      return;
+    }
+    if (cls === 'mace') {
+      if (!target || target.owner || dist(p, target) > 1.5) return whiff();
+      spend();
+      const def = MOB_KINDS[target.kind];
+      if (def.boss) {
+        target.slowUntil = t + 2000; // crowned heads do not ring, but they stagger
+      } else {
+        target.stunUntil = t + 2000;
+      }
+      target.pendingStrike = null;
+      this.fxNear(target, { t: 'fx', kind: 'stun', x: target.x, y: target.y });
+      this.damageMob(p, target, this.weaponRoll(p, item, wdef, t, 1.0));
+      if (item) this.wearWeapon(p, item);
+      return;
+    }
+    if (cls === 'battleaxe') {
+      const victims = [...this.mobs.values()].filter((m) => this.sweepable(m) && dist(p, m) <= 1.5);
+      if (!victims.length) return whiff();
+      spend();
+      this.fxNear(p, { t: 'fx', kind: 'slam', x: p.x, y: p.y });
+      for (const m of victims) this.damageMob(p, m, this.weaponRoll(p, item, wdef, t, 0.8));
+      if (item) this.wearWeapon(p, item);
+      return;
+    }
+    if (cls === 'greatsword') {
+      if (fdx === 0 && fdy === 0) return whiff();
+      const arc = fdx && fdy
+        ? [[fdx, 0], [fdx, fdy], [0, fdy]]
+        : fdx ? [[fdx, -1], [fdx, 0], [fdx, 1]] : [[-1, fdy], [0, fdy], [1, fdy]];
+      const tiles = arc.map(([ox, oy]) => `${p.x + ox},${p.y + oy}`);
+      const victims = [...this.mobs.values()].filter((m) =>
+        this.sweepable(m) && tiles.includes(`${m.x},${m.y}`));
+      if (!victims.length) return whiff();
+      spend();
+      for (const [ox, oy] of arc) {
+        this.fxNear(p, { t: 'fx', kind: 'slam', x: p.x + ox, y: p.y + oy });
+      }
+      for (const m of victims) this.damageMob(p, m, this.weaponRoll(p, item, wdef, t, 1.5));
+      if (item) this.wearWeapon(p, item);
+      return;
+    }
+    if (cls === 'longbow') {
+      if (fdx === 0 && fdy === 0) return whiff();
+      const victims = [];
+      for (let i = 1; i <= 8; i++) {
+        const tx = p.x + fdx * i;
+        const ty = p.y + fdy * i;
+        for (const m of this.mobs.values()) {
+          if (this.sweepable(m) && m.x === tx && m.y === ty) victims.push(m);
+        }
+      }
+      if (!victims.length || p.arrows <= 0) {
+        return this.sys(p, p.arrows <= 0 ? 'You are out of arrows. The fletchers sell bundles.' : spec.miss);
+      }
+      spend();
+      p.arrows -= 1;
+      this.fxNear(p, { t: 'fx', kind: 'arrow', x: p.x, y: p.y, tx: p.x + fdx * 8, ty: p.y + fdy * 8 });
+      for (const m of victims) this.damageMob(p, m, this.weaponRoll(p, item, wdef, t, 1.2));
+      if (item) this.wearWeapon(p, item);
+      this.sendYou(p);
+      return;
+    }
+    // Unarmed: the commoner's answer — a boot, and some distance.
+    if (!target || target.owner || dist(p, target) > 1.5) return whiff();
+    spend();
+    const def = MOB_KINDS[target.kind];
+    target.pendingStrike = null;
+    if (!def.boss) {
+      const kx = Math.sign(target.x - p.x);
+      const ky = Math.sign(target.y - p.y);
+      for (let i = 0; i < 2; i++) {
+        if (!isWalkable(this.map, target.x + kx, target.y + ky)) break;
+        target.x += kx;
+        target.y += ky;
+      }
+    }
+    this.damageMob(p, target, this.weaponRoll(p, null, UNARMED, t, 1.0));
+  }
+
+  // ---- the shrine spirits: pray, choose, and hold the gift lightly -------------
+
+  atShrine(p) {
+    if (tileAt(this.map, p.x, p.y) === TILE.SHRINE) return true;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      if (tileAt(this.map, p.x + dx, p.y + dy) === TILE.SHRINE) return true;
+    }
+    return false;
+  }
+
+  handlePray(p) {
+    if (p.dead) return this.sys(p, 'The spirits do not treat with ghosts. Touch the shrine and live first.');
+    if (!this.atShrine(p)) return this.sys(p, 'Prayers travel poorly. Stand at a shrine.');
+    if (p.boons.length >= BOON_CAP) {
+      return this.sys(p, 'Thou carriest three gifts already. Even the spirits do not pour into a full cup.');
+    }
+    // An offer once floated stays on the water — no rerolling the spirits.
+    if (p.boonOffer) return this.sendBoonOffer(p);
+    const need = BOON_KILL_GATES[p.boons.length];
+    if (p.boonKills < need) {
+      return this.sys(p, `The spirits know thy face, but not yet thy worth. Prove thyself: ${need - p.boonKills} more worthy foes must fall.`);
+    }
+    const pool = Object.keys(BOONS).filter((k) => !p.boons.includes(k));
+    const offer = [];
+    while (offer.length < 3 && pool.length) {
+      offer.push(pool.splice(rand(0, pool.length - 1), 1)[0]);
+    }
+    p.boonOffer = offer;
+    this.sys(p, 'The shrine-water stills. Three gifts float upon it. Take one — and hold it lightly, for the spirits lend what death collects.');
+    this.sendBoonOffer(p);
+  }
+
+  sendBoonOffer(p) {
+    this.send(p.ws, {
+      t: 'boons',
+      offer: p.boonOffer.map((k) => ({ id: k, name: BOONS[k].name, desc: BOONS[k].desc })),
+    });
+  }
+
+  handleBoon(p, id) {
+    if (!p.boonOffer || !p.boonOffer.includes(id)) return;
+    if (p.dead || p.boons.length >= BOON_CAP) return;
+    p.boons.push(id);
+    p.boonOffer = null;
+    p.boonKills = 0;
+    this.deed(p, 'blessed');
+    this.sys(p, BOONS[id].grant);
+    if (id === 'maxhp') p.hp = Math.min(maxHp(p), p.hp + 25); // the roomier chest fills
+    this.fxNear(p, { t: 'fx', kind: 'heal', x: p.x, y: p.y, amount: 0 });
+    this.sendYou(p);
+  }
+
+  // Every hostile blow aimed at a player passes through here: i-frames turn
+  // it aside, an armed riposte returns it, and only then does it land.
+  // Returns true only when the blow actually landed (vampires must not
+  // dine on strikes that were dodged or parried).
+  strikePlayer(p, dmg, byName, opts = {}) {
+    const t = now();
+    if (t < p.evadeUntil) {
+      this.fxNear(p, { t: 'fx', kind: 'evade', x: p.x, y: p.y });
+      return false;
+    }
+    if (opts.melee && opts.srcMob && t < p.riposteUntil) {
+      p.riposteUntil = 0;
+      const item = this.equippedWeapon(p);
+      const wdef = item ? WEAPONS[item.id] : UNARMED;
+      this.sys(p, 'You read the blow like a dull letter, and answer it.');
+      this.fxNear(p, { t: 'fx', kind: 'miss', x: p.x, y: p.y });
+      // a boss cross-strike calls in here once per player: the mob may
+      // already be dead from the first answer, and dead mobs stay dead
+      if (this.mobs.has(opts.srcMob.id)) {
+        this.damageMob(p, opts.srcMob, this.weaponRoll(p, item, wdef, t, 1.5));
+        if (item) this.wearWeapon(p, item);
+      }
+      return false;
+    }
+    this.hitPlayer(p, dmg, byName);
+    // Briarhide: the briar answers without your lifting a finger.
+    if (opts.melee && opts.srcMob && p.boons.includes('thorns') && this.mobs.has(opts.srcMob.id)) {
+      const back = Math.min(5, Math.ceil(dmg * 0.3));
+      opts.srcMob.hp -= back;
+      this.fxNear(opts.srcMob, { t: 'fx', kind: 'hit', x: opts.srcMob.x, y: opts.srcMob.y, amount: back });
+      if (opts.srcMob.hp <= 0) this.silentKillMob(opts.srcMob); // no credit, no coin
+    }
+    return true;
+  }
+
+  // A death nobody earns: thorns and stray sparks kill without credit,
+  // coin or spoils — the world just tidies up after itself.
+  silentKillMob(mob) {
+    this.mobs.delete(mob.id);
+    mob.spawner.alive.delete(mob.id);
+    mob.spawner.respawnAt = now() + (mob.spawner.respawnMs || 20_000);
+    this.fxNear(mob, { t: 'fx', kind: 'die', x: mob.x, y: mob.y });
+  }
+
+  // ---- bonds: gifts, favor, and words that warm with use -----------------------
+
+  // Who can be befriended, and in whose voice they answer. Favor is keyed by
+  // name, because ids do not survive respawns and reboots.
+  bondTargetOf(p, id) {
+    if (id < 0) {
+      const v = this.vendors.find((o) => o.id === id);
+      if (!v || dist(p, v) > 4) return null;
+      const arch = v.stories ? 'bard'
+        : (v.forge || v.model === 'smith') ? 'blacksmith'
+        : v.model === 'hermit' ? 'hermit'
+        : (v.goods || []).some((g) => g.item === 'heal' || g.item === 'mana' || g.item === 'herbs') ? 'alchemist'
+        : 'villager';
+      return { name: v.name, entity: v, arch, vendor: true };
+    }
+    const m = this.mobs.get(id);
+    if (!m || !m.name || dist(p, m) > 4) return null;
+    const arch = m.kind === 'villager' ? 'villager'
+      : (m.kind === 'dwarf' || m.kind === 'dwarfpriest') ? 'dwarf' : null;
+    if (!arch) return null;
+    return { name: m.name, entity: m, arch, vendor: false };
+  }
+
+  handleTalk(p, id) {
+    const t = now();
+    if (t < p.talkAt) return;
+    const bt = this.bondTargetOf(p, id);
+    if (!bt) {
+      p.talkAt = t + 1000;
+      return this.sys(p, 'Too far for talk. Words carry four tiles at best.');
+    }
+    p.talkAt = t + 3000;
+    const favor = p.favor[bt.name] || 0;
+    const tier = favor >= BOND_TIERS[2] ? 2 : favor >= BOND_TIERS[1] ? 1 : 0;
+    const lines = BOND_LINES[bt.arch][tier];
+    this.fxNear(bt.entity, {
+      t: 'chat', id, name: bt.name, text: lines[rand(0, lines.length - 1)],
+    });
+  }
+
+  handleGift(p, id, kind) {
+    if (p.dead) return;
+    if (!GIFT_FAVOR[kind]) return;
+    const t = now();
+    if (t < p.giftAt) return;
+    const bt = this.bondTargetOf(p, id);
+    if (!bt) return this.sys(p, 'No one near enough to receive it.');
+    const favor = p.favor[bt.name] || 0;
+    if (favor >= BOND_TIERS[2]) {
+      return this.fxNear(bt.entity, {
+        t: 'chat', id, name: bt.name,
+        text: GIFT_FAVOR_MAXED[rand(0, GIFT_FAVOR_MAXED.length - 1)],
+      });
+    }
+    if (t < (p.giftCdBy[bt.name] || 0)) {
+      return this.sys(p, `${bt.name} politely declines — thou hast given enough for now.`);
+    }
+    const pouch = { fish: 'fish', food: 'food', gems: 'gems' }[kind];
+    if ((p[pouch] || 0) < 1) {
+      return this.sys(p, `You have no ${kind === 'food' ? 'meals' : kind} to give.`);
+    }
+    p[pouch] -= 1;
+    p.giftAt = t + 2000;
+    p.giftCdBy[bt.name] = t + 300_000; // one gift per neighbour per five minutes
+    p.favor[bt.name] = favor + GIFT_FAVOR[kind];
+    const lines = GIFT_REACTIONS[kind];
+    this.fxNear(bt.entity, { t: 'chat', id, name: bt.name, text: lines[rand(0, lines.length - 1)] });
+
+    // Favor pays back, once per milestone, per friend.
+    const f = p.favor[bt.name];
+    const paid = p.favorPaid[bt.name] || 0;
+    if (f >= BOND_TIERS[1] && paid < 1) {
+      p.favorPaid[bt.name] = 1;
+      p.pots.heal += 1;
+      this.sys(p, `${bt.name} presses something into your hand — a heal potion, for a friend.`);
+    }
+    if (f >= BOND_TIERS[2] && (p.favorPaid[bt.name] || 0) < 2) {
+      p.favorPaid[bt.name] = 2;
+      this.deed(p, 'confidant');
+      if (bt.vendor) {
+        this.sys(p, `${bt.name} beams: "For thee, friend, always a tenth off. Do not tell the guild."`);
+      } else {
+        const cacheIdxs = this.map.secrets
+          .map((sc, i) => (sc.type === 'cache' && !sc.dead ? i : -1)).filter((i) => i >= 0);
+        if (cacheIdxs.length && (p.tmaps || []).length < 3) {
+          p.tmaps = p.tmaps || [];
+          p.tmaps.push(cacheIdxs[rand(0, cacheIdxs.length - 1)]);
+          this.sys(p, `${bt.name} leans close: "I marked where the ground whispers. Take it, and tell no one."`);
+        } else {
+          p.gold += 50;
+          this.sys(p, `${bt.name} presses a worn purse into your hands. "For a true friend. Count it later."`);
+        }
+      }
+    }
+    this.send(p.ws, { t: 'favor', favor: p.favor });
+    this.sendYou(p);
+  }
+
+  // ---- crafting moments: unmake, brand, and feast -------------------------------
+
+  handleSalvage(p, uid) {
+    if (p.dead) return this.sys(p, 'The dead unmake nothing.');
+    const vendor = this.vendors.find((v) => v.forge && dist(p, v) <= 3);
+    if (!vendor) return this.sys(p, 'You need a blacksmith\'s forge to unmake what a forge made.');
+    const item = p.items.find((i) => i.uid === uid);
+    if (!item) return;
+    const def = WEAPONS[item.id];
+    if (!def.craft || def.secret) return this.sys(p, 'No forge will unmake that.');
+    if ([p.weapon, p.armor, p.offhand].includes(uid)) {
+      return this.sys(p, 'Unequip it first — the forge takes no blade from a living hand.');
+    }
+    const ore = Math.floor(def.craft.ore * 0.4);
+    const logs = Math.floor(def.craft.logs * 0.4);
+    const label = weaponLabel(item);
+    p.items = p.items.filter((i) => i.uid !== uid);
+    p.ore += ore;
+    p.logs += logs;
+    for (const m of ['frostwood', 'sunsteel', 'ironbark']) {
+      if (def.craft[m]) p.mats[m] += Math.floor(def.craft[m] * 0.4);
+    }
+    this.gainSkill(p, 'blacksmithy');
+    this.sys(p, `You unmake your ${label}. It comes apart into its honest parts: ${ore} ore, ${logs} logs.`);
+    this.sendYou(p);
+  }
+
+  handleImbue(p, uid, brand) {
+    if (p.dead) return this.sys(p, 'The dead brand nothing.');
+    if (!BRANDS[brand]) return;
+    const bench = this.vendors.find((v) => dist(p, v) <= 3 &&
+      (v.goods || []).some((g) => g.item === 'heal' || g.item === 'mana' || g.item === 'herbs'));
+    if (!bench) return this.sys(p, 'You need an alchemist\'s bench to talk steel into anything.');
+    const item = p.items.find((i) => i.uid === uid);
+    if (!item) return;
+    const def = WEAPONS[item.id];
+    if (!def.dmg || def.secret) return this.sys(p, 'The steel refuses. Some things are already spoken for.');
+    if (item.brand) return this.sys(p, 'One brand per blade. The steel will not hold two grudges.');
+    if (p.gems < BRAND_COST.gems || p.gold < BRAND_COST.gold) {
+      return this.sys(p, `Socketing a brand takes ${BRAND_COST.gems} gems and ${BRAND_COST.gold} gold. The steel can wait. The alchemist cannot.`);
+    }
+    p.gems -= BRAND_COST.gems;
+    p.gold -= BRAND_COST.gold;
+    item.brand = brand;
+    this.gainSkill(p, 'alchemy');
+    this.sys(p, `The gems give up their fire to the steel with a sound like a held breath. Your ${weaponLabel(item)} takes the brand.`);
+    this.sendYou(p);
+  }
+
+  handleFeast(p) {
+    if (p.dead) return;
+    if (!this.nearCampfire(p)) return this.sys(p, 'A Feast needs a campfire. Raw ambition is not an ingredient.');
+    if (p.fish < 1 || p.meat < 1 || p.herbs < 1) {
+      return this.sys(p, 'A Feast asks a fish, a cut of meat and a herb. The pot knows when you skimp.');
+    }
+    const t = now();
+    p.fish -= 1;
+    p.meat -= 1;
+    p.herbs -= 1;
+    p.fedUntil = Math.max(p.fedUntil || 0, t + 60_000);
+    p.buffUntil = t + 60_000; // the strength of a proper meal, same channel as Bless
+    this.gainSkill(p, 'cooking');
+    this.fxNear(p, { t: 'fx', kind: 'heal', x: p.x, y: p.y, amount: 0 });
+    this.sys(p, 'Fish, meat and herb settle their differences at last. A Feast! Warmth and strength for the road.');
+    this.sendYou(p);
   }
 
   cityAt(x, y) {
@@ -1676,11 +2338,32 @@ class Game {
 
   killMob(killer, mob) {
     const def = MOB_KINDS[mob.kind];
-    const gold = rand(Math.ceil(def.gold * 0.6), def.gold);
+    let gold = rand(Math.ceil(def.gold * 0.6), def.gold);
+    if (killer.boons && killer.boons.includes('goldfind')) gold = Math.round(gold * 1.3);
     killer.gold += gold;
     this.mobs.delete(mob.id);
     mob.spawner.alive.delete(mob.id);
     mob.spawner.respawnAt = now() + (mob.spawner.respawnMs || 20_000);
+    // A worthy kill moves the spirits: no chicken coops, no grandmasters
+    // farming goblins for blessings.
+    const worthy = def.aggro > 0 &&
+      def.skill >= 0.35 * Math.max(killer.skills.swordsmanship, killer.skills.magery);
+    if (worthy) {
+      killer.boonKills = (killer.boonKills || 0) + 1;
+      // The Storm's Tithe: the fallen give up a spark, and the spark goes
+      // looking for its friends. Sparks earn nothing — no credit, no chain.
+      if (killer.boons.includes('chainkill')) {
+        let struck = 0;
+        for (const m2 of this.mobs.values()) {
+          if (struck >= 3) break;
+          if (!this.sweepable(m2) || dist(mob, m2) > 4) continue;
+          this.fxNear(m2, { t: 'fx', kind: 'chainarc', x: mob.x, y: mob.y, tx: m2.x, ty: m2.y, amount: 10 });
+          m2.hp -= 10;
+          if (m2.hp <= 0) this.silentKillMob(m2);
+          struck++;
+        }
+      }
+    }
     this.sys(killer, `You have slain ${mob.name || def.name}! You loot ${gold} gold.`);
     this.deed(killer, 'firstblood');
     if (mob.kind === 'dragon' || mob.kind === 'vyrmaur') this.deed(killer, 'dragonslayer');
@@ -1861,9 +2544,25 @@ class Game {
   }
 
   killPlayer(p, byName) {
+    // The Ferryman Blinks: once, and once only.
+    if (p.boons.includes('cheatdeath')) {
+      p.boons = p.boons.filter((b) => b !== 'cheatdeath');
+      p.hp = 1;
+      p.evadeUntil = now() + 1500;
+      this.fxNear(p, { t: 'fx', kind: 'heal', x: p.x, y: p.y, amount: 1 });
+      this.sys(p, 'Death reaches for you — and finds the ferryman looking elsewhere. Once.');
+      this.sendYou(p);
+      return;
+    }
     p.dead = true;
     p.hp = 0;
     p.target = 0;
+    if (p.boons.length) {
+      p.boons = [];
+      this.sys(p, 'The spirits\' gifts pass from you like breath from cold glass. They were only ever lent.');
+    }
+    p.boonOffer = null;
+    p.boonKills = 0;
     this.sys(p, `You have been slain by ${byName}. Walk your ghost to a shrine.`);
     this.broadcastSys(`${p.name} has been slain by ${byName}.`, p.id);
     this.fxNear(p, { t: 'fx', kind: 'die', x: p.x, y: p.y });
@@ -1898,10 +2597,14 @@ class Game {
       p.arrows -= 1;
       this.fxNear(p, { t: 'fx', kind: 'arrow', x: p.x, y: p.y, tx: mob.x, ty: mob.y });
     }
-    p.swingAt = t + Math.max(900, wdef.speedMs - p.dex * 10);
+    // Quicksilver hands move a beat ahead of their owner's thoughts.
+    const quick = p.boons.includes('atkspeed');
+    p.swingAt = t + Math.max(quick ? 720 : 900,
+      Math.round((wdef.speedMs - p.dex * 10) * (quick ? 0.8 : 1)));
     p.swungAt = t;
 
-    const hitChance = clamp(50 + (p.skills.swordsmanship - MOB_KINDS[mob.kind].skill) / 2, 10, 95);
+    const hitChance = clamp(50 + (p.skills.swordsmanship - MOB_KINDS[mob.kind].skill) / 2 +
+      (p.boons.includes('hitchance') ? 10 : 0), 10, 95);
     this.gainSkill(p, 'swordsmanship');
     if (Math.random() * 100 > hitChance) {
       this.fxNear(mob, { t: 'fx', kind: 'miss', x: mob.x, y: mob.y });
@@ -1909,11 +2612,37 @@ class Game {
     }
     this.gainSkill(p, 'tactics');
     this.gainStat(p, 'str');
-    const roll = rand(wdef.dmg[0], wdef.dmg[1]);
-    const blessBonus = p.buffUntil > t ? 3 : 0;
-    const base = (item ? Math.round(roll * QUALITIES[item.q].dmgMul) : roll) + Math.floor(p.str / 10) + blessBonus;
-    const dmg = Math.max(1, Math.floor(base * (0.5 + p.skills.tactics / 150)));
+    let dmg = this.weaponRoll(p, item, wdef, t, 1);
+    // The Headsman's Favour: now and again, once is enough.
+    if (p.boons.includes('crit') && Math.random() < 0.1) dmg *= 2;
     this.damageMob(p, mob, dmg);
+    // Wolfsblood: every wound dealt feeds a little in return.
+    if (p.boons.includes('lifesteal') && p.hp < maxHp(p)) {
+      p.hp = Math.min(maxHp(p), p.hp + Math.min(6, Math.ceil(dmg * 0.15)));
+      this.sendYou(p);
+    }
+    // Slow green grudges: the Adder's Kiss and the Envenomed brand share one
+    // poison slot and never overwrite an active dot.
+    if (this.mobs.has(mob.id)) {
+      const brand = item && item.brand;
+      if (brand && Math.random() < 0.2) {
+        if (brand === 'flame') {
+          this.fxNear(mob, { t: 'fx', kind: 'brand', x: mob.x, y: mob.y, brand });
+          this.damageMob(p, mob, rand(3, 6));
+        } else if (brand === 'frost') {
+          mob.slowUntil = t + 3000;
+          this.fxNear(mob, { t: 'fx', kind: 'brand', x: mob.x, y: mob.y, brand });
+        } else if (brand === 'venom' && !mob.poison) {
+          mob.poison = { left: 3, dmg: 3, nextAt: t + 2000, by: p.id };
+          this.fxNear(mob, { t: 'fx', kind: 'poison', x: mob.x, y: mob.y });
+        }
+      }
+      if (this.mobs.has(mob.id) && p.boons.includes('venomhit') &&
+          !mob.poison && Math.random() < 0.2) {
+        mob.poison = { left: 3, dmg: 3, nextAt: t + 2000, by: p.id };
+        this.fxNear(mob, { t: 'fx', kind: 'poison', x: mob.x, y: mob.y });
+      }
+    }
     if (item) this.wearWeapon(p, item);
   }
 
@@ -1975,8 +2704,13 @@ class Game {
         moveAt: 0, swingAt: 0, chatAt: 0,
         spawner,
       };
+      // Names are dealt by the spawner's ground, not the id draw: favor is
+      // keyed by name, so Berta must still be Berta after a reboot.
       if (spawner.kind === 'villager') {
-        mob.name = VILLAGER_NAMES[mob.id % VILLAGER_NAMES.length];
+        mob.name = VILLAGER_NAMES[(spawner.x * 31 + spawner.y * 17 + spawner.alive.size) % VILLAGER_NAMES.length];
+      }
+      if (spawner.kind === 'dwarf' || spawner.kind === 'dwarfpriest') {
+        mob.name = DWARF_NAMES[(spawner.x * 31 + spawner.y * 17 + spawner.alive.size) % DWARF_NAMES.length];
       }
       // Every barrow raises the occasional necromancer.
       if (spawner.kind === 'skeleton' && Math.random() < 0.18) {
@@ -2009,6 +2743,32 @@ class Game {
         return;
       }
     }
+
+    // A committed strike lands where it was aimed, whoever stands there now.
+    // The mob holds its ground for the whole windup — that stillness IS the
+    // tell — and a death or a stun mid-windup cancels it (field dies with
+    // the mob; a mace's stun nulls it explicitly).
+    if (mob.pendingStrike) {
+      if (t < mob.pendingStrike.at) return;
+      const ps = mob.pendingStrike;
+      mob.pendingStrike = null;
+      mob.swingAt = t + 1600;
+      mob.swungAt = t;
+      const tiles = ps.plus ? [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] : [[0, 0]];
+      for (const q of this.players.values()) {
+        if (q.dead) continue;
+        if (tiles.some(([ox, oy]) => q.x === ps.x + ox && q.y === ps.y + oy)) {
+          const landed = this.strikePlayer(q, ps.dmg, mob.name || def.name, { melee: true, srcMob: mob });
+          if (landed && def.vampiric && mob.hp < mob.maxhp) {
+            mob.hp = Math.min(mob.maxhp, mob.hp + Math.ceil(ps.dmg / 2));
+          }
+        }
+      }
+      if (!this.mobs.has(mob.id)) return; // the briar answered hard
+    }
+
+    // Rung bells think about very little.
+    if (mob.stunUntil && t < mob.stunUntil) return;
 
     // A tamed beast follows its own drum: its master's.
     if (mob.owner) return this.petTick(mob, t, def);
@@ -2130,23 +2890,43 @@ class Game {
         this.pendingAoes.push({ x: ax, y: ay, at: t + 1600, dmg: Math.round(def.dmg[1] * 1.4), by: mob.name || def.name });
       }
 
-      // Casters bombard from range.
+      // Casters bombard from range. The bolt takes 300ms to arrive — too
+      // fast to outwalk, exactly slow enough to dash through on a read.
       if (def.caster && d <= def.caster.range && d > 1.5 && t >= (mob.castAt || 0)) {
         mob.castAt = t + def.caster.cdMs;
         this.fxNear(mob, { t: 'fx', kind: def.caster.fx || 'mbolt', x: mob.x, y: mob.y, tx: target.x, ty: target.y });
-        this.hitPlayer(target, rand(def.caster.dmg[0], def.caster.dmg[1]), mob.name || def.name);
+        this.pendingBolts.push({
+          targetId: target.id, at: t + 300,
+          dmg: rand(def.caster.dmg[0], def.caster.dmg[1]), by: mob.name || def.name,
+        });
         return;
       }
 
       if (d <= 1.5) {
         if (t >= mob.swingAt) {
+          // The heavy hitters telegraph: they mark the ground, stand still,
+          // and the blow lands where it was aimed. Stepping off the mark is
+          // the whole defense — so on the mark it never misses, and hits
+          // harder. Guards are exempt: crime must not be dodgeable. Light
+          // trash keeps the old instant swing so the rabble stays snappy.
+          const heavy = def.dmg[1] >= 10 && !def.guard && !def.caster;
+          if (heavy) {
+            const plus = !!def.boss; // bosses mark a cross: dash or die
+            mob.pendingStrike = {
+              x: target.x, y: target.y, at: t + (plus ? 700 : 800),
+              dmg: Math.round(rand(def.dmg[0], def.dmg[1]) * 1.15), plus,
+            };
+            mob.swungAt = t;
+            this.fxNear(mob, { t: 'fx', kind: 'windup', x: target.x, y: target.y, plus: plus ? 1 : undefined });
+            return;
+          }
           mob.swingAt = t + 1600;
           mob.swungAt = t;
           const hitChance = clamp(50 + (def.skill - target.skills.swordsmanship) / 2, 10, 95);
           if (Math.random() * 100 <= hitChance) {
             const dmg = rand(def.dmg[0], def.dmg[1]);
-            this.hitPlayer(target, dmg, mob.name || def.name);
-            if (def.vampiric && mob.hp < mob.maxhp) {
+            const landed = this.strikePlayer(target, dmg, mob.name || def.name, { melee: true, srcMob: mob });
+            if (landed && def.vampiric && mob.hp < mob.maxhp) {
               // every wound he deals closes one of his own
               mob.hp = Math.min(mob.maxhp, mob.hp + Math.ceil(dmg / 2));
             }
@@ -2291,9 +3071,19 @@ class Game {
         this.fxNear(a, { t: 'fx', kind: 'slam', x: a.x, y: a.y });
         for (const q of this.players.values()) {
           if (!q.dead && Math.abs(q.x - a.x) <= 1 && Math.abs(q.y - a.y) <= 1) {
-            this.hitPlayer(q, a.dmg, a.by);
+            this.strikePlayer(q, a.dmg, a.by);
           }
         }
+      }
+    }
+
+    // Bolts in flight find their mark — unless the mark is mid-dash.
+    if (this.pendingBolts.length) {
+      const due = this.pendingBolts.filter((b) => t >= b.at);
+      this.pendingBolts = this.pendingBolts.filter((b) => t < b.at);
+      for (const b of due) {
+        const q = this.players.get(b.targetId);
+        if (q && !q.dead) this.strikePlayer(q, b.dmg, b.by, { bolt: true });
       }
     }
 
@@ -2360,7 +3150,11 @@ class Game {
         let changed = false;
         if (p.hp < maxHp(p) && Math.random() < 0.35) { p.hp += 1; changed = true; }
         if (p.fedUntil > t && p.hp < maxHp(p)) { p.hp = Math.min(maxHp(p), p.hp + 2); changed = true; }
-        if (p.mana < p.int) { p.mana = Math.min(p.int, p.mana + 1); changed = true; }
+        if (p.mana < p.int) {
+          // the Deep Well rises unbidden
+          p.mana = Math.min(p.int, p.mana + 1 + (p.boons.includes('manaspring') ? 1 : 0));
+          changed = true;
+        }
         if (changed) this.sendYou(p);
       }
     }
@@ -2422,6 +3216,7 @@ class Game {
           a: t - (m.swungAt || 0) < 700 ? 1 : 0,
           name: m.name,
           pet: m.owner ? 1 : undefined,
+          st: m.stunUntil > t ? 1 : undefined,
         })),
         drops: drops.filter(near).map((d) => ({ id: d.id, x: d.x, y: d.y, item: d.item, q: d.w ? d.w.q : undefined })),
       });
@@ -2454,6 +3249,8 @@ class Game {
       offhand: p.offhand,
       arrows: p.arrows,
       blessed: p.buffUntil > now() ? 1 : 0,
+      boons: p.boons,
+      boonKills: p.boonKills,
       dead: p.dead,
     });
   }
@@ -2492,7 +3289,7 @@ class Game {
 }
 
 function maxHp(p) {
-  return 50 + Math.floor(p.str / 2);
+  return 50 + Math.floor(p.str / 2) + ((p.boons || []).includes('maxhp') ? 25 : 0);
 }
 
 function clamp(v, lo, hi) {
