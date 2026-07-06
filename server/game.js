@@ -1086,6 +1086,16 @@ class Game {
         (MOB_KINDS[foe.kind].peaceful) || dist(owner, foe) > 12)) {
       foe = null;
     }
+    // A bleeding companion falls back to heel and licks its wounds rather
+    // than dying game; it rejoins once it has mended past half.
+    if (pet.cowed && pet.hp > pet.maxhp * 0.5) pet.cowed = false;
+    if (pet.hp < pet.maxhp * 0.25) {
+      if (!pet.cowed) {
+        pet.cowed = true;
+        this.sys(owner, `${pet.name} falls back, bleeding. Give it a moment.`);
+      }
+    }
+    if (pet.cowed) foe = null;
     if (foe && !owner.dead) {
       if (dist(pet, foe) <= 1.5) {
         if (t >= pet.swingAt) {
@@ -1102,7 +1112,10 @@ class Game {
         if (t >= foe.swingAt && !(foe.stunUntil > t) && !foe.pendingStrike) {
           foe.swingAt = t + 1600;
           foe.swungAt = t;
-          const dmg = rand(fdef.dmg[0], fdef.dmg[1]);
+          // A bonded beast is hard to put down: it takes half wounds, less
+          // still under a practiced tamer's care (30% at grandmaster).
+          const guard = 0.5 - owner.skills.taming / 500;
+          const dmg = Math.max(1, Math.round(rand(fdef.dmg[0], fdef.dmg[1]) * guard));
           pet.hp -= dmg;
           this.fxNear(pet, { t: 'fx', kind: 'hit', x: pet.x, y: pet.y, amount: dmg });
           if (pet.hp <= 0) {
@@ -1130,7 +1143,8 @@ class Game {
     }
     pet.homeX = pet.x;
     pet.homeY = pet.y;
-    if (pet.hp < pet.maxhp && Math.random() < 0.03) pet.hp += 1;
+    // out of the fight, wounds close quickly — a rest is a real recovery
+    if (pet.hp < pet.maxhp && Math.random() < 0.12) pet.hp += 1;
   }
 
   chunkData(cx, cy) {
