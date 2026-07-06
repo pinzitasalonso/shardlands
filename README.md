@@ -123,9 +123,9 @@ push back the dark.
 
 ## The dance (roguelike combat)
 
-- **Dash** (Shift + direction) — three tiles in a burst and a heartbeat of
-  untouchability. It taxes your next step and swing: an escape, not a
-  free reposition.
+- **Dash** (Shift + direction) — four tiles in an instant and a heartbeat
+  of untouchability. It taxes your next swing: an escape and a burst,
+  not a free attack run.
 - **Telegraphed heavies** — the big hitters mark your tile and stand still
   for the windup; step off and the blow spends itself on dirt, stand in
   it and it *never* misses. Bosses mark a cross and keep their old ground
