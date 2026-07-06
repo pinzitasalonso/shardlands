@@ -539,6 +539,7 @@ document.addEventListener('keydown', (ev) => {
       document.getElementById('worldmap').classList.add('hidden');
       document.getElementById('settings').classList.add('hidden');
       document.getElementById('boons').classList.add('hidden');
+      document.getElementById('charsheet').classList.add('hidden');
       break;
     case '1': triggerAction('cast:magicarrow'); break;
     case '2': triggerAction('cast:fireball'); break;
@@ -761,14 +762,12 @@ function toggleFullscreen() {
   else document.documentElement.requestFullscreen().catch(() => {});
 }
 
-// On small screens the character sheet starts hidden and 'open' shows it;
-// on desktop it starts visible and 'collapsed' hides it. Clearing the
-// opposite class keeps a rotation/resize from sticking it the wrong way.
+// The character sheet is a proper dialog now: stats, arms, skills and
+// deeds together, one keypress away, zero standing screen space.
 function toggleCharPanel() {
-  const el = document.getElementById('char-panel');
-  const mobile = window.matchMedia('(max-width: 700px)').matches;
-  el.classList.toggle(mobile ? 'open' : 'collapsed');
-  el.classList.remove(mobile ? 'collapsed' : 'open');
+  const panel = document.getElementById('charsheet');
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) renderDeeds();
 }
 
 // Tapping a shopkeeper opens their wares; a mob attacks; ground walks.
@@ -1241,23 +1240,21 @@ function updateHud() {
   list.innerHTML = Object.entries(y.skills)
     .map(([k, v]) => `<div class="skill-row"><span>${pretty(k)}</span><span>${Number(v).toFixed(1)}</span></div>`)
     .join('');
+  if (!document.getElementById('charsheet').classList.contains('hidden')) renderDeeds();
 }
 
-document.getElementById('deeds-toggle').addEventListener('click', () => {
-  const list = document.getElementById('deeds-list');
-  list.classList.toggle('hidden');
-  if (!list.classList.contains('hidden') && state.you) {
-    const deeds = Object.keys(state.you.deeds || {});
-    list.innerHTML = deeds.length
-      ? deeds.map((d) => `<div class="skill-row"><span>⚑ ${esc(d)}</span></div>`).join('')
-      : '<div class="skill-row"><span>No deeds yet. The world is waiting.</span></div>';
-  }
-});
+function renderDeeds() {
+  if (!state.you) return;
+  const deeds = Object.keys(state.you.deeds || {});
+  document.getElementById('deeds-list').innerHTML = deeds.length
+    ? deeds.map((d) => `<div class="skill-row"><span>⚑ ${esc(d)}</span></div>`).join('')
+    : '<div class="skill-row"><span>No deeds yet. The world is waiting.</span></div>';
+}
 
-document.getElementById('skills-toggle').addEventListener('click', () => {
-  const list = document.getElementById('skills-list');
-  list.classList.toggle('hidden');
-  document.getElementById('skills-toggle').setAttribute('aria-expanded', String(!list.classList.contains('hidden')));
+document.getElementById('charsheet').addEventListener('click', (ev) => {
+  if (ev.target.classList.contains('shop-close')) {
+    document.getElementById('charsheet').classList.add('hidden');
+  }
 });
 
 // ---- inventory --------------------------------------------------------------

@@ -279,42 +279,57 @@ button { font-family: inherit; cursor: pointer; }
   letter-spacing: 0.5px;
 }
 
-/* ---- character details under the player frame ---- */
+/* ---- ambient status strip under the player frame ----
+   What you carry and what the spirits lent you: information, not
+   furniture. No panel, no clicks — the character sheet holds the rest. */
 
-#char-panel {
+#status-strip {
   position: fixed;
-  top: 86px;
-  left: 12px;
-  width: 252px;
-  padding: 8px 12px;
-  background: linear-gradient(160deg, rgba(34, 26, 16, 0.88), rgba(20, 15, 9, 0.88));
-  border: 1px solid var(--panel-edge);
-  border-radius: 6px;
-  box-shadow:
-    inset 0 0 0 1px rgba(0, 0, 0, 0.6),
-    inset 0 0 0 2px rgba(216, 179, 94, 0.18),
-    0 3px 12px rgba(0, 0, 0, 0.6);
-  font-size: 13px;
+  top: 118px;
+  left: 16px;
+  max-width: 300px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #e6dcc0;
+  text-shadow: 0 1px 2px #000, 0 0 5px #000, 0 0 10px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
   z-index: 9;
 }
 
-#stats-line, #pack-line, #weapon-line { margin: 3px 0; color: var(--text-dim); }
+#stats-line, #weapon-line { margin: 3px 0; color: var(--text-dim); }
 #weapon-line { color: var(--text); }
 
-#skills-toggle, #deeds-toggle {
-  margin-top: 7px;
-  width: 100%;
-  padding: 5px;
-  font-size: 12.5px;
-  background: #1a1d22;
-  border: 1px solid #3a352a;
-  border-radius: 3px;
-  color: var(--text-dim);
+/* ---- the character sheet: a proper dialog, one keypress away ---- */
+
+#charsheet {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 330px;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 16px 18px;
+  background: linear-gradient(165deg, rgba(40, 31, 19, 0.97), rgba(22, 16, 10, 0.97));
+  border: 1px solid var(--panel-edge);
+  border-radius: 8px;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 2px rgba(216, 179, 94, 0.2),
+    0 8px 44px rgba(0, 0, 0, 0.8);
+  font-size: 13px;
+  z-index: 14;
 }
 
-#skills-toggle:hover, #deeds-toggle:hover { border-color: var(--gold); color: var(--text); }
-
-#skills-list, #deeds-list { margin-top: 6px; }
+.sheet-head {
+  margin: 12px 0 4px;
+  padding-bottom: 3px;
+  font-family: 'MiKroll Fantasy', Georgia, serif;
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: var(--gold);
+  border-bottom: 1px solid var(--gold-dim);
+}
 
 #skills-list .skill-row, #deeds-list .skill-row {
   display: flex;
@@ -360,16 +375,17 @@ button { font-family: inherit; cursor: pointer; }
   letter-spacing: 1px;
 }
 
-/* ---- hotbar ---- */
+/* ---- hotbar: spells above, the body's verbs below ---- */
 
 #actions {
   position: fixed;
-  /* keep clear of the chat card on narrower windows */
-  left: max(50vw, 700px);
+  left: 50vw;
   bottom: 12px;
   transform: translateX(-50%);
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
   padding: 7px;
   background: linear-gradient(160deg, rgba(38, 29, 18, 0.95), rgba(22, 16, 10, 0.95));
   border: 1px solid var(--panel-edge);
@@ -381,16 +397,12 @@ button { font-family: inherit; cursor: pointer; }
   z-index: 10;
 }
 
-/* the hotbar has grown; below ~1500px it would slide under the chat card,
-   so it rises above it instead */
-@media (max-width: 1500px) {
-  #actions { left: 50vw; bottom: 240px; }
-}
+.bar-row { display: flex; gap: 6px; justify-content: center; }
 
 #actions button {
   position: relative;
-  width: 50px;
-  height: 50px;
+  width: 46px;
+  height: 46px;
   background:
     radial-gradient(circle at 50% 38%, #3a2e1d 0%, #241b10 70%, #1a130b 100%);
   border: 1px solid #7a6334;
@@ -403,7 +415,47 @@ button { font-family: inherit; cursor: pointer; }
 #actions button:hover { border-color: var(--gold); box-shadow: 0 0 8px rgba(216, 179, 94, 0.45), inset 0 1px 0 rgba(216, 179, 94, 0.25); }
 #actions button:active { transform: translateY(1px); }
 
-.slot-icon { font-size: 21px; line-height: 46px; pointer-events: none; }
+.slot-icon { font-size: 20px; line-height: 42px; pointer-events: none; }
+
+/* ---- the menu cluster: everything you open now and then ---- */
+
+#menu {
+  position: fixed;
+  top: 246px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  z-index: 10;
+}
+
+#menu button {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  background: radial-gradient(circle at 50% 38%, #3a2e1d 0%, #241b10 70%, #1a130b 100%);
+  border: 1px solid #7a6334;
+  border-radius: 6px;
+  color: var(--text);
+}
+
+#menu button:hover { border-color: var(--gold); box-shadow: 0 0 8px rgba(216, 179, 94, 0.45); }
+#menu .slot-icon { font-size: 16px; line-height: 30px; }
+
+#menu kbd {
+  position: absolute;
+  right: 1px;
+  bottom: 0;
+  font-family: inherit;
+  font-size: 8.5px;
+  padding: 0 3px;
+  background: linear-gradient(#e8dcb8, #cdbd90);
+  border: 1px solid #8a7440;
+  border-radius: 3px;
+  color: #4a3a1c;
+  font-weight: bold;
+  pointer-events: none;
+}
 
 #actions kbd {
   position: absolute;
@@ -452,8 +504,10 @@ button { font-family: inherit; cursor: pointer; }
   position: fixed;
   left: 12px;
   bottom: 12px;
-  width: min(380px, 34vw);
-  min-width: 280px;
+  /* never reach the centered hotbar: cap against its half-width (250px)
+     plus margins and the pixel borders */
+  width: min(340px, calc(50vw - 292px));
+  min-width: 220px;
   z-index: 10;
 }
 
@@ -681,14 +735,25 @@ button { font-family: inherit; cursor: pointer; }
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
-/* ---- desktop: the character sheet can be tucked away (key C) ---- */
+/* ---- middling windows: the chat folds to a tap-to-expand ticker so it
+   can never crowd the centered hotbar ---- */
 
-#char-panel.collapsed { display: none; }
+@media (max-width: 1080px) {
+  #chat { width: min(300px, calc(50vw - 292px)); min-width: 180px; }
+  #chat-log { max-height: 34px; overflow-y: hidden; }
+  #chat-log.expanded { max-height: 174px; overflow-y: auto; }
+}
+
+/* narrower still: the corner can't fit a chat beside the hotbar at all,
+   so the ticker rises above it */
+@media (max-width: 940px) {
+  #chat { bottom: 156px; width: min(320px, 60vw); min-width: 0; }
+}
 
 /* ---- small screens: a compact HUD so the world stays visible ----
-   Phones get: tiny corner frames, a hidden-by-default character sheet
-   (the ⚔ button / key C opens it), a small minimap, a two-row hotbar
-   hugging the bottom edge, and a slim chat above it. */
+   Phones get: tiny corner frames, a small minimap with the menu column
+   beneath it, the two-row hotbar hugging the bottom edge, and a one-line
+   chat ticker above it (tap to unfold). */
 
 @media (max-width: 700px) {
   #player-frame { top: 8px; left: 8px; min-width: 0; width: 180px; padding: 4px 8px 4px 4px; }
@@ -702,38 +767,41 @@ button { font-family: inherit; cursor: pointer; }
   #target-portrait { width: 36px; height: 36px; }
   #target-name { font-size: 12.5px; margin-bottom: 2px; }
 
-  /* the character sheet waits behind the ⚔ button */
-  #char-panel { display: none; top: 112px; left: 8px; width: 210px; font-size: 12px; }
-  #char-panel.open { display: block; }
+  /* what you carry, in the quiet space below the frames (the target
+     frame occupies 66-126 when something is selected) */
+  #status-strip { top: 132px; left: 10px; max-width: 180px; font-size: 10.5px; }
 
   #minimap-wrap { top: 8px; right: 8px; padding: 2px; }
   #minimap { width: 76px; height: 76px; }
   #coords { font-size: 9.5px; margin-top: 2px; letter-spacing: 0.5px; }
 
-  /* hotbar: ONE row, swipeable sideways — half the vertical footprint */
+  /* the menu column slots under the minimap, thumb-reachable on the edge */
+  #menu { top: 126px; right: 8px; gap: 4px; }
+  #menu button { width: 34px; height: 34px; }
+  #menu kbd { display: none; }
+
+  /* hotbar: the same two rows, sized to the width of a phone */
   #actions {
     left: 50%;
     bottom: calc(4px + env(safe-area-inset-bottom));
     transform: translateX(-50%);
-    flex-wrap: nowrap;
-    justify-content: flex-start;
+    max-width: calc(100vw - 6px);
+    gap: 3px;
+    padding: 4px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    width: calc(100vw - 8px);
-    gap: 5px;
-    padding: 5px;
   }
   #actions::-webkit-scrollbar { display: none; }
-  #actions button { flex: none; }
-  #actions button { width: 40px; height: 40px; }
-  .slot-icon { font-size: 17px; line-height: 38px; }
+  .bar-row { gap: 3px; }
+  #actions button { flex: none; width: 36px; height: 36px; }
+  .slot-icon { font-size: 15px; line-height: 32px; }
   #actions kbd { display: none; } /* no keyboard on a phone */
 
-  /* chat: a one-line ticker; tap it to unfold the log */
+  /* chat: a one-line ticker above the hotbar; tap it to unfold */
   #chat {
     left: 8px;
-    bottom: calc(64px + env(safe-area-inset-bottom));
+    bottom: calc(104px + env(safe-area-inset-bottom));
     width: min(72vw, 300px);
     min-width: 0;
   }
@@ -742,7 +810,7 @@ button { font-family: inherit; cursor: pointer; }
   #chat-input { padding: 6px 8px; font-size: 16px; } /* 16px stops iOS focus-zoom */
 
   /* dialogs fit the screen */
-  #shop, #inventory, #settings { width: min(330px, calc(100vw - 16px)); max-height: 72vh; }
+  #shop, #inventory, #settings, #charsheet { width: min(330px, calc(100vw - 16px)); max-height: 72vh; }
   #worldmap-canvas { width: min(92vw, 80vh); height: min(92vw, 80vh); }
 
   /* login card */
@@ -757,8 +825,8 @@ button { font-family: inherit; cursor: pointer; }
    8px). The old gradient backgrounds remain underneath as the fallback if
    the images ever fail to load. */
 
-#player-frame, #target-frame, #char-panel, #minimap-wrap, #actions,
-#chat-log, #chat-input, #shop, #inventory, #settings, .login-box {
+#player-frame, #target-frame, #minimap-wrap, #actions,
+#chat-log, #chat-input, #shop, #inventory, #charsheet, #settings, .login-box {
   border: 12px solid transparent;
   border-image: url('assets/ui/panel.png') 16 / 12px round;
   border-radius: 0;
@@ -766,13 +834,13 @@ button { font-family: inherit; cursor: pointer; }
   image-rendering: pixelated;
 }
 
-#shop, #inventory, #settings, .login-box {
+#shop, #inventory, #charsheet, #settings, .login-box {
   border-width: 16px;
   border-image-width: 16px;
 }
 
-#actions button, .shop-close, .shop-row button, .login-box > button,
-#skills-toggle, #deeds-toggle, .inv-row button, .iw-actions button {
+#actions button, #menu button, .shop-close, .shop-row button, .login-box > button,
+.inv-row button, .iw-actions button {
   border: 8px solid transparent;
   border-image: url('assets/ui/button.png') 16 fill / 8px round;
   border-radius: 0;
@@ -781,8 +849,8 @@ button { font-family: inherit; cursor: pointer; }
   text-shadow: 0 1px 2px rgba(20, 10, 4, 0.8);
 }
 
-#actions button:hover, .shop-close:hover, .shop-row button:hover,
-.login-box > button:hover, #skills-toggle:hover, #deeds-toggle:hover {
+#actions button:hover, #menu button:hover, .shop-close:hover, .shop-row button:hover,
+.login-box > button:hover {
   filter: brightness(1.18);
 }
 
@@ -796,7 +864,7 @@ body, button { cursor: url('assets/ui/cursor.png') 2 2, auto; }
 
 @media (max-width: 700px) {
   /* thinner pixel frames on phone-sized panels */
-  #player-frame, #target-frame, #char-panel, #minimap-wrap, #actions,
+  #player-frame, #target-frame, #minimap-wrap, #actions,
   #chat-log, #chat-input {
     border-width: 8px;
     border-image-width: 8px;
@@ -817,20 +885,17 @@ body, button { cursor: url('assets/ui/cursor.png') 2 2, auto; }
 .px-icon { width: 22px; height: 22px; image-rendering: pixelated; vertical-align: middle; }
 
 /* Leather-thumbed pixel scrollbars wherever the parchment overflows. */
-#chat-log::-webkit-scrollbar, #skills-list::-webkit-scrollbar,
-#deeds-list::-webkit-scrollbar, #shop::-webkit-scrollbar,
-#inventory::-webkit-scrollbar {
+#chat-log::-webkit-scrollbar, #charsheet::-webkit-scrollbar,
+#shop::-webkit-scrollbar, #inventory::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
-#chat-log::-webkit-scrollbar-track, #skills-list::-webkit-scrollbar-track,
-#deeds-list::-webkit-scrollbar-track, #shop::-webkit-scrollbar-track,
-#inventory::-webkit-scrollbar-track {
+#chat-log::-webkit-scrollbar-track, #charsheet::-webkit-scrollbar-track,
+#shop::-webkit-scrollbar-track, #inventory::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.35);
 }
-#chat-log::-webkit-scrollbar-thumb, #skills-list::-webkit-scrollbar-thumb,
-#deeds-list::-webkit-scrollbar-thumb, #shop::-webkit-scrollbar-thumb,
-#inventory::-webkit-scrollbar-thumb {
+#chat-log::-webkit-scrollbar-thumb, #charsheet::-webkit-scrollbar-thumb,
+#shop::-webkit-scrollbar-thumb, #inventory::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-image: url('assets/ui/scroll-thumb.png') 3 fill / 3px stretch;
   image-rendering: pixelated;

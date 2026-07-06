@@ -43,15 +43,11 @@
         </div>
       </div>
     </div>
-    <div id="char-panel">
-      <div id="stats-line"></div>
+    <!-- Ambient status: what you carry and what the spirits lent you.
+         Info only, no chrome, no clicks — the character sheet has the rest. -->
+    <div id="status-strip" aria-hidden="true">
       <div id="pack-line"></div>
-      <div id="weapon-line"></div>
       <div id="boons-line"></div>
-      <button id="skills-toggle" aria-expanded="false">Skills ▾</button>
-      <div id="skills-list" class="hidden"></div>
-      <button id="deeds-toggle" aria-expanded="false">Deeds ▾</button>
-      <div id="deeds-list" class="hidden"></div>
     </div>
 
     <div id="target-frame" class="hidden">
@@ -76,28 +72,38 @@
       <div id="coords" aria-label="Your position"></div>
     </div>
 
+    <!-- Rarely-per-minute things live off to the side, small. -->
+    <div id="menu" role="toolbar" aria-label="Menus">
+      <button id="char-toggle" aria-label="Character sheet, key C" title="Character sheet (C)" onclick="toggleCharPanel()"><span class="slot-icon">⚔</span><kbd>C</kbd></button>
+      <button id="inv-toggle" aria-label="Inventory, key I" title="Inventory (I)" onclick="toggleInventory()"><span class="slot-icon">🎒</span><kbd>I</kbd></button>
+      <button id="map-toggle" aria-label="World map, key M" title="World map (M)" onclick="toggleWorldMap()"><span class="slot-icon">🗺</span><kbd>M</kbd></button>
+      <button id="settings-toggle" aria-label="Settings, key O" title="Settings (O)" onclick="toggleSettings()"><span class="slot-icon">⚙</span><kbd>O</kbd></button>
+      <button id="fs-toggle" aria-label="Fullscreen, key F" title="Fullscreen (F)" onclick="toggleFullscreen()"><span class="slot-icon">⛶</span><kbd>F</kbd></button>
+    </div>
+
+    <!-- The hotbar: spells above, the body's verbs below. Every-minute
+         buttons only — menus live by the minimap. -->
     <div id="actions" role="toolbar" aria-label="Actions">
-      <button data-act="cast:magicarrow" data-cd="1500" aria-label="Magic Arrow, key 1" title="Magic Arrow (4 mana)"><img class="slot-img" src="assets/ui/icons/magicarrow.png" alt=""><kbd>1</kbd><div class="cd" aria-hidden="true"></div></button>
-      <button data-act="cast:fireball" data-cd="1500" aria-label="Fireball, key 2" title="Fireball (9 mana, 40 Magery)"><img class="slot-img" src="assets/ui/icons/fireball.png" alt=""><kbd>2</kbd><div class="cd" aria-hidden="true"></div></button>
-      <button data-act="cast:greaterheal" data-cd="1500" aria-label="Greater Heal spell, key 3" title="Greater Heal (11 mana, 30 Magery)"><img class="slot-img" src="assets/ui/icons/greaterheal.png" alt=""><kbd>3</kbd><div class="cd" aria-hidden="true"></div></button>
-      <button data-act="cast:bless" data-cd="1500" aria-label="Bless, key 6" title="Bless (8 mana, 25 Magery)"><img class="slot-img" src="assets/ui/icons/bless.png" alt=""><kbd>6</kbd><div class="cd" aria-hidden="true"></div></button>
-      <button data-act="cast:poison" data-cd="1500" aria-label="Poison, key 7" title="Poison (6 mana, 20 Magery)"><img class="slot-img" src="assets/ui/icons/poison.png" alt=""><kbd>7</kbd><div class="cd" aria-hidden="true"></div></button>
-      <button data-act="cast:energybolt" data-cd="1500" aria-label="Energy Bolt, key 8" title="Energy Bolt (14 mana, 55 Magery)"><img class="slot-img" src="assets/ui/icons/energybolt.png" alt=""><kbd>8</kbd><div class="cd" aria-hidden="true"></div></button>
-      <button data-act="cast:icebolt" data-cd="1500" aria-label="Ice Bolt, key 9" title="Ice Bolt (8 mana, 35 Magery — slows)"><img class="slot-img" src="assets/ui/icons/icebolt.png" alt=""><kbd>9</kbd><div class="cd" aria-hidden="true"></div></button>
-      <button data-act="cast:chainlightning" data-cd="1500" aria-label="Chain Lightning, key 0" title="Chain Lightning (18 mana, 65 Magery — arcs to packmates)"><img class="slot-img" src="assets/ui/icons/chainlightning.png" alt=""><kbd>0</kbd><div class="cd" aria-hidden="true"></div></button>
-      <button data-act="cast:haste" data-cd="1500" aria-label="Haste, key H" title="Haste (12 mana, 45 Magery — speed for 10s)"><img class="slot-img" src="assets/ui/icons/haste.png" alt=""><kbd>H</kbd><div class="cd" aria-hidden="true"></div></button>
-      <button data-act="drink:heal" data-cd="4000" aria-label="Drink heal potion, key 4" title="Drink a heal potion"><img class="slot-img" src="assets/ui/icons/heal.png" alt=""><kbd>4</kbd><span id="pot-heal-count" class="count">0</span><div class="cd" aria-hidden="true"></div></button>
-      <button data-act="drink:mana" data-cd="4000" aria-label="Drink mana potion, key 5" title="Drink a mana potion"><img class="slot-img" src="assets/ui/icons/mana.png" alt=""><kbd>5</kbd><span id="pot-mana-count" class="count">0</span><div class="cd" aria-hidden="true"></div></button>
-      <button data-act="bandage" data-cd="8000" aria-label="Bandage wounds, key B" title="Bandage wounds"><span class="slot-icon">⊕</span><kbd>B</kbd><div class="cd" aria-hidden="true"></div></button>
-      <button data-act="gather" data-cd="1200" aria-label="Chop or mine, key G" title="Chop trees / mine rock"><img class="slot-img" src="assets/ui/icons/pick.png" alt=""><kbd>G</kbd><div class="cd" aria-hidden="true"></div></button>
-      <button data-act="dash" data-cd="3000" aria-label="Dash, Shift key" title="Dash — 4 tiles in a burst, a heartbeat of untouchability (Shift + direction)"><span class="slot-icon">»</span><kbd>⇧</kbd><div class="cd" aria-hidden="true"></div></button>
-      <button data-act="special" data-cd="6000" aria-label="Weapon special, key Q" title="Weapon special (Q)"><span class="slot-icon">❖</span><kbd>Q</kbd><div class="cd" aria-hidden="true"></div></button>
-      <button data-act="pray" aria-label="Pray at a shrine, key P" title="Pray at a shrine for a boon (P)"><span class="slot-icon">☩</span><kbd>P</kbd></button>
-      <button id="char-toggle" aria-label="Character sheet, key C" title="Character sheet" onclick="toggleCharPanel()"><span class="slot-icon">⚔</span><kbd>C</kbd></button>
-      <button id="inv-toggle" aria-label="Inventory, key I" title="Inventory" onclick="toggleInventory()"><span class="slot-icon">🎒</span><kbd>I</kbd></button>
-      <button id="map-toggle" aria-label="World map, key M" title="World map" onclick="toggleWorldMap()"><span class="slot-icon">🗺</span><kbd>M</kbd></button>
-      <button id="settings-toggle" aria-label="Settings, key O" title="Settings" onclick="toggleSettings()"><span class="slot-icon">⚙</span><kbd>O</kbd></button>
-      <button id="fs-toggle" aria-label="Fullscreen, key F" title="Toggle fullscreen" onclick="toggleFullscreen()"><span class="slot-icon">⛶</span><kbd>F</kbd></button>
+      <div class="bar-row">
+        <button data-act="cast:magicarrow" data-cd="1500" aria-label="Magic Arrow, key 1" title="Magic Arrow (4 mana)"><img class="slot-img" src="assets/ui/icons/magicarrow.png" alt=""><kbd>1</kbd><div class="cd" aria-hidden="true"></div></button>
+        <button data-act="cast:fireball" data-cd="1500" aria-label="Fireball, key 2" title="Fireball (9 mana, 40 Magery)"><img class="slot-img" src="assets/ui/icons/fireball.png" alt=""><kbd>2</kbd><div class="cd" aria-hidden="true"></div></button>
+        <button data-act="cast:greaterheal" data-cd="1500" aria-label="Greater Heal spell, key 3" title="Greater Heal (11 mana, 30 Magery)"><img class="slot-img" src="assets/ui/icons/greaterheal.png" alt=""><kbd>3</kbd><div class="cd" aria-hidden="true"></div></button>
+        <button data-act="cast:bless" data-cd="1500" aria-label="Bless, key 6" title="Bless (8 mana, 25 Magery)"><img class="slot-img" src="assets/ui/icons/bless.png" alt=""><kbd>6</kbd><div class="cd" aria-hidden="true"></div></button>
+        <button data-act="cast:poison" data-cd="1500" aria-label="Poison, key 7" title="Poison (6 mana, 20 Magery)"><img class="slot-img" src="assets/ui/icons/poison.png" alt=""><kbd>7</kbd><div class="cd" aria-hidden="true"></div></button>
+        <button data-act="cast:energybolt" data-cd="1500" aria-label="Energy Bolt, key 8" title="Energy Bolt (14 mana, 55 Magery)"><img class="slot-img" src="assets/ui/icons/energybolt.png" alt=""><kbd>8</kbd><div class="cd" aria-hidden="true"></div></button>
+        <button data-act="cast:icebolt" data-cd="1500" aria-label="Ice Bolt, key 9" title="Ice Bolt (8 mana, 35 Magery — slows)"><img class="slot-img" src="assets/ui/icons/icebolt.png" alt=""><kbd>9</kbd><div class="cd" aria-hidden="true"></div></button>
+        <button data-act="cast:chainlightning" data-cd="1500" aria-label="Chain Lightning, key 0" title="Chain Lightning (18 mana, 65 Magery — arcs to packmates)"><img class="slot-img" src="assets/ui/icons/chainlightning.png" alt=""><kbd>0</kbd><div class="cd" aria-hidden="true"></div></button>
+        <button data-act="cast:haste" data-cd="1500" aria-label="Haste, key H" title="Haste (12 mana, 45 Magery — speed for 10s)"><img class="slot-img" src="assets/ui/icons/haste.png" alt=""><kbd>H</kbd><div class="cd" aria-hidden="true"></div></button>
+      </div>
+      <div class="bar-row">
+        <button data-act="drink:heal" data-cd="4000" aria-label="Drink heal potion, key 4" title="Drink a heal potion"><img class="slot-img" src="assets/ui/icons/heal.png" alt=""><kbd>4</kbd><span id="pot-heal-count" class="count">0</span><div class="cd" aria-hidden="true"></div></button>
+        <button data-act="drink:mana" data-cd="4000" aria-label="Drink mana potion, key 5" title="Drink a mana potion"><img class="slot-img" src="assets/ui/icons/mana.png" alt=""><kbd>5</kbd><span id="pot-mana-count" class="count">0</span><div class="cd" aria-hidden="true"></div></button>
+        <button data-act="bandage" data-cd="8000" aria-label="Bandage wounds, key B" title="Bandage wounds"><span class="slot-icon">⊕</span><kbd>B</kbd><div class="cd" aria-hidden="true"></div></button>
+        <button data-act="gather" data-cd="1200" aria-label="Chop or mine, key G" title="Chop trees / mine rock"><img class="slot-img" src="assets/ui/icons/pick.png" alt=""><kbd>G</kbd><div class="cd" aria-hidden="true"></div></button>
+        <button data-act="dash" data-cd="3000" aria-label="Dash, Shift key" title="Dash — 4 tiles in a burst, a heartbeat of untouchability (Shift + direction)"><span class="slot-icon">»</span><kbd>⇧</kbd><div class="cd" aria-hidden="true"></div></button>
+        <button data-act="special" data-cd="6000" aria-label="Weapon special, key Q" title="Weapon special (Q)"><span class="slot-icon">❖</span><kbd>Q</kbd><div class="cd" aria-hidden="true"></div></button>
+        <button data-act="pray" aria-label="Pray at a shrine, key P" title="Pray at a shrine for a boon (P)"><span class="slot-icon">☩</span><kbd>P</kbd></button>
+      </div>
     </div>
 
     <div id="worldmap" class="hidden" role="dialog" aria-label="World map">
@@ -124,6 +130,19 @@
       <div id="inv-weapons"></div>
       <div id="inv-items"></div>
       <button id="inv-close" class="shop-close">Close</button>
+    </div>
+
+    <!-- The character sheet: stats, arms, skills and deeds — everything you
+         check now and then, none of it worth screen space all the time. -->
+    <div id="charsheet" class="hidden" role="dialog" aria-label="Character sheet">
+      <div class="shop-title">Character</div>
+      <div id="stats-line"></div>
+      <div id="weapon-line"></div>
+      <div class="sheet-head">Skills</div>
+      <div id="skills-list"></div>
+      <div class="sheet-head">Deeds</div>
+      <div id="deeds-list"></div>
+      <button class="shop-close">Close</button>
     </div>
 
     <div id="shop" class="hidden"></div>
