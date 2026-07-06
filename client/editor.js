@@ -168,24 +168,29 @@ function buildPropPalette(filter = '') {
     det.appendChild(grid);
     pal.appendChild(det);
   }
-  // animated coast stamps: the pack's sand-shore autotile, laid by hand so
-  // the keeper can draw curved beaches with real foam wherever they like
-  const coastIds = (Assets.state.manifest && Assets.state.manifest.coastPieces) || [];
-  const coastShown = coastIds.filter((id) => !filter || ('coast ' + id).includes(filter) || ('coast' + id).includes(filter));
-  if (coastShown.length) {
+  // animated coast stamps: the pack's shore autotiles (sand, grass, snow,
+  // swamp), laid by hand so the keeper can draw curved beaches with real
+  // foam wherever they like. One collapsible section per biome; sand keeps
+  // its bare 'coast.<row>' names, the rest are 'coast.<biome>.<row>'.
+  const coastPieces = (Assets.state.manifest && Assets.state.manifest.coastPieces) || {};
+  for (const [biome, rows] of Object.entries(coastPieces)) {
+    const shown = rows.filter((r) => !filter ||
+      ('coast ' + biome + ' ' + r).includes(filter) || (biome + r).includes(filter));
+    if (!shown.length) continue;
     const det = document.createElement('details');
     det.open = !!filter;
     const sum = document.createElement('summary');
-    sum.textContent = `coast — animated shore (${coastShown.length})`;
+    sum.textContent = `coast — ${biome} shore (${shown.length})`;
     det.appendChild(sum);
     const grid = document.createElement('div');
     grid.className = 'prop-grid';
-    for (const id of coastShown) {
-      const name = 'coast.' + id;
+    for (const r of shown) {
+      const suffix = biome === 'sand' ? String(r) : biome + '.' + r; // sand stays bare
+      const name = 'coast.' + suffix;
       const b = document.createElement('button');
-      b.title = 'coast ' + id;
+      b.title = biome + ' coast ' + r;
       b.dataset.prop = name;
-      b.appendChild(groundThumb('td.coast.' + id)); // flat, tile-aligned swatch
+      b.appendChild(groundThumb('td.coast.' + suffix)); // flat, tile-aligned swatch
       if (propName === name) b.classList.add('on');
       b.onclick = () => {
         propName = name;

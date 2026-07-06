@@ -1190,31 +1190,40 @@ def build_has_ui():
 
 
 def build_coast(frames, images_out):
-    """The pack's animated sand-shore autotile, sliced into hand-placeable
-    stamps for the world builder. Each non-empty row of the sheet becomes one
-    piece with 8 foam frames; drawFrame walks those frames in place, so a
-    coastline the keeper lays by hand ripples like the open sea beside it."""
-    src = Image.open(os.path.join(
-        HEROIC, 'HAS Overworld 2.1', 'SandBiome', 'Animated Tiles',
-        'SB-Sand-Coast-Animated.png')).convert('RGBA')
-    rows = src.height // 16
-    px = src.load()
-    # keep rows with real art; the sheet pads a few near-empty spacer rows
-    keep = [r for r in range(rows)
-            if sum(1 for y in range(16) for x in range(16) if px[x, r * 16 + y][3] > 40) >= 20]
-    atlas = Image.new('RGBA', (8 * TD, len(keep) * TD), (0, 0, 0, 0))
-    for ri, r in enumerate(keep):
-        for fr in range(8):
-            atlas.paste(src.crop((fr * 16, r * 16, fr * 16 + 16, r * 16 + 16)), (fr * TD, ri * TD))
-            frames[f'td.coast.{r}.{fr}'] = {'img': 'coastanim', 'x': fr * TD, 'y': ri * TD,
-                                            'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
-        # the piece itself is the animated parent: drawFrame cycles its frames
-        frames[f'td.coast.{r}'] = {'img': 'coastanim', 'x': 0, 'y': ri * TD, 'w': TD, 'h': TD,
-                                   'ax': 0, 'ay': 0, 'scale': TD_SCALE,
-                                   'anim': [f'td.coast.{r}.{fr}' for fr in range(8)], 'animMs': 200}
-    atlas.save(os.path.join(OUT, 'coastanim.png'))
-    images_out['coastanim'] = 'coastanim.png'
-    return keep
+    """The pack's animated shore autotiles, sliced into hand-placeable stamps
+    for the world builder — one biome per sheet (sand, grass, snow, swamp).
+    Each non-empty row becomes one piece with 8 foam frames; drawFrame walks
+    those frames in place, so a coastline the keeper lays by hand ripples like
+    the open sea beside it. Sand keeps its bare `td.coast.<row>` names (the
+    original set); the rest are biome-prefixed `td.coast.<biome>.<row>`."""
+    ov = os.path.join(HEROIC, 'HAS Overworld 2.1')
+    sheets = [
+        ('sand',  'SandBiome/Animated Tiles/SB-Sand-Coast-Animated.png',       'coastanim',        ''),
+        ('grass', 'GrassBiome/Animated Tiles/GB-GrassLand-Coast-Animated.png', 'coastanim-grass', 'grass.'),
+        ('snow',  'IceBiome/Animated Tiles/IB-Snow-Coast-Animated.png',        'coastanim-snow',  'snow.'),
+        ('swamp', 'MarshBiome/Animated Tiles/MB-Swamp-Coast-Animated.png',     'coastanim-swamp', 'swamp.'),
+    ]
+    pieces = {}
+    for biome, rel, img, pfx in sheets:
+        src = Image.open(os.path.join(ov, rel)).convert('RGBA')
+        px = src.load()
+        # keep rows with real art; the sheets pad a few near-empty spacer rows
+        keep = [r for r in range(src.height // 16)
+                if sum(1 for y in range(16) for x in range(16) if px[x, r * 16 + y][3] > 40) >= 20]
+        atlas = Image.new('RGBA', (8 * TD, len(keep) * TD), (0, 0, 0, 0))
+        for ri, r in enumerate(keep):
+            for fr in range(8):
+                atlas.paste(src.crop((fr * 16, r * 16, fr * 16 + 16, r * 16 + 16)), (fr * TD, ri * TD))
+                frames[f'td.coast.{pfx}{r}.{fr}'] = {'img': img, 'x': fr * TD, 'y': ri * TD,
+                                                     'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+            # the piece itself is the animated parent: drawFrame cycles its frames
+            frames[f'td.coast.{pfx}{r}'] = {'img': img, 'x': 0, 'y': ri * TD, 'w': TD, 'h': TD,
+                                            'ax': 0, 'ay': 0, 'scale': TD_SCALE,
+                                            'anim': [f'td.coast.{pfx}{r}.{fr}' for fr in range(8)], 'animMs': 200}
+        atlas.save(os.path.join(OUT, img + '.png'))
+        images_out[img] = img + '.png'
+        pieces[biome] = keep
+    return pieces
 
 
 def build_topdown_placeholder(frames, images_out):
