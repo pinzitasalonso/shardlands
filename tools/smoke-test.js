@@ -1677,6 +1677,36 @@ assert.strictEqual(countH.hp, 100, 'the Count goes hungry when you dash through 
 game.mobs.delete(countH.id);
 p.evadeUntil = 0;
 
+// a companion shrugs off part of every blow, and falls back when bleeding
+const preyH = mkOrc(999965, 1, 0);
+preyH.x = run.x + 1;
+preyH.y = run.y;
+preyH.swingAt = 0;
+preyH.hp = 500;
+p.x = run.x;
+p.y = run.y;
+p.target = preyH.id;
+p.skills.taming = 100;
+petH.x = run.x + 1;
+petH.y = run.y + 1;
+petH.hp = petH.maxhp;
+petH.cowed = false;
+petH.swingAt = Infinity; // only the bite-back is under test
+Math.random = () => 0;
+game.mobTick(petH, Date.now());
+Math.random = rH;
+assert.strictEqual(petH.maxhp - petH.hp, 1,
+  'a master-kept companion shrugs off most of a blow (4 raw -> 1 taken)');
+petH.hp = Math.max(1, Math.floor(petH.maxhp * 0.2));
+petH.swingAt = 0;
+ws.sent.length = 0;
+game.mobTick(petH, Date.now());
+assert.strictEqual(preyH.hp, 500, 'a bleeding companion falls back from the fight');
+assert(ws.sent.some((m) => m.t === 'sys' && /falls back, bleeding/.test(m.text)),
+  'and its master hears why');
+game.mobs.delete(preyH.id);
+p.target = 0;
+
 // tidy the stage
 for (const id of [999979, 999977, 999975, 999974, 999973, 999972, 999971, 999970, 999969, 999968]) {
   game.mobs.delete(id);

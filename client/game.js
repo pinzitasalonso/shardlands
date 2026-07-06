@@ -79,6 +79,7 @@ const state = {
   floaters: [],         // { x, y, text, color, born }
   projectiles: [],      // { x, y, tx, ty, born, color }
   telegraphs: [],
+  dashTrails: [],       // { x, y, tx, ty, born }: the streak a dash leaves
   spellfx: [],       // Magic Book impact animations: { name, x, y, born }
   torches: [],       // wall torches in the deeps, lit during the night pass       // boss slam warnings: { x, y, born }
   target: 0,            // selected mob id
@@ -377,9 +378,11 @@ function syncEntities(map, list) {
         prev.heading = octant(e.x - prev.x, e.y - prev.y);
         prev.movedAt = Date.now();
         // a multi-tile jump is a dash: burst the glide instead of strolling
-        // the whole way there at walking pace
+        // the whole way there at walking pace, and remember the direction
+        // so the afterimages trail the right way
         if (Math.abs(e.x - prev.x) >= 2 || Math.abs(e.y - prev.y) >= 2) {
           prev.burstUntil = Date.now() + 250;
+          prev.burstDir = { dx: Math.sign(e.x - prev.x), dy: Math.sign(e.y - prev.y) };
         }
       }
       Object.assign(prev, e);
@@ -444,7 +447,7 @@ function handleFx(msg) {
       Sound.play('bell');
       break;
     case 'dash':
-      state.projectiles.push({ x: msg.x, y: msg.y, tx: msg.tx, ty: msg.ty, born: t, color: '#e8e0c0' });
+      state.dashTrails.push({ x: msg.x, y: msg.y, tx: msg.tx, ty: msg.ty, born: t });
       Sound.play('miss');
       break;
     case 'stun':
@@ -776,19 +779,17 @@ function pointerAction(cx, cy, pickR) {
     return;
   }
   if (best) {
-    // The friendly are for talking to, not for swinging at: a tap greets
-    // them and brings up the bond buttons instead of a war declaration.
+    // A tap selects and engages, but never walks for you: your feet are
+    // your own. The friendly are greeted, not declared war upon.
     const info = (state.bestiary || {})[best.e.kind];
     if (info && info.d === 'friendly') {
       state.target = best.e.id;
-      state.walkTarget = { x: best.e.x, y: best.e.y };
       if (info.bd) send({ t: 'talk', id: best.e.id });
       updateTargetFrame();
       return;
     }
     state.target = best.e.id;
     send({ t: 'attack', id: best.e.id });
-    state.walkTarget = { x: best.e.x, y: best.e.y };
     updateTargetFrame();
   } else {
     const w = screenToWorld(cx, cy, cam);
@@ -808,7 +809,6 @@ function attackNearest() {
   const cur = state.target ? state.mobs.get(state.target) : null;
   if (cur && Math.max(Math.abs(cur.x - state.me.x), Math.abs(cur.y - state.me.y)) <= 10) {
     send({ t: 'attack', id: cur.id });
-    state.walkTarget = { x: cur.x, y: cur.y };
     return;
   }
   let best = null;
@@ -821,7 +821,6 @@ function attackNearest() {
   if (!best) return;
   state.target = best.id;
   send({ t: 'attack', id: best.id });
-  state.walkTarget = { x: best.x, y: best.y };
   updateTargetFrame();
 }
 
@@ -1089,9 +1088,6 @@ function openShop(vendor) {
      ${lines}${forge}${bench}
      <button class="shop-close">Close</button>`;
   shopPanel.classList.remove('hidden');
-  if (state.me && Math.hypot(vendor.x - state.me.x, vendor.y - state.me.y) > 3) {
-    state.walkTarget = { x: vendor.x, y: vendor.y - 1 };
-  }
 }
 
 function closeShop() {
@@ -1685,6 +1681,7 @@ function render() {
   }
 
   drawTelegraphs(cam, time);
+  drawDashTrails(cam, time);
   drawProjectiles(cam, time);
   drawSpellFx(cam, time);
   drawWeather(cam, time);
@@ -2068,6 +2065,18 @@ function drawPlayer(p, cam, time) {
     const overlays = [p.ar, p.oh, p.w]
       .map((id) => id && state.weapons[id] && state.weapons[id].sprite)
       .filter(Boolean);
+    // Mid-dash the runner leaves afterimages: two fading ghosts strung
+    // out behind along the burst direction.
+    if (p.burstUntil > time && p.burstDir && !p.dead) {
+      const fade = (p.burstUntil - time) / 250;
+      for (const [back, a] of [[0.7, 0.3], [1.4, 0.15]]) {
+        const g = worldToScreen(p.rx + 0.5 - p.burstDir.dx * back,
+          p.ry + 0.5 - p.burstDir.dy * back, cam);
+        ctx.globalAlpha = a * fade;
+        Assets.drawCreature(ctx, 'player', p.heading, 'run', time + p.id * 137, g.x, g.y, 1, overlays);
+      }
+      ctx.globalAlpha = p.dead ? 0.45 : 1;
+    }
     Assets.drawCreature(ctx, 'player', p.heading, entityAnim(p), time + p.id * 137, s.x, s.y,
       1, overlays);
     labelY = s.y - c.ay - 8;
@@ -2157,6 +2166,42 @@ function drawTelegraphs(cam, time) {
         ctx.fillStyle = `rgba(255, ${60 + 80 * k}, 40, ${pulse * (0.5 + k * 0.5)})`;
         ctx.fillRect(s.x + 1, s.y + 1, TP - 2, TP - 2);
       }
+    }
+  }
+}
+
+// The streak a dash leaves: a tapering wind-line from launch to landing,
+// dust kicked up at the launch point, both gone inside a third of a second.
+function drawDashTrails(cam, time) {
+  state.dashTrails = state.dashTrails.filter((d) => time - d.born < 320);
+  for (const d of state.dashTrails) {
+    const k = (time - d.born) / 320;
+    const a = worldToScreen(d.x + 0.5, d.y + 0.5, cam);
+    const b = worldToScreen(d.tx + 0.5, d.ty + 0.5, cam);
+    // the bright core rushes ahead of a wide soft wake
+    const head = { x: a.x + (b.x - a.x) * Math.min(1, k * 3), y: a.y + (b.y - a.y) * Math.min(1, k * 3) };
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = `rgba(232, 224, 192, ${0.22 * (1 - k)})`;
+    ctx.lineWidth = 9 * (1 - k);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y - 14);
+    ctx.lineTo(head.x, head.y - 14);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(255, 250, 226, ${0.6 * (1 - k)})`;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(a.x + (head.x - a.x) * 0.35, a.y - 14 + (head.y - a.y) * 0.35);
+    ctx.lineTo(head.x, head.y - 14);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+    // dust at the launch point
+    for (let i = 0; i < 3; i++) {
+      const ang = (i * 2.1) + d.born % 6;
+      ctx.fillStyle = `rgba(200, 185, 150, ${0.3 * (1 - k)})`;
+      ctx.beginPath();
+      ctx.arc(a.x + Math.cos(ang) * (4 + k * 14), a.y - 3 + Math.sin(ang) * (2 + k * 7),
+        2.5 * (1 - k) + 0.5, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 }
