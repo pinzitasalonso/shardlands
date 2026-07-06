@@ -2601,6 +2601,11 @@ class Game {
       p.target = 0;
       return;
     }
+    // Whatever the client claims, no blade auto-falls on a companion.
+    if (mob.owner) {
+      p.target = 0;
+      return;
+    }
     const item = this.equippedWeapon(p);
     const wdef = item ? WEAPONS[item.id] : UNARMED;
     const reach = wdef.ranged ? wdef.range : 1.5;
