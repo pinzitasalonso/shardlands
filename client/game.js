@@ -376,6 +376,11 @@ function syncEntities(map, list) {
       if (e.x !== prev.x || e.y !== prev.y) {
         prev.heading = octant(e.x - prev.x, e.y - prev.y);
         prev.movedAt = Date.now();
+        // a multi-tile jump is a dash: burst the glide instead of strolling
+        // the whole way there at walking pace
+        if (Math.abs(e.x - prev.x) >= 2 || Math.abs(e.y - prev.y) >= 2) {
+          prev.burstUntil = Date.now() + 250;
+        }
       }
       Object.assign(prev, e);
     } else {
@@ -1565,7 +1570,7 @@ function render() {
     for (const e of map.values()) {
       const dx = e.x - e.rx;
       const dy = e.y - e.ry;
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
         e.rx = e.x;
         e.ry = e.y;
         // a big jump means a portal or recall: forget the old destination,
@@ -1576,8 +1581,10 @@ function render() {
         }
         continue;
       }
-      // diagonal steps are granted more slowly (165ms vs 118ms)
-      const step = dtMs / (dx && dy ? msPerTile * 1.4 : msPerTile);
+      // diagonal steps are granted more slowly (165ms vs 118ms); a dash
+      // burst covers ground five times faster than boots do
+      const pace = time < (e.burstUntil || 0) ? msPerTile / 5 : msPerTile;
+      const step = dtMs / (dx && dy ? pace * 1.4 : pace);
       e.rx += Math.max(-step, Math.min(step, dx));
       e.ry += Math.max(-step, Math.min(step, dy));
     }

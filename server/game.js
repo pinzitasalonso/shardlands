@@ -1361,9 +1361,11 @@ class Game {
     const t = now();
     if (t < p.dashAt) return;
     // Walk the line tile by tile; stop before the first blocked one. A dash
-    // straight into a wall is refused outright and costs nothing.
+    // straight into a wall is refused outright and costs nothing. Four tiles
+    // in an instant: boots would take nearly half a second over the same
+    // ground, so the burst is felt, not merely bookkept.
     let landed = 0;
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       if (!isWalkable(this.map, p.x + dx, p.y + dy)) break;
       p.x += dx;
       p.y += dy;
@@ -1372,8 +1374,8 @@ class Game {
     if (!landed) return this.sys(p, 'No room to dash that way.');
     p.dashAt = t + (p.boons.includes('dashcd') ? 1800 : 3000);
     p.evadeUntil = t + 600;
-    p.moveAt = t + 350;
-    p.swingAt = Math.max(p.swingAt, t + 350);
+    p.moveAt = t + 200;
+    p.swingAt = Math.max(p.swingAt, t + 350); // the blade still pays the old tax
     p.faceDx = dx;
     p.faceDy = dy;
     this.fxNear(p, { t: 'fx', kind: 'dash', x: p.x - dx * landed, y: p.y - dy * landed, tx: p.x, ty: p.y });
