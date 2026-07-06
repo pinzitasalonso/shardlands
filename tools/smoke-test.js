@@ -1799,5 +1799,13 @@ assert(ws.sent.some((m) => m.t === 'tilevar' && m.x === spot.x + 30 && m.v === n
 game.applyEditsLive({ tileVariants: [[spot.x + 30, spot.y, 99]] });
 assert(!game.map.tileVariants.has(varKey), 'out-of-range variants are refused');
 
+// -- batch K: the cyclops is a real fight now, and the king outranks it ------------
+assert(MOB_KINDS.cyclops.hp >= 200 && MOB_KINDS.cyclops.dmg[1] >= 24,
+  'a cyclops hits like a rockfall and takes some killing');
+assert(MOB_KINDS.cyclops.dmg[1] >= 10, 'its blows telegraph — dodgeable, but brutal');
+assert(MOB_KINDS.cyclopsking.hp > MOB_KINDS.cyclops.hp &&
+  MOB_KINDS.cyclopsking.dmg[1] > MOB_KINDS.cyclops.dmg[1],
+  'the cyclops king stays the tougher one');
+
 console.log('smoke test: all assertions passed');
 process.exit(0);

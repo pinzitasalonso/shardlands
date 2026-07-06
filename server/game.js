@@ -136,10 +136,15 @@ const BESTIARY = [
   ['dreadknight', 'a dread knight', 7],
   // Stronghold
   ['centaur', 'a centaur', 3], ['orcshaman', 'an orc shaman', 4, { caster: { range: 7, dmg: [6, 11], cdMs: 2500 } }],
-  ['ogre', 'an ogre', 5], ['cyclops', 'a cyclops', 6],
+  ['ogre', 'an ogre', 5],
+  // The one-eyed giants hit like a rockfall: a proper elite. Their heavy
+  // damage already trips the telegraphed-windup rule, so the blow is
+  // dodgeable — but standing in it is a disaster (26 x 1.15 ~ 30). Deep
+  // health makes them a fight, not a speed bump; the king stays above.
+  ['cyclops', 'a cyclops', 6, { hp: 260, dmg: [14, 26], skill: 86, gold: 95, speedMs: 480 }],
   ['goblinveteran', 'a goblin veteran', 2], ['rocrider', 'a roc rider', 5],
   ['wolfraider', 'a wolf raider', 4], ['boarrider', 'a boar rider', 4],
-  ['cyclopsking', 'a cyclops king', 7],
+  ['cyclopsking', 'a cyclops king', 7, { hp: 460, dmg: [18, 32], skill: 92, gold: 260, speedMs: 460 }],
   // Dwarves
   ['dwarfaxeman', 'a dwarf axeman', 3], ['dwarfcrossbow', 'a dwarf crossbowman', 3, { caster: { range: 8, dmg: [5, 10], cdMs: 2400, fx: 'arrow' } }],
   ['warram', 'a war ram', 2, { aggro: 4 }], ['dwarfspearman', 'a dwarf spearman', 3],
