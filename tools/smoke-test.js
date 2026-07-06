@@ -1707,6 +1707,16 @@ assert(ws.sent.some((m) => m.t === 'sys' && /falls back, bleeding/.test(m.text))
 game.mobs.delete(preyH.id);
 p.target = 0;
 
+// whatever the client claims, no blade auto-falls on a companion
+petH.hp = petH.maxhp;
+petH.x = p.x + 1;
+petH.y = p.y;
+p.target = petH.id;
+p.swingAt = 0;
+game.meleeTick(p, Date.now());
+assert.strictEqual(petH.hp, petH.maxhp, 'the auto-attack refuses the companion');
+assert.strictEqual(p.target, 0, 'and drops the lock on it');
+
 // tidy the stage
 for (const id of [999979, 999977, 999975, 999974, 999973, 999972, 999971, 999970, 999969, 999968]) {
   game.mobs.delete(id);

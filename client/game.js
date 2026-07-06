@@ -374,6 +374,8 @@ function syncEntities(map, list) {
     const prev = map.get(e.id);
     if (prev) {
       // Keep render position for interpolation; adopt new authoritative pos.
+      // a swing just started: sweep a slash arc with it
+      if (!prev.a && e.a) prev.slashAt = Date.now();
       if (e.x !== prev.x || e.y !== prev.y) {
         prev.heading = octant(e.x - prev.x, e.y - prev.y);
         prev.movedAt = Date.now();
@@ -398,6 +400,17 @@ function handleFx(msg) {
   switch (msg.kind) {
     case 'hit':
       state.floaters.push({ x: msg.x, y: msg.y, text: '-' + msg.amount, color: '#e05848', born: t });
+      // the struck body flashes white and flinches for a breath
+      for (const m of state.mobs.values()) {
+        if (m.x === msg.x && m.y === msg.y) m.flashUntil = t + 110;
+      }
+      for (const q of state.players.values()) {
+        if (q.x === msg.x && q.y === msg.y) q.flashUntil = t + 110;
+      }
+      // a heavy blow on YOU is felt in the hands
+      if (state.myTile && msg.x === state.myTile.x && msg.y === state.myTile.y && msg.amount >= 8) {
+        addShake(3, 160);
+      }
       Sound.play('hit');
       break;
     case 'miss':
@@ -462,6 +475,7 @@ function handleFx(msg) {
       break;
     case 'slam':
       state.floaters.push({ x: msg.x, y: msg.y, text: '💥', color: '#ffaa44', born: t });
+      addShake(5, 250); // the ground remembers a boss slam
       Sound.play('hit');
       break;
     case 'magicarrow':
@@ -770,6 +784,9 @@ function pointerAction(cx, cy, pickR) {
   for (const c of clickable) {
     const s = worldToScreen(c.e.rx + 0.5, c.e.ry + 0.5, cam);
     const d = Math.hypot(s.x - cx, s.y - (cy + 24));
+    // companions heel underfoot: only a deliberate, precise click selects
+    // one, so stray taps fall through to enemies and walking
+    if (c.e.pet && d > 16) continue;
     if (d < bestD) { best = c; bestD = d; }
   }
   if (best && best.kind === 'vendor') {
@@ -780,7 +797,13 @@ function pointerAction(cx, cy, pickR) {
   }
   if (best) {
     // A tap selects and engages, but never walks for you: your feet are
-    // your own. The friendly are greeted, not declared war upon.
+    // your own. Companions are inspected, never attacked.
+    if (best.e.pet) {
+      state.target = best.e.id;
+      updateTargetFrame();
+      return;
+    }
+    // The friendly are greeted, not declared war upon.
     const info = (state.bestiary || {})[best.e.kind];
     if (info && info.d === 'friendly') {
       state.target = best.e.id;
@@ -807,7 +830,7 @@ const AUTO_ATTACK_EXCLUDE = new Set(['villager', 'guard', 'sheep', 'pig', 'chick
 function attackNearest() {
   if (!state.me || state.you && state.you.dead) return;
   const cur = state.target ? state.mobs.get(state.target) : null;
-  if (cur && Math.max(Math.abs(cur.x - state.me.x), Math.abs(cur.y - state.me.y)) <= 10) {
+  if (cur && !cur.pet && Math.max(Math.abs(cur.x - state.me.x), Math.abs(cur.y - state.me.y)) <= 10) {
     send({ t: 'attack', id: cur.id });
     return;
   }
@@ -1429,13 +1452,30 @@ const TILE_COLORS = {
   [T.CAVE]: ['#4a443c', '#423d36'],
 };
 
+// A short kick of the whole view: big impacts should be felt in the hands.
+// Magnitude decays linearly over the window; overlapping kicks keep the
+// larger of the two.
+function addShake(mag, ms) {
+  const until = Date.now() + ms;
+  if (!state.shake || mag >= (state.shake.mag || 0) || until > state.shake.until) {
+    state.shake = { mag, ms, until };
+  }
+}
+
 function camera() {
   const px = state.me ? state.me.rx + 0.5 : 64;
   const py = state.me ? state.me.ry + 0.5 : 64;
   // integer camera: every sprite rounds the same way, so pixels never swim
+  let jx = 0;
+  let jy = 0;
+  if (state.shake && Date.now() < state.shake.until) {
+    const k = (state.shake.until - Date.now()) / state.shake.ms;
+    jx = Math.round((Math.random() - 0.5) * 2 * state.shake.mag * k);
+    jy = Math.round((Math.random() - 0.5) * 2 * state.shake.mag * k);
+  }
   return {
-    ox: Math.round(canvas.width / 2 - px * TP),
-    oy: Math.round(canvas.height / 2 - py * TP),
+    ox: Math.round(canvas.width / 2 - px * TP) + jx,
+    oy: Math.round(canvas.height / 2 - py * TP) + jy,
   };
 }
 
@@ -2021,9 +2061,24 @@ function drawMob(m, cam, time) {
   let labelY;
   if (c) {
     if (style.ghostly) ctx.globalAlpha = 0.62; // you can see the stones through them
+    const flinch = m.flashUntil > time;
+    if (flinch) { // a struck body squashes for a breath
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.scale(1.1, 0.9);
+      ctx.translate(-s.x, -s.y);
+    }
     Assets.drawCreature(ctx, spriteKind, m.heading, entityAnim(m), time + m.id * 137, s.x, s.y, spriteScale,
       style.overlay || null);
+    if (flinch) { // and flashes white where the blow landed
+      ctx.filter = 'brightness(2.6)';
+      Assets.drawCreature(ctx, spriteKind, m.heading, entityAnim(m), time + m.id * 137, s.x, s.y, spriteScale,
+        style.overlay || null);
+      ctx.filter = 'none';
+      ctx.restore();
+    }
     if (style.ghostly) ctx.globalAlpha = 1;
+    if (time - (m.slashAt || 0) < 170) drawSlash(s.x, s.y, m.heading, time - m.slashAt);
     labelY = s.y - c.ay * spriteScale - 8;
   } else {
     const r = 22 * style.size;
@@ -2067,7 +2122,8 @@ function drawPlayer(p, cam, time) {
       .filter(Boolean);
     // Mid-dash the runner leaves afterimages: two fading ghosts strung
     // out behind along the burst direction.
-    if (p.burstUntil > time && p.burstDir && !p.dead) {
+    const burst = p.burstUntil > time && p.burstDir && !p.dead;
+    if (burst) {
       const fade = (p.burstUntil - time) / 250;
       for (const [back, a] of [[0.7, 0.3], [1.4, 0.15]]) {
         const g = worldToScreen(p.rx + 0.5 - p.burstDir.dx * back,
@@ -2077,8 +2133,30 @@ function drawPlayer(p, cam, time) {
       }
       ctx.globalAlpha = p.dead ? 0.45 : 1;
     }
+    // squash when struck, stretch along the dash: the body sells the moment
+    const flinch = p.flashUntil > time && !p.dead;
+    if (flinch || burst) {
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      if (burst) {
+        const diag = p.burstDir.dx && p.burstDir.dy;
+        ctx.scale(diag ? 1.07 : p.burstDir.dx ? 1.16 : 0.9,
+          diag ? 1.07 : p.burstDir.dy ? 1.16 : 0.9);
+      } else {
+        ctx.scale(1.1, 0.9);
+      }
+      ctx.translate(-s.x, -s.y);
+    }
     Assets.drawCreature(ctx, 'player', p.heading, entityAnim(p), time + p.id * 137, s.x, s.y,
       1, overlays);
+    if (flinch) {
+      ctx.filter = 'brightness(2.6)';
+      Assets.drawCreature(ctx, 'player', p.heading, entityAnim(p), time + p.id * 137, s.x, s.y,
+        1, overlays);
+      ctx.filter = 'none';
+    }
+    if (flinch || burst) ctx.restore();
+    if (time - (p.slashAt || 0) < 170 && !p.dead) drawSlash(s.x, s.y, p.heading, time - p.slashAt);
     labelY = s.y - c.ay - 8;
   } else {
     entityShadow(s.x, s.y + 2, 10);
@@ -2168,6 +2246,30 @@ function drawTelegraphs(cam, time) {
       }
     }
   }
+}
+
+// A crescent of steel-light that sweeps with a melee swing: rotated to the
+// swinger's heading, gone in a sixth of a second. Pixel purists avert
+// your eyes — rotation is exactly the rule worth breaking here.
+function drawSlash(sx, sy, heading, age) {
+  const k = age / 170;
+  ctx.save();
+  ctx.translate(sx, sy - 12);
+  ctx.rotate(heading * Math.PI / 4); // octant 0 faces east
+  ctx.globalAlpha = 0.75 * (1 - k);
+  ctx.strokeStyle = 'rgba(255, 225, 160, 0.4)';
+  ctx.lineWidth = 7 * (1 - k) + 1;
+  ctx.beginPath();
+  ctx.arc(0, 0, 17 + k * 7, -0.85 + k * 1.2, -0.2 + k * 1.2);
+  ctx.stroke();
+  ctx.strokeStyle = '#fff2d0';
+  ctx.lineWidth = 3 * (1 - k) + 0.5;
+  ctx.beginPath();
+  ctx.arc(0, 0, 20 + k * 7, -0.95 + k * 1.2, -0.1 + k * 1.2);
+  ctx.stroke();
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  ctx.lineWidth = 1;
 }
 
 // The streak a dash leaves: a tapering wind-line from launch to landing,
