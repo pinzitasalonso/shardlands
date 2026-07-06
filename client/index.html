@@ -74,7 +74,7 @@
 
     <!-- Rarely-per-minute things live off to the side, small. -->
     <div id="menu" role="toolbar" aria-label="Menus">
-      <button id="char-toggle" aria-label="Character sheet, key C" title="Character sheet (C)" onclick="toggleCharPanel()"><span class="slot-icon">⚔</span><kbd>C</kbd></button>
+      <button id="char-toggle" aria-label="Character sheet, key C" title="Character sheet (C)" onclick="toggleCharPanel()"><img class="slot-img" src="assets/ui/icons/charsheet.png" alt=""><kbd>C</kbd></button>
       <button id="inv-toggle" aria-label="Inventory, key I" title="Inventory (I)" onclick="toggleInventory()"><span class="slot-icon">🎒</span><kbd>I</kbd></button>
       <button id="map-toggle" aria-label="World map, key M" title="World map (M)" onclick="toggleWorldMap()"><span class="slot-icon">🗺</span><kbd>M</kbd></button>
       <button id="settings-toggle" aria-label="Settings, key O" title="Settings (O)" onclick="toggleSettings()"><span class="slot-icon">⚙</span><kbd>O</kbd></button>
@@ -98,7 +98,7 @@
       <div class="bar-row">
         <button data-act="drink:heal" data-cd="4000" aria-label="Drink heal potion, key 4" title="Drink a heal potion"><img class="slot-img" src="assets/ui/icons/heal.png" alt=""><kbd>4</kbd><span id="pot-heal-count" class="count">0</span><div class="cd" aria-hidden="true"></div></button>
         <button data-act="drink:mana" data-cd="4000" aria-label="Drink mana potion, key 5" title="Drink a mana potion"><img class="slot-img" src="assets/ui/icons/mana.png" alt=""><kbd>5</kbd><span id="pot-mana-count" class="count">0</span><div class="cd" aria-hidden="true"></div></button>
-        <button data-act="bandage" data-cd="8000" aria-label="Bandage wounds, key B" title="Bandage wounds"><span class="slot-icon">⊕</span><kbd>B</kbd><div class="cd" aria-hidden="true"></div></button>
+        <button data-act="bandage" data-cd="8000" aria-label="Bandage wounds, key B" title="Bandage wounds"><img class="slot-img" src="assets/ui/icons/bandage.png" alt=""><kbd>B</kbd><div class="cd" aria-hidden="true"></div></button>
         <button data-act="gather" data-cd="1200" aria-label="Chop or mine, key G" title="Chop trees / mine rock"><img class="slot-img" src="assets/ui/icons/pick.png" alt=""><kbd>G</kbd><div class="cd" aria-hidden="true"></div></button>
         <button data-act="dash" data-cd="3000" aria-label="Dash, Shift key" title="Dash — 4 tiles in a burst, a heartbeat of untouchability (Shift + direction)"><span class="slot-icon">»</span><kbd>⇧</kbd><div class="cd" aria-hidden="true"></div></button>
         <button data-act="special" data-cd="6000" aria-label="Weapon special, key Q" title="Weapon special (Q)"><span class="slot-icon">❖</span><kbd>Q</kbd><div class="cd" aria-hidden="true"></div></button>
