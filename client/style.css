@@ -775,8 +775,9 @@ button { font-family: inherit; cursor: pointer; }
   #target-portrait { width: 36px; height: 36px; }
   #target-name { font-size: 12.5px; margin-bottom: 2px; }
 
-  /* what you carry, in the quiet space below the frames (the target
-     frame occupies 66-126 when something is selected) */
+  /* only the spirits' gifts stay on the strip here — the resource ledger
+     is hidden further down, past the chip styles it must outrank. (The
+     target frame occupies 66-126 when something is selected.) */
   #status-strip { top: 132px; left: 10px; max-width: 180px; font-size: 10.5px; }
 
   #minimap-wrap { top: 8px; right: 8px; padding: 2px; }
@@ -940,3 +941,8 @@ body, button { cursor: url('assets/ui/cursor.png') 2 2, auto; }
 .res-chip b { font-weight: bold; color: var(--text); }
 .res-chip img { width: 18px; height: 18px; image-rendering: pixelated; display: block; }
 .res-chip .res-emoji { font-size: 14px; line-height: 18px; }
+
+/* a phone's first screen carries no ledger — the backpack (I) has it */
+@media (max-width: 700px) {
+  #pack-line { display: none; }
+}
