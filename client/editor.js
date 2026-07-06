@@ -168,6 +168,37 @@ function buildPropPalette(filter = '') {
     det.appendChild(grid);
     pal.appendChild(det);
   }
+  // animated coast stamps: the pack's sand-shore autotile, laid by hand so
+  // the keeper can draw curved beaches with real foam wherever they like
+  const coastIds = (Assets.state.manifest && Assets.state.manifest.coastPieces) || [];
+  const coastShown = coastIds.filter((id) => !filter || ('coast ' + id).includes(filter) || ('coast' + id).includes(filter));
+  if (coastShown.length) {
+    const det = document.createElement('details');
+    det.open = !!filter;
+    const sum = document.createElement('summary');
+    sum.textContent = `coast — animated shore (${coastShown.length})`;
+    det.appendChild(sum);
+    const grid = document.createElement('div');
+    grid.className = 'prop-grid';
+    for (const id of coastShown) {
+      const name = 'coast.' + id;
+      const b = document.createElement('button');
+      b.title = 'coast ' + id;
+      b.dataset.prop = name;
+      b.appendChild(groundThumb('td.coast.' + id)); // flat, tile-aligned swatch
+      if (propName === name) b.classList.add('on');
+      b.onclick = () => {
+        propName = name;
+        for (const o of pal.querySelectorAll('button')) o.classList.remove('on');
+        b.classList.add('on');
+        pickTool('prop');
+      };
+      grid.appendChild(b);
+    }
+    det.appendChild(grid);
+    pal.appendChild(det);
+  }
+
   // the keeper's own pieces, drawn in the pixel studio below
   const mine = customArt.filter((a) => !filter || a.name.includes(filter));
   if (mine.length) {
@@ -621,6 +652,14 @@ function drawSprites() {
   const pushProp = (p, bright) => {
     if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) return;
     const o = worldToScreen(p.x, p.y);
+    if (p.name.startsWith('coast.')) {
+      // coast stamps lie flat on the ground and animate — draw them here,
+      // during the ground pass, so entities still sort on top of them
+      ctx.globalAlpha = bright === false ? 0.9 : 1;
+      Assets.drawFrame(ctx, 'td.coast.' + p.name.slice(6), o.x / k, o.y / k);
+      ctx.globalAlpha = 1;
+      return;
+    }
     const suffix = p.name.split('.')[1];
     if (p.name === 'fx.campfire') {
       drawables.push({ depth: p.y, kind: 'sprite', name: 'td.o.torch', x: o.x / k + 24, y: o.y / k + 48, bright });
