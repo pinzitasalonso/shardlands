@@ -803,6 +803,10 @@ class Game {
       map: { w: this.map.w, h: this.map.h, chunk: CHUNK },
       mini: this.miniData,
       buildings: this.map.buildings,
+      tileVariants: [...(this.map.tileVariants || new Map())].map(([k, v]) => {
+        const [x, y] = k.split(',').map(Number);
+        return [x, y, v];
+      }),
       props: this.map.props,
       villages: this.map.villages.map((v) => ({ name: v.name, x: v.x, y: v.y })),
       cities: (this.map.cities || []).map((c) => ({ name: c.name, x: c.x, y: c.y, r: c.r })),
@@ -1866,6 +1870,23 @@ class Game {
     for (const [x, y, v] of diff(clean.tiles, prev.tiles, (t) => `${t[0]},${t[1]},${t[2]}`)) {
       touchTile(x, y, v);
       counts.tiles++;
+    }
+
+    // -- ground variants: a hand-picked variant lands (or is cleared when the
+    // keeper reverts a cell to auto). Cosmetic, so each pings its own cell.
+    if (!this.map.tileVariants) this.map.tileVariants = new Map();
+    const tvKey = (t) => `${t[0]},${t[1]},${t[2]}`;
+    for (const [x, y, v] of diff(clean.tileVariants, prev.tileVariants, tvKey)) {
+      this.map.tileVariants.set(`${x},${y}`, v);
+      this.broadcast({ t: 'tilevar', x, y, v });
+      counts.tiles++;
+    }
+    for (const [x, y] of diff(prev.tileVariants, clean.tileVariants, tvKey)) {
+      // gone from the overlay entirely (not just re-picked) = back to auto
+      if (!(clean.tileVariants || []).some((t) => t[0] === x && t[1] === y)) {
+        this.map.tileVariants.delete(`${x},${y}`);
+        this.broadcast({ t: 'tilevar', x, y, v: null });
+      }
     }
 
     // -- buildings: stamp the new ones live (slot index = position in the

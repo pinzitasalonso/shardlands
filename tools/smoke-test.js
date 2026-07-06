@@ -1774,5 +1774,30 @@ const artCounts = game.applyEditsLive({ props: [{ x: run.x, y: run.y, name: 'cus
 assert.strictEqual(artCounts.props, 1, 'the keeper\'s own piece stands in the world');
 assert(game.map.props.some((pr) => pr.name === 'custom.smoke-rose'), 'and the world remembers it');
 
+// -- batch J: hand-picked ground variants ------------------------------------------
+const varKey = (spot.x + 30) + ',' + spot.y;
+ws.sent.length = 0;
+game.applyEditsLive({ tileVariants: [[spot.x + 30, spot.y, 2]] });
+assert.strictEqual(game.map.tileVariants.get(varKey), 2, 'a chosen variant pins server-side');
+assert(ws.sent.some((m) => m.t === 'tilevar' && m.x === spot.x + 30 && m.y === spot.y && m.v === 2),
+  'and is broadcast to watching players');
+// a fresh arrival learns the pinned variants from its welcome
+const wsVar = fakeWs();
+game.handle(wsVar, { t: 'join', email: 'variant@test.dev', password: 'secret1', name: 'Variant Seer' });
+const wVar = wsVar.sent.find((m) => m.t === 'welcome');
+assert(Array.isArray(wVar.tileVariants) &&
+  wVar.tileVariants.some(([x, y, v]) => x === spot.x + 30 && y === spot.y && v === 2),
+  'the welcome payload carries the pinned variant');
+game.leave(wsVar);
+// dropping it from the overlay reverts the cell to auto, and says so
+ws.sent.length = 0;
+game.applyEditsLive({ tileVariants: [] });
+assert(!game.map.tileVariants.has(varKey), 'reverting to auto clears the pin');
+assert(ws.sent.some((m) => m.t === 'tilevar' && m.x === spot.x + 30 && m.v === null),
+  'and the clear reaches players');
+// a nonsense variant index never sticks
+game.applyEditsLive({ tileVariants: [[spot.x + 30, spot.y, 99]] });
+assert(!game.map.tileVariants.has(varKey), 'out-of-range variants are refused');
+
 console.log('smoke test: all assertions passed');
 process.exit(0);

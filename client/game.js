@@ -64,6 +64,7 @@ const state = {
   map: null,            // { w, h, chunk } — tiles arrive in chunks
   chunks: new Map(),    // "cx,cy" -> Uint8Array(chunk*chunk)
   wantedChunks: new Set(),
+  tileVariants: new Map(), // "x,y" -> hand-picked ground variant index
   buildings: [],        // { x, y, w, h } for roofs
   mini: null,           // downsampled world overview for the minimap
   players: new Map(),   // id -> { ...snapshot, rx, ry, heading }
@@ -164,6 +165,7 @@ function handleMessage(msg) {
       state.chunks.clear();
       state.wantedChunks.clear();
       state.buildings = msg.buildings || [];
+      state.tileVariants = new Map((msg.tileVariants || []).map(([x, y, v]) => [x + ',' + y, v]));
       state.props = msg.props || [];
       state.villages = msg.villages || [];
       state.cities = msg.cities || [];
@@ -247,6 +249,13 @@ function handleMessage(msg) {
       if (!m) break;
       const c = state.chunks.get(Math.floor(msg.x / m.chunk) + ',' + Math.floor(msg.y / m.chunk));
       if (c) c[(msg.y % m.chunk) * m.chunk + (msg.x % m.chunk)] = msg.tile;
+      break;
+    }
+    case 'tilevar': {
+      // The builder hand-picked (or cleared) a ground variant.
+      const k = msg.x + ',' + msg.y;
+      if (msg.v == null) state.tileVariants.delete(k);
+      else state.tileVariants.set(k, msg.v);
       break;
     }
     case 'props':
@@ -1678,6 +1687,10 @@ function render() {
     push: (d) => drawables.push(d),
     torch: (x, y) => state.torches.push({ x, y }),
     waterGlint: drawWaterGlint,
+    tileVariant: (tx, ty) => {
+      const v = state.tileVariants.get(tx + ',' + ty);
+      return v === undefined ? -1 : v;
+    },
   };
 
   // Ground pass, plus collection of y-sorted scenery. Depth is the world y

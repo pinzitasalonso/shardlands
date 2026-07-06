@@ -1174,7 +1174,10 @@ function generate(seed = 1337) {
     mkBard(BARD_NAMES[1 + i], v.lodgeRoom.x + 1, v.lodgeRoom.y); // by the lodge hearth
   });
 
-  return { w: W, h: H, tiles, buildings, vendors, spawners, secrets, spawn, villages, cities, props };
+  // tileVariants: sparse "x,y" -> ground-variant index, hand-picked in the
+  // builder. Worldgen leaves it empty; the overlay fills it.
+  return { w: W, h: H, tiles, buildings, vendors, spawners, secrets, spawn, villages, cities, props,
+    tileVariants: new Map() };
 }
 
 function isWalkable(map, x, y) {
@@ -1282,6 +1285,11 @@ function sanitizeEdits(map, edits, { validKinds, validWeapons } = {}) {
     .filter((t) => Array.isArray(t) && okXY(t[0], t[1]) &&
       Number.isInteger(t[2]) && t[2] >= 0 && t[2] <= TILE.CAVE)
     .map((t) => [t[0], t[1], t[2]]));
+  // hand-picked ground variants: [x, y, index]; up to 8 variants per tile
+  keep('tileVariants', (Array.isArray(edits.tileVariants) ? edits.tileVariants : [])
+    .filter((t) => Array.isArray(t) && okXY(t[0], t[1]) &&
+      Number.isInteger(t[2]) && t[2] >= 0 && t[2] <= 7)
+    .map((t) => [t[0], t[1], t[2]]));
   keep('props', (Array.isArray(edits.props) ? edits.props : [])
     .filter((p) => p && okXY(p.x, p.y) && typeof p.name === 'string' && p.name.length <= 64)
     .map((p) => ({ x: p.x, y: p.y, name: p.name })));
@@ -1375,6 +1383,10 @@ function applyEdits(map, edits, opts = {}) {
   for (const [x, y, v] of clean.tiles || []) {
     map.tiles[y * map.w + x] = v;
     counts.tiles++;
+  }
+  if (!map.tileVariants) map.tileVariants = new Map();
+  for (const [x, y, v] of clean.tileVariants || []) {
+    map.tileVariants.set(x + ',' + y, v);
   }
   for (const p of clean.props || []) {
     map.props.push(p);
