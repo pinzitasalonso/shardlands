@@ -510,10 +510,15 @@ function handleFx(msg) {
 const keys = new Set();
 const chatInput = document.getElementById('chat-input');
 
-// On phones the chat log is a one-line ticker; tapping it unfolds history.
+// On phones the chat is a one-line ticker docked under the player frame;
+// tapping it unfolds the log and opens the keyboard to write. Tapping the
+// ticker again (or sending a line) folds it back.
 document.getElementById('chat-log').addEventListener('click', function () {
-  this.classList.toggle('expanded');
+  const chat = document.getElementById('chat');
+  const nowOpen = chat.classList.toggle('expanded');
   this.scrollTop = this.scrollHeight;
+  if (nowOpen) chatInput.focus();
+  else chatInput.blur();
 });
 
 document.addEventListener('keydown', (ev) => {
@@ -523,8 +528,10 @@ document.addEventListener('keydown', (ev) => {
       if (text) send({ t: 'say', text });
       chatInput.value = '';
       chatInput.blur();
+      document.getElementById('chat').classList.remove('expanded'); // fold the ticker back
     } else if (ev.key === 'Escape') {
       chatInput.blur();
+      document.getElementById('chat').classList.remove('expanded');
     }
     return;
   }
