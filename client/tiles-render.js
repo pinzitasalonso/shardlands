@@ -44,9 +44,12 @@ const GroundRender = (() => {
     const recipe = under || Assets.tileTD(tile) || Assets.tileTD(T.WATER);
 
     if (recipe.wanim) {
-      // the living sea: cycle the pack's seven ocean frames
-      const set = recipe.wanim[Math.floor(time / 180) % recipe.wanim.length];
-      Assets.drawFrame(ctx, set[Math.floor(h * set.length)], sx, sy);
+      // The living sea: each map row wears its band of the pack's
+      // vertically repeating ocean, and that band's frames shimmer in
+      // place — the waves stay put, only the light moves.
+      const rows = recipe.wanim;
+      const set = rows[((ty % rows.length) + rows.length) % rows.length];
+      Assets.drawFrame(ctx, set[Math.floor(time / 180) % set.length], sx, sy);
     } else {
       Assets.drawGround(ctx, recipe, h, sx, sy);
     }

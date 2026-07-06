@@ -214,5 +214,32 @@ const Assets = (() => {
     return p;
   }
 
-  return { state, load, tile, tileTD, creature, pattern, drawFrame, drawGround, drawCreature, drawFringe };
+  // ---- custom art: pixels drawn in the world builder's studio ----------------
+  // Each piece is served from /custom-art/ and registered as one frame named
+  // 'custom.<name>', anchored bottom-centre like every catalog prop.
+
+  function registerCustom(name, img) {
+    if (!state.ok || !state.manifest) return;
+    const key = 'custom.' + name;
+    state.images[key] = img;
+    state.manifest.frames[key] = {
+      img: key, x: 0, y: 0, w: img.width, h: img.height,
+      ax: img.width / 2, ay: img.height, scale: 3,
+    };
+  }
+
+  function loadCustomArt() {
+    return fetch('/custom-art/index.json')
+      .then((r) => (r.ok ? r.json() : { art: [] }))
+      .then(({ art }) => Promise.all((art || []).map((a) => new Promise((done) => {
+        const img = new Image();
+        img.onload = () => { registerCustom(a.name, img); done(); };
+        img.onerror = () => done(); // a broken piece must not stall the rest
+        img.src = '/custom-art/' + encodeURIComponent(a.name) + '.png?t=' + (a.t || 0);
+      }))))
+      .catch(() => {}); // no custom art is a perfectly fine state
+  }
+
+  return { state, load, tile, tileTD, creature, pattern, drawFrame, drawGround, drawCreature,
+    drawFringe, registerCustom, loadCustomArt };
 })();

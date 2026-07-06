@@ -11,8 +11,37 @@
 
 const crypto = require('crypto');
 const fs = require('fs');
+const path = require('path');
 const https = require('https');
 const { TILE, BUILDING_KINDS } = require('./world');
+
+// ---- the pixel studio's storage rules ---------------------------------------
+// Custom art is small, named plainly, and PNG or nothing.
+const ART_NAME_RE = /^[a-z0-9][a-z0-9-]{1,23}$/;
+const ART_MAX_BYTES = 64_000;
+const ART_MAX_DIM = 64;
+
+// Width and height straight from the IHDR chunk; null when the buffer is
+// not a PNG. Pure, so the smoke test can lean on it.
+function pngDims(buf) {
+  if (!Buffer.isBuffer(buf) || buf.length < 24) return null;
+  if (!buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    return null;
+  }
+  return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+}
+
+function artDir(game) {
+  return path.join(path.dirname(game.editsPath), 'custom-art');
+}
+
+function readArtIndex(game) {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(artDir(game), 'index.json'), 'utf8'));
+  } catch {
+    return { art: [] };
+  }
+}
 
 const SESSION_MS = 12 * 60 * 60 * 1000;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
@@ -290,6 +319,41 @@ function handle(req, res, url, game) {
     return true;
   }
 
+  // The pixel studio: the keeper draws a piece in the browser, it lands
+  // here as a small PNG, and every client learns it as prop 'custom.<name>'.
+  if (url === '/editor/art' && req.method === 'GET') {
+    json(res, 200, readArtIndex(game));
+    return true;
+  }
+
+  if (url === '/editor/art' && req.method === 'POST') {
+    readBody(req, res, (body) => {
+      const name = String(body.name || '').toLowerCase();
+      if (!ART_NAME_RE.test(name)) {
+        return json(res, 400, { error: 'name it plainly: 2-24 of a-z, 0-9, dashes' });
+      }
+      const m = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(String(body.png || ''));
+      if (!m) return json(res, 400, { error: 'the piece must arrive as a PNG data URL' });
+      const buf = Buffer.from(m[1], 'base64');
+      if (buf.length > ART_MAX_BYTES) return json(res, 400, { error: 'too heavy: 64KB at most' });
+      const dims = pngDims(buf);
+      if (!dims) return json(res, 400, { error: 'that is not a PNG' });
+      if (dims.w > ART_MAX_DIM || dims.h > ART_MAX_DIM || !dims.w || !dims.h) {
+        return json(res, 400, { error: `64x64 at most (got ${dims.w}x${dims.h})` });
+      }
+      const dir = artDir(game);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, `${name}.png`), buf);
+      const index = readArtIndex(game);
+      index.art = (index.art || []).filter((a) => a.name !== name);
+      index.art.push({ name, w: dims.w, h: dims.h, t: Date.now() });
+      index.art.sort((a, b) => a.name.localeCompare(b.name));
+      fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify(index, null, 1));
+      json(res, 200, { ok: true, ...index });
+    });
+    return true;
+  }
+
   if (url === '/editor/publish' && req.method === 'POST') {
     readBody(req, res, (body) => {
       publishToGitHub(game, body.message, (err, out) => {
@@ -314,8 +378,8 @@ function setMobKinds(mk, weapons) { mobKindsRef = mk; weaponsRef = weapons || {}
 configure(process.env.EDITOR_PASSWORD);
 
 module.exports = {
-  handle, authed, setMobKinds,
+  handle, authed, setMobKinds, artDir,
   // exposed for the smoke test
   configure, verifyPassword, issueSession, checkToken, rateLimited,
-  passwordRequired, githubRequest,
+  passwordRequired, githubRequest, pngDims,
 };

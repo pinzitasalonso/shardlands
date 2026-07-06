@@ -621,17 +621,19 @@ def build_topdown_heroic(frames, images_out):
     peaks.save(os.path.join(OUT, 'peaks16.png'))
     images_out['peaks16'] = 'peaks16.png'
 
-    # The living sea: seven frames of the pack's animated ocean, two calm
-    # lattice variants per frame, cycled client-side.
+    # The living sea, as the sheet actually reads: below one empty header
+    # row, each of the 20 ROWS is one band of a vertically repeating ocean,
+    # and the 8 COLUMNS are that band's animation frames. (An earlier bake
+    # mistook the pattern rows for frames — the whole sea strobed through
+    # unrelated patterns instead of shimmering in place.)
     oa = Image.open(os.path.join(
         HEROIC, 'HAS Overworld 2.1', 'Universal', 'Animated', 'Universal-Ocean-Animated.png')).convert('RGBA')
-    wat = Image.new('RGBA', (2 * TD, 7 * TD), (0, 0, 0, 0))
-    # the sheet leads with one empty 16px row; frame blocks start below it
-    for f in range(7):
-        for v in range(2):
-            wat.paste(oa.crop((v * 16, 16 + f * 48, v * 16 + 16, 32 + f * 48)), (v * TD, f * TD))
-            frames[f'td.g.wateranim.{f}.{v}'] = {'img': 'wateranim', 'x': v * TD, 'y': f * TD,
-                                                 'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+    wat = Image.new('RGBA', (8 * TD, 20 * TD), (0, 0, 0, 0))
+    for r in range(20):
+        for fr in range(8):
+            wat.paste(oa.crop((fr * 16, 16 + r * 16, fr * 16 + 16, 32 + r * 16)), (fr * TD, r * TD))
+            frames[f'td.g.wateranim.{r}.{fr}'] = {'img': 'wateranim', 'x': fr * TD, 'y': r * TD,
+                                                  'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
     wat.save(os.path.join(OUT, 'wateranim.png'))
     images_out['wateranim'] = 'wateranim.png'
 
@@ -713,7 +715,8 @@ def build_topdown_heroic(frames, images_out):
                 ('h', 'v', 'tl', 'tr', 'bl', 'br', 'capL', 'capR', 'capT', 'capB')}
     return {
         '0': {'ground': g('water'), 'effect': 'water',
-              'wanim': [[f'td.g.wateranim.{f}.{v}' for v in range(2)] for f in range(7)]},
+              # one entry per ocean band; the inner lists are its 8 frames
+              'wanim': [[f'td.g.wateranim.{r}.{fr}' for fr in range(8)] for r in range(20)]},
         '1': {'ground': g('grass'),
               'decor': {'chance': 0.05,
                         'objects': ['td.o.flower', 'td.o.tuft', 'td.o.stone0', 'td.o.twig']}},
