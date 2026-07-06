@@ -637,31 +637,54 @@ def build_topdown_heroic(frames, images_out):
     wat.save(os.path.join(OUT, 'wateranim.png'))
     images_out['wateranim'] = 'wateranim.png'
 
-    # Roads autotile the way the pack draws them: a 16-piece set keyed by
-    # which cardinal neighbours are also road (center fill, four edges, four
-    # outer corners, two corridors, four end-caps, one isolated). Each piece
-    # is the tan road cell composited onto grass, so it's a complete opaque
-    # tile — a path reads as a path, not a flat tan slab. Keys list the OPEN
-    # (non-road) sides in n,e,s,w order.
+    # Roads autotile by CORNER (blob autotiling): each 16px tile is four 8px
+    # quadrants, and each quadrant is picked from the three neighbours touching
+    # that corner — two cardinals and the diagonal. This is what lets
+    # crossroads, T-junctions and plaza corners join cleanly instead of
+    # pinching to a flat box. Twenty quadrant pieces (4 positions x 5 types),
+    # each an 8px crop of a road cell composited onto grass.
     roadsheet = sheets['ROAD']
     grass_cell = cell(HAS_GROUNDS['grass'][0])
-    ROAD_CELLS = {
-        '': (6, 1),
-        'n': (6, 0), 'e': (7, 1), 's': (6, 2), 'w': (5, 1),
-        'nw': (5, 0), 'ne': (7, 0), 'sw': (5, 2), 'se': (7, 2),
-        'ew': (1, 2), 'ns': (3, 0),
-        'esw': (1, 3), 'nsw': (2, 0), 'new': (1, 1), 'nes': (4, 0),
-        'nesw': (0, 4),
+    def road_on_grass(cx, cy):
+        c = grass_cell.copy()
+        c.alpha_composite(roadsheet.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16)))
+        return c
+    CENTER = road_on_grass(6, 1)
+    EDGE = {'n': road_on_grass(6, 0), 's': road_on_grass(6, 2),
+            'w': road_on_grass(5, 1), 'e': road_on_grass(7, 1)}
+    CORNER = {'nw': road_on_grass(5, 0), 'ne': road_on_grass(7, 0),
+              'sw': road_on_grass(5, 2), 'se': road_on_grass(7, 2)}
+    CONCAVE = {'nw': road_on_grass(6, 3), 'ne': road_on_grass(7, 3),
+               'sw': road_on_grass(6, 4), 'se': road_on_grass(7, 4)}
+    QOFF = {'nw': (0, 0), 'ne': (8, 0), 'sw': (0, 8), 'se': (8, 8)}
+    def subq(img, pos):
+        ox, oy = QOFF[pos]
+        return img.crop((ox, oy, ox + 8, oy + 8))
+    POS_SRC = {
+        'nw': {'edgeV': EDGE['w'], 'edgeH': EDGE['n'], 'outer': CORNER['nw'], 'inner': CONCAVE['nw']},
+        'ne': {'edgeV': EDGE['e'], 'edgeH': EDGE['n'], 'outer': CORNER['ne'], 'inner': CONCAVE['ne']},
+        'sw': {'edgeV': EDGE['w'], 'edgeH': EDGE['s'], 'outer': CORNER['sw'], 'inner': CONCAVE['sw']},
+        'se': {'edgeV': EDGE['e'], 'edgeH': EDGE['s'], 'outer': CORNER['se'], 'inner': CONCAVE['se']},
     }
-    road_keys = list(ROAD_CELLS)
-    roadatlas = Image.new('RGBA', (len(road_keys) * TD, TD), (0, 0, 0, 0))
-    for i, key in enumerate(road_keys):
-        cx, cy = ROAD_CELLS[key]
-        comp = grass_cell.copy()
-        comp.alpha_composite(roadsheet.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16)))
-        roadatlas.paste(comp, (i * TD, 0))
-        frames[f'td.road.{key}'] = {'img': 'roadauto', 'x': i * TD, 'y': 0,
-                                    'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+    positions = ['nw', 'ne', 'sw', 'se']
+    qtypes = ['int', 'inner', 'edgeV', 'edgeH', 'outer']
+    # 20 quadrant pieces, then two whole-tile corridor pieces (vmid/hmid) so
+    # pure straight roads draw as one clean tile with no centre seam
+    roadatlas = Image.new('RGBA', (len(positions) * len(qtypes) * 8 + 2 * TD, TD), (0, 0, 0, 0))
+    qi = 0
+    for pos in positions:
+        for t in qtypes:
+            img = subq(CENTER, pos) if t == 'int' else subq(POS_SRC[pos][t], pos)
+            roadatlas.paste(img, (qi * 8, 0))
+            frames[f'td.rq.{pos}.{t}'] = {'img': 'roadauto', 'x': qi * 8, 'y': 0,
+                                          'w': 8, 'h': 8, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+            qi += 1
+    xoff = len(positions) * len(qtypes) * 8
+    for name, (cx, cy) in [('vmid', (1, 2)), ('hmid', (3, 0))]:
+        roadatlas.paste(road_on_grass(cx, cy), (xoff, 0))
+        frames[f'td.rd.{name}'] = {'img': 'roadauto', 'x': xoff, 'y': 0,
+                                   'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+        xoff += TD
     roadatlas.save(os.path.join(OUT, 'roadauto.png'))
     images_out['roadauto'] = 'roadauto.png'
 
@@ -757,10 +780,7 @@ def build_topdown_heroic(frames, images_out):
               ]},
         # mountains sit straight on the grass, ranges of interlocking peaks
         '3': {'ground': g('grass'), 'peaks': [f'td.mtn.{i}' for i in range(9)]},
-        '4': {'ground': g('road'),
-              'autoroad': {k: f'td.road.{k}' for k in
-                           ['', 'n', 'e', 's', 'w', 'nw', 'ne', 'sw', 'se',
-                            'ew', 'ns', 'esw', 'nsw', 'new', 'nes', 'nesw']}},
+        '4': {'ground': g('road'), 'autoroadq': True},
         '5': {'ground': g('floor')},
         '6': {'ground': g('grass'), 'autowall': autowall},
         '7': {'ground': g('sand'),

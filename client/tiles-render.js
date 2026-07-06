@@ -43,18 +43,35 @@ const GroundRender = (() => {
     const under = sink.underworld && Assets.tileTD('u' + tile);
     const recipe = under || Assets.tileTD(tile) || Assets.tileTD(T.WATER);
 
-    if (recipe.autoroad) {
-      // Roads autotile like the pack intends: each cell picks its piece by
-      // which cardinal neighbours are also road, so a path reads as a path
-      // — tan surface, grass shoulders, rounded ends — not a flat slab.
-      // (The pieces come with grass baked in, so no base layer is needed.)
+    if (recipe.autoroadq) {
+      // Roads autotile by CORNER (blob autotiling): each tile is four 8px
+      // quadrants, and each quadrant picks its piece from the three
+      // neighbours touching that corner — two cardinals and the diagonal.
+      // This is what makes crossroads, T-junctions and plaza corners join
+      // cleanly instead of pinching to a flat borderless box.
       const rd = (nx, ny) => tileAt(nx, ny) === T.ROAD;
-      let key = '';
-      if (!rd(tx, ty - 1)) key += 'n';
-      if (!rd(tx + 1, ty)) key += 'e';
-      if (!rd(tx, ty + 1)) key += 's';
-      if (!rd(tx - 1, ty)) key += 'w';
-      Assets.drawFrame(ctx, recipe.autoroad[key] || recipe.autoroad[''], sx, sy);
+      const n = rd(tx, ty - 1), s = rd(tx, ty + 1), e = rd(tx + 1, ty), w = rd(tx - 1, ty);
+      if (n && s && !e && !w) {
+        Assets.drawFrame(ctx, 'td.rd.vmid', sx, sy); // clean vertical straight
+      } else if (e && w && !n && !s) {
+        Assets.drawFrame(ctx, 'td.rd.hmid', sx, sy); // clean horizontal straight
+      } else {
+        const q = 24; // one 8px quadrant drawn at 3x
+        // [pos, vertical cardinal road?, horizontal cardinal road?, diagonal road?, dx, dy]
+        const quads = [
+          ['nw', n, w, rd(tx - 1, ty - 1), 0, 0],
+          ['ne', n, e, rd(tx + 1, ty - 1), q, 0],
+          ['sw', s, w, rd(tx - 1, ty + 1), 0, q],
+          ['se', s, e, rd(tx + 1, ty + 1), q, q],
+        ];
+        for (const [pos, cardH, cardV, diag, dx, dy] of quads) {
+          const t = (cardH && cardV) ? (diag ? 'int' : 'inner')
+            : (cardH && !cardV) ? 'edgeV'   // side neighbour is grass
+            : (!cardH && cardV) ? 'edgeH'   // top/bottom neighbour is grass
+            : 'outer';
+          Assets.drawFrame(ctx, `td.rq.${pos}.${t}`, sx + dx, sy + dy);
+        }
+      }
     } else if (recipe.wanim) {
       // The living sea: each map row wears its band of the pack's
       // vertically repeating ocean, and that band's frames shimmer in
@@ -82,7 +99,7 @@ const GroundRender = (() => {
     // fringe over this tile's edge — grass over sand, snow over grass.
     // autotiled roads bring their own grass shoulders; don't double them
     const fr = FRINGES[tile];
-    if (fr && !sink.underworld && !recipe.autoroad) {
+    if (fr && !sink.underworld && !recipe.autoroadq) {
       const pr = fr[1];
       const spill = (fx, fy) => {
         const f = FRINGES[tileAt(fx, fy)];
