@@ -26,6 +26,26 @@ const MIME = {
 const server = http.createServer((req, res) => {
   const url = req.url.split('?')[0];
   if (url.startsWith('/editor/') && editor.handle(req, res, url, game)) return;
+  // The keeper's own pixels: world-readable, tightly named, served from
+  // the data volume beside the edits overlay.
+  if (url.startsWith('/custom-art/')) {
+    const base = url.slice('/custom-art/'.length);
+    if (base !== 'index.json' && !/^[a-z0-9][a-z0-9-]{1,23}\.png$/.test(base)) {
+      res.writeHead(404);
+      return res.end('Not found');
+    }
+    return fs.readFile(path.join(editor.artDir(game), base), (err, data) => {
+      if (err) {
+        res.writeHead(404);
+        return res.end('Not found');
+      }
+      res.writeHead(200, {
+        'Content-Type': base.endsWith('.png') ? 'image/png' : 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store', // studio saves must show up on refresh
+      });
+      res.end(data);
+    });
+  }
   if (url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({

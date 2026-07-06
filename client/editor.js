@@ -27,6 +27,7 @@ let base = null;    // offscreen canvas, 1px per tile
 let tool = 'pan';
 let paintTile = 4;  // road
 let propName = null; // selected catalog prop, e.g. 'prop.trees0'
+let customArt = [];  // the keeper's own pieces: [{name, w, h, t}]
 let dirty = false;
 let tileNames = [];
 let portalFrom = null; // first click of the portal tool
@@ -150,6 +151,33 @@ function buildPropPalette(filter = '') {
       if (propName === 'prop.' + n) b.classList.add('on');
       b.onclick = () => {
         propName = 'prop.' + n;
+        for (const o of pal.querySelectorAll('button')) o.classList.remove('on');
+        b.classList.add('on');
+        pickTool('prop');
+      };
+      grid.appendChild(b);
+    }
+    det.appendChild(grid);
+    pal.appendChild(det);
+  }
+  // the keeper's own pieces, drawn in the pixel studio below
+  const mine = customArt.filter((a) => !filter || a.name.includes(filter));
+  if (mine.length) {
+    const det = document.createElement('details');
+    det.open = true;
+    const sum = document.createElement('summary');
+    sum.textContent = `your art (${mine.length})`;
+    det.appendChild(sum);
+    const grid = document.createElement('div');
+    grid.className = 'prop-grid';
+    for (const a of mine) {
+      const b = document.createElement('button');
+      b.title = a.name;
+      b.dataset.prop = 'custom.' + a.name;
+      b.appendChild(thumbnail('custom.' + a.name));
+      if (propName === 'custom.' + a.name) b.classList.add('on');
+      b.onclick = () => {
+        propName = 'custom.' + a.name;
         for (const o of pal.querySelectorAll('button')) o.classList.remove('on');
         b.classList.add('on');
         pickTool('prop');
@@ -516,6 +544,8 @@ function drawSprites() {
     const suffix = p.name.split('.')[1];
     if (p.name === 'fx.campfire') {
       drawables.push({ depth: p.y, kind: 'sprite', name: 'td.o.torch', x: o.x / k + 24, y: o.y / k + 48, bright });
+    } else if (p.name.startsWith('custom.')) {
+      drawables.push({ depth: p.y, kind: 'sprite', name: p.name, x: o.x / k + 24, y: o.y / k + 48, bright });
     } else {
       drawables.push({ depth: p.y, kind: 'sprite', name: 'td.o.' + suffix, x: o.x / k + 24, y: o.y / k + 48, bright });
     }
@@ -658,7 +688,8 @@ function draw() {
       ctx.imageSmoothingEnabled = false;
       ctx.globalAlpha = 0.55;
       if (tool === 'prop' && propName) {
-        Assets.drawFrame(ctx, propName === 'fx.campfire' ? 'td.o.torch' : 'td.o.' + propName.split('.')[1],
+        Assets.drawFrame(ctx, propName === 'fx.campfire' ? 'td.o.torch'
+          : propName.startsWith('custom.') ? propName : 'td.o.' + propName.split('.')[1],
           p.x / k + 24, p.y / k + 48);
       } else if (tool === 'building') {
         Assets.drawFrame(ctx, 'td.o.' + document.getElementById('building-kind').value,
@@ -1011,6 +1042,171 @@ window.addEventListener('beforeunload', (ev) => {
   if (dirty) ev.preventDefault();
 });
 
+// ---- the pixel studio: draw a piece, save it, place it -----------------------
+// A small hand-rolled pixel editor: pencil, eraser, flood fill and an
+// eyedropper over an N x N grid, previewed at world scale, saved to the
+// server as a PNG and registered as prop 'custom.<name>' on the spot.
+
+const Studio = (() => {
+  const cv = document.getElementById('art-canvas');
+  const g = cv.getContext('2d');
+  let N = +document.getElementById('art-size').value;
+  let cells = new Array(N * N).fill(null); // css color strings or null
+  let artTool = 'pencil';
+  const undoStack = [];
+  let painting = false;
+
+  // A HAS-flavoured starter palette: outline, woods, stones, greens,
+  // blood, brass, water, cream.
+  const SWATCHES = ['#2b1a12', '#5a3c26', '#8a5f3a', '#b98a5e', '#3a3f46', '#6f7780',
+    '#9fa8b0', '#dce4ea', '#2e5a28', '#4c8a3a', '#79c05a', '#c23a2c', '#e06a4a',
+    '#d8b35e', '#3a62c0', '#efe7d3'];
+
+  function pushUndo() {
+    undoStack.push(cells.slice());
+    if (undoStack.length > 60) undoStack.shift();
+  }
+
+  function render() {
+    g.clearRect(0, 0, cv.width, cv.height);
+    const s = cv.width / N;
+    for (let i = 0; i < cells.length; i++) {
+      if (!cells[i]) continue;
+      g.fillStyle = cells[i];
+      g.fillRect((i % N) * s, Math.floor(i / N) * s, s, s);
+    }
+    g.strokeStyle = 'rgba(255,255,255,0.07)';
+    for (let i = 1; i < N; i++) {
+      g.beginPath(); g.moveTo(i * s, 0); g.lineTo(i * s, cv.height); g.stroke();
+      g.beginPath(); g.moveTo(0, i * s); g.lineTo(cv.width, i * s); g.stroke();
+    }
+    // the in-world preview: exactly what drawFrame will do at scale 3
+    const pv = document.getElementById('art-preview');
+    const pg = pv.getContext('2d');
+    pg.imageSmoothingEnabled = false;
+    pg.clearRect(0, 0, pv.width, pv.height);
+    const k = Math.min(pv.width / N, pv.height / N);
+    for (let i = 0; i < cells.length; i++) {
+      if (!cells[i]) continue;
+      pg.fillStyle = cells[i];
+      pg.fillRect((i % N) * k, Math.floor(i / N) * k, Math.ceil(k), Math.ceil(k));
+    }
+  }
+
+  function cellAt(ev) {
+    const r = cv.getBoundingClientRect();
+    const x = Math.floor(((ev.clientX - r.left) / r.width) * N);
+    const y = Math.floor(((ev.clientY - r.top) / r.height) * N);
+    return (x >= 0 && y >= 0 && x < N && y < N) ? y * N + x : -1;
+  }
+
+  function apply(i) {
+    if (i < 0) return;
+    const color = document.getElementById('art-color').value;
+    if (artTool === 'pencil') cells[i] = color;
+    else if (artTool === 'eraser') cells[i] = null;
+    else if (artTool === 'pick') {
+      if (cells[i]) document.getElementById('art-color').value = cells[i];
+      return;
+    } else if (artTool === 'fill') {
+      const target = cells[i];
+      if (target === color) return;
+      const q = [i];
+      while (q.length) {
+        const c = q.pop();
+        if (cells[c] !== target) continue;
+        cells[c] = color;
+        const cx = c % N;
+        if (cx > 0) q.push(c - 1);
+        if (cx < N - 1) q.push(c + 1);
+        if (c >= N) q.push(c - N);
+        if (c < N * N - N) q.push(c + N);
+      }
+    }
+    render();
+  }
+
+  cv.addEventListener('pointerdown', (ev) => {
+    ev.preventDefault();
+    pushUndo();
+    painting = artTool === 'pencil' || artTool === 'eraser';
+    apply(cellAt(ev));
+  });
+  cv.addEventListener('pointermove', (ev) => {
+    if (painting && ev.buttons) apply(cellAt(ev));
+  });
+  window.addEventListener('pointerup', () => { painting = false; });
+
+  document.getElementById('art-undo').onclick = () => {
+    if (undoStack.length) { cells = undoStack.pop(); render(); }
+  };
+  document.getElementById('art-clear').onclick = () => {
+    pushUndo();
+    cells.fill(null);
+    render();
+  };
+  document.getElementById('art-size').onchange = (ev) => {
+    N = +ev.target.value;
+    cells = new Array(N * N).fill(null);
+    undoStack.length = 0;
+    render();
+  };
+  for (const b of document.querySelectorAll('#art-tools button')) {
+    b.onclick = () => {
+      artTool = b.dataset.arttool;
+      for (const o of document.querySelectorAll('#art-tools button')) o.classList.remove('on');
+      b.classList.add('on');
+    };
+  }
+  const palBox = document.getElementById('art-palette');
+  for (const c of SWATCHES) {
+    const b = document.createElement('button');
+    b.style.cssText = `height:18px;background:${c};border:1px solid #000;border-radius:3px;cursor:pointer`;
+    b.title = c;
+    b.onclick = () => { document.getElementById('art-color').value = c; };
+    palBox.appendChild(b);
+  }
+
+  document.getElementById('art-save').onclick = async () => {
+    const name = document.getElementById('art-name').value.trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9-]{1,23}$/.test(name)) {
+      return setStatus('name the piece plainly: 2-24 of a-z, 0-9, dashes');
+    }
+    if (!cells.some(Boolean)) return setStatus('the canvas is empty');
+    const out = document.createElement('canvas');
+    out.width = N;
+    out.height = N;
+    const og = out.getContext('2d');
+    for (let i = 0; i < cells.length; i++) {
+      if (!cells[i]) continue;
+      og.fillStyle = cells[i];
+      og.fillRect(i % N, Math.floor(i / N), 1, 1);
+    }
+    const res = await fetch('/editor/art', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, png: out.toDataURL('image/png') }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return setStatus('save refused: ' + (body.error || res.status));
+    customArt = body.art || [];
+    // teach this session the new frame immediately, then re-shelve the catalog
+    const img = new Image();
+    img.onload = () => {
+      Assets.registerCustom(name, img);
+      buildPropPalette(document.getElementById('prop-search').value.trim().toLowerCase());
+      setStatus(`"${name}" saved — find it under "your art" and place it with the Prop tool`);
+    };
+    img.src = out.toDataURL('image/png');
+  };
+
+  render();
+  return { render };
+})();
+
 resize();
 Assets.load().catch(() => setStatus('sprite atlases failed to load — colour view only'))
+  .then(() => Assets.loadCustomArt())
+  .then(() => fetch('/custom-art/index.json').then((r) => (r.ok ? r.json() : { art: [] }))
+    .then(({ art }) => { customArt = art || []; }).catch(() => {}))
   .then(load);

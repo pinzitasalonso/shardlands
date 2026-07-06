@@ -105,6 +105,7 @@ function weaponLabel(item) {
 // token auto-login) wait on this. If loading fails, Assets.load resolves
 // anyway and the flat-shaded fallback carries the day.
 const assetsReady = Assets.load().then(() => {
+  Assets.loadCustomArt(); // the keeper's own pieces, if any were drawn
   const btn = document.getElementById('play');
   btn.disabled = false;
   btn.textContent = 'Enter the World';
@@ -1702,8 +1703,10 @@ function render() {
     if (pr.name === 'fx.campfire') {
       drawables.push({ depth: pr.y, kind: 'campfire', x: s.x + HT, y: s.y + HT });
     } else {
-      // server names props 'prop.well' etc.; the 16px frames are 'td.o.well'
-      drawables.push({ depth: pr.y, kind: 'sprite', name: 'td.o.' + pr.name.split('.')[1],
+      // server names props 'prop.well' etc.; the 16px frames are 'td.o.well'.
+      // The keeper's own art keeps its full name: 'custom.<piece>'.
+      drawables.push({ depth: pr.y, kind: 'sprite',
+        name: pr.name.startsWith('custom.') ? pr.name : 'td.o.' + pr.name.split('.')[1],
         x: s.x + HT, y: s.y + TP });
     }
   }

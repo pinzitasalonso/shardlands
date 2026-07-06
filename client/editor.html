@@ -98,6 +98,32 @@
       <input id="prop-search" placeholder="search the catalog…" />
       <div id="prop-palette"></div>
 
+      <h2>Pixel studio</h2>
+      <div class="row"><label>Canvas</label>
+        <select id="art-size"><option>16</option><option>32</option><option selected>48</option></select>
+        <button id="art-undo">↶ undo</button>
+        <button id="art-clear">✕ clear</button>
+      </div>
+      <div class="tools" id="art-tools">
+        <button data-arttool="pencil" class="on">✏️ Pencil</button>
+        <button data-arttool="eraser">⬜ Eraser</button>
+        <button data-arttool="fill">🪣 Fill</button>
+        <button data-arttool="pick">🎯 Pick</button>
+      </div>
+      <canvas id="art-canvas" width="288" height="288"
+        style="width:100%;image-rendering:pixelated;background:
+          repeating-conic-gradient(#242424 0% 25%, #2e2e2e 0% 50%) 0 0 / 16px 16px;
+          border:1px solid var(--edge);border-radius:4px;cursor:crosshair;touch-action:none"></canvas>
+      <div id="art-palette" style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin:4px 0"></div>
+      <div class="row"><label>Color</label><input id="art-color" type="color" value="#c23a2c" />
+        <label style="margin-left:8px">In world</label><canvas id="art-preview" width="48" height="48"
+          style="image-rendering:pixelated;border:1px solid var(--edge)"></canvas>
+      </div>
+      <div class="row"><label>Name</label><input id="art-name" placeholder="rose-bush" style="width:130px" maxlength="24" /></div>
+      <button id="art-save" style="width:100%">💾 Save piece to the world</button>
+      <div class="hint">Saved pieces join the catalog under <b>your art</b> — place them with
+        the Prop tool. 48px covers one tile; pieces draw anchored to the tile's foot.</div>
+
       <h2>Spawner</h2>
       <div class="row"><label>Kind</label><select id="mob-kind"></select></div>
       <div class="row"><label>Preview</label><canvas id="mob-thumb" width="48" height="48"></canvas></div>

@@ -1726,5 +1726,53 @@ game.mobs.delete(petH.id);
 p.boons = [];
 p.target = 0;
 
+// -- batch I: the pixel studio — PNG gate, save round-trip, placeable art ------------
+const edArt = require('../server/editor');
+// a real 1x1 PNG, the smallest honest test subject
+const onePx = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABh6FO1AAAAABJRU5ErkJggg==',
+  'base64');
+assert.deepStrictEqual(edArt.pngDims(onePx), { w: 1, h: 1 }, 'IHDR reads back 1x1');
+assert.strictEqual(edArt.pngDims(Buffer.from('not a png at all')), null, 'non-PNGs are refused');
+
+const mockRes = () => {
+  const r = { code: 0, body: null };
+  r.writeHead = (c) => { r.code = c; };
+  r.end = (b) => { r.body = JSON.parse(b || '{}'); };
+  return r;
+};
+const mockPost = (url, payload) => {
+  const handlers = {};
+  return {
+    req: {
+      method: 'POST', url,
+      headers: {}, socket: { remoteAddress: '127.0.0.1' },
+      on(ev, cb) {
+        handlers[ev] = cb;
+        if (ev === 'end') {
+          handlers.data(JSON.stringify(payload));
+          handlers.end();
+        }
+      },
+    },
+  };
+};
+edArt.configure(undefined); // loopback-open, like local dev
+let r1 = mockRes();
+edArt.handle(mockPost('/editor/art', { name: 'Bad Name!', png: 'x' }).req, r1, '/editor/art', game);
+assert.strictEqual(r1.code, 400, 'sloppy names are refused');
+r1 = mockRes();
+edArt.handle(mockPost('/editor/art', {
+  name: 'smoke-rose', png: 'data:image/png;base64,' + onePx.toString('base64'),
+}).req, r1, '/editor/art', game);
+assert.strictEqual(r1.code, 200, 'a plain little PNG is welcomed');
+assert(r1.body.art.some((a) => a.name === 'smoke-rose' && a.w === 1), 'and joins the index');
+assert(require('fs').existsSync(require('path').join(edArt.artDir(game), 'smoke-rose.png')),
+  'the piece is on disk');
+// the keeper can place it: a custom prop survives sanitising and goes live
+const artCounts = game.applyEditsLive({ props: [{ x: run.x, y: run.y, name: 'custom.smoke-rose' }] });
+assert.strictEqual(artCounts.props, 1, 'the keeper\'s own piece stands in the world');
+assert(game.map.props.some((pr) => pr.name === 'custom.smoke-rose'), 'and the world remembers it');
+
 console.log('smoke test: all assertions passed');
 process.exit(0);
