@@ -1301,6 +1301,46 @@ const Studio = (() => {
     img.src = out.toDataURL('image/png');
   };
 
+  // Expand the studio to a full-screen easel (bigger cells, easier work).
+  document.getElementById('art-expand').onclick = () => {
+    const box = document.getElementById('pixel-studio');
+    const on = box.classList.toggle('fullscreen');
+    document.getElementById('art-expand').textContent = on ? '⤡ Shrink' : '⛶ Expand';
+    render();
+  };
+
+  // Trace: sample the selected catalog prop / your-art piece into the canvas
+  // as a base — a starting point to recolour or redraw over.
+  document.getElementById('art-base').onclick = () => {
+    const sel = propName;
+    if (!sel || sel === 'fx.campfire') {
+      return setStatus('pick a prop (or a "your art" piece) in the catalog first, then trace it');
+    }
+    const frame = sel.startsWith('custom.') ? sel : 'td.o.' + sel.split('.')[1];
+    const f = Assets.state.manifest.frames[frame];
+    const src = f && Assets.state.images[f.img];
+    if (!f || !src) return setStatus('that asset has no art to trace');
+    const tmp = document.createElement('canvas');
+    tmp.width = f.w;
+    tmp.height = f.h;
+    const tg = tmp.getContext('2d');
+    tg.imageSmoothingEnabled = false;
+    tg.drawImage(src, f.x, f.y, f.w, f.h, 0, 0, f.w, f.h); // native pixels, no scale
+    const d = tg.getImageData(0, 0, f.w, f.h).data;
+    const hex = (r, gg, b) => '#' + [r, gg, b].map((v) => v.toString(16).padStart(2, '0')).join('');
+    pushUndo();
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const sx = Math.min(f.w - 1, Math.floor((x + 0.5) / N * f.w));
+        const sy = Math.min(f.h - 1, Math.floor((y + 0.5) / N * f.h));
+        const i = (sy * f.w + sx) * 4;
+        cells[y * N + x] = d[i + 3] > 40 ? hex(d[i], d[i + 1], d[i + 2]) : null;
+      }
+    }
+    render();
+    setStatus('traced "' + sel.split('.')[1] + '" — recolour or redraw, then save under a new name');
+  };
+
   render();
   return { render };
 })();
