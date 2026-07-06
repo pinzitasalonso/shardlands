@@ -3,3 +3,4 @@ data/
 tools/asset-src/
 # regenerate with: python3 tools/build-assets.py --export
 art/editable/
+__pycache__/

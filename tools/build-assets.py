@@ -1113,11 +1113,14 @@ def build_has_ui():
             os.path.join(icons, f'{name}.png'))
     misc = Image.open(os.path.join(
         HEROIC, 'HAS IconPack (v.1.2)/IconPack 1.1/AllItems/MiscellaneousSource/MiscellaneousOriginal.png')).convert('RGBA')
-    for name, (cx, cy) in {'gold': (13, 0), 'heal': (1, 1), 'mana': (2, 1),
+    # (12,1) is the pickaxe; (10,1), its old cell, is in fact a goblet —
+    # the gather button spent months toasting the rocks it meant to break
+    for name, (cx, cy) in {'gold': (13, 0),
                            'logs': (6, 0), 'ore': (8, 0), 'gems': (3, 1),
-                           'food': (14, 1), 'pick': (10, 1)}.items():
+                           'food': (14, 1), 'pick': (12, 1)}.items():
         c = misc.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16))
         c.resize((32, 32), Image.NEAREST).save(os.path.join(icons, f'{name}.png'))
+    draw_hand_icons(icons)
 
     # equipment icons: one hand-picked cell per WEAPONS id, so the shop,
     # forge and backpack can show the goods (sheets are 10x2 cells of 16px)
@@ -1618,6 +1621,135 @@ def asset_pngs():
 # IconPack, the whole Skills sheet, the HAS UI icon set and every Magic
 # Book spell icon. Nothing consumes most of these yet — they are the
 # library future items, skills and UI draw from.
+
+
+
+# ---- hand-drawn 16px icons -----------------------------------------------------
+# The packs keep no potion bottles, bandages or parchment sheets, so these
+# four are drawn here, pixel by pixel, in the HAS palette manner: dark
+# outline, saturated mids, one honest highlight. Sixteen characters per row.
+
+HAND_ICON_PAL = {
+    '.': None,
+    'O': (43, 26, 18, 255),     # outline
+    # glass
+    'G': (222, 236, 242, 255),  # glass light
+    'g': (148, 178, 196, 255),  # glass mid
+    # red potion
+    'R': (240, 110, 90, 255),
+    'r': (196, 58, 44, 255),
+    'd': (128, 30, 22, 255),
+    # blue potion
+    'B': (120, 160, 240, 255),
+    'b': (58, 98, 192, 255),
+    'n': (30, 52, 118, 255),
+    # cork
+    'C': (185, 138, 94, 255),
+    'c': (134, 92, 56, 255),
+    # bandage cloth
+    'W': (244, 238, 220, 255),
+    'w': (214, 202, 172, 255),
+    's': (166, 150, 118, 255),
+    'p': (222, 120, 100, 255),  # a faint blood blush on the roll
+    # parchment
+    'P': (226, 208, 162, 255),
+    'q': (198, 176, 128, 255),
+    'z': (150, 128, 88, 255),
+    'i': (74, 58, 40, 255),     # ink
+    'X': (168, 44, 36, 255),    # wax seal
+    'x': (216, 96, 70, 255),    # wax highlight
+    '*': (255, 255, 255, 255),  # shine
+}
+
+HAND_ICONS = {
+  'heal': [
+    '......CCC.......',
+    '.....OCCCO......',
+    '.....OcCcO......',
+    '......OgO.......',
+    '......OgO.......',
+    '.....OGgGO......',
+    '....OGrrrrO.....',
+    '...OGrrrrrrO....',
+    '..OGrRRrrrrdO...',
+    '..OGRR*RrrrdO...',
+    '..OgrRRrrrrdO...',
+    '..OgrrrrrrddO...',
+    '...OrrrrrddO....',
+    '....OrrdddO.....',
+    '.....OOOOO......',
+    '................',
+  ],
+  'mana': [
+    '.......CCC......',
+    '......OCCCO.....',
+    '......OcCcO.....',
+    '.......OgO......',
+    '.......OgO......',
+    '......OGgbO.....',
+    '......OGgbO.....',
+    '.....OGgbbbO....',
+    '.....OGbBbbO....',
+    '....OGbB*BbnO...',
+    '....OGbBBbbnO...',
+    '...OgbbBbbbnnO..',
+    '...ObbbbbbnnnO..',
+    '....ObbbnnnnO...',
+    '.....OOOOOO.....',
+    '................',
+  ],
+  'bandage': [
+    '................',
+    '....OOOOOO......',
+    '..OOWWWWWWOO....',
+    '.OWW**WWWWWWO...',
+    '.OW*WWWWWWWwO...',
+    'OWWWWOOOOWwwwO..',
+    'OWWWOssssOWwwO..',
+    'OWWOssWWssOwwO..',
+    'OWWOssWWssOwwO..',
+    'OWWWOssssOwwwO..',
+    '.OWWWOOOOWwwO...',
+    '.OwWWWWWWWwwOO..',
+    '..OOwwwwwwOWWWO.',
+    '....OOOOOOOwWWO.',
+    '..........OOOOO.',
+    '................',
+  ],
+  'charsheet': [
+    '..OOOOOOOOOOO...',
+    '.OPPPPPPPPPPPO..',
+    '.OPiiiiiiiqPPO..',
+    '.OPPPPPPPPPqPO..',
+    '.OPiiiiiiiiqPO..',
+    '.OPPPPPPPPPqPO..',
+    '.OPiiiiiPPPqPO..',
+    '.OPPPPPPPPPqPO..',
+    '.OPiiiiiiiPqPO..',
+    '.OPPPPPPPPPqPO..',
+    '.OPPPPPPXXPqPO..',
+    '.OPPPPPXxXXqPO..',
+    '.OPPPPPXXXXqPO..',
+    '.OPqqqqqXXqqPO..',
+    '..OOOOOOOOOOO...',
+    '................',
+  ],
+}
+
+
+def draw_hand_icons(icons_dir):
+    """Rasterize the hand-drawn icon maps at 32px beside their siblings."""
+    for name, rows in HAND_ICONS.items():
+        im = Image.new('RGBA', (16, 16), (0, 0, 0, 0))
+        for y, row in enumerate(rows):
+            assert len(row) == 16, f'{name} row {y}'
+            for x, ch in enumerate(row):
+                c = HAND_ICON_PAL[ch]
+                if c:
+                    im.putpixel((x, y), c)
+        im.resize((32, 32), Image.NEAREST).save(
+            os.path.join(icons_dir, f'{name}.png'))
+
 
 def build_icon_library(frames, images_out):
     import glob as _g

@@ -1389,25 +1389,28 @@ function tileAt(x, y) {
   return c[(y % m.chunk) * m.chunk + (x % m.chunk)];
 }
 
-// The minstrel follows you: a dirge in the barrow-deeps, a town tune inside
-// settlements, a night air after dark, and out in the wilds the land itself
-// picks the song — frost over the snows, a murk-tune in the mires, a heat-
-// shimmer air in the southeastern desert, the road-song everywhere else.
+// The minstrel follows you: a dirge in the barrow-deeps, a tune inside
+// settlements (each town keeps its own — half play the market air, half
+// the tavern jig), a night air after dark, and out in the wilds the land
+// itself picks the song — frost over the snows, a murk-tune in the mires,
+// a heat-shimmer air in the southeastern desert, a gull-light air on the
+// other shores, and on the open road two road-songs that trade places
+// every ten minutes so the miles never quite repeat.
 setInterval(() => {
   if (!state.me || !state.myTile) return;
   const { x, y } = state.myTile;
   if (y < 64) return Sound.setTrack('deeps');
-  const nearTown = state.villages.concat(state.cities).some((v) =>
+  const town = state.villages.concat(state.cities).find((v) =>
     Math.abs(v.x - x) < 26 && Math.abs(v.y - y) < 26);
-  if (nearTown) return Sound.setTrack('town');
+  if (town) return Sound.setTrack(((town.x + town.y) & 1) ? 'tavern' : 'town');
   if (dayDarkness() > 0.3) return Sound.setTrack('night');
   const t = tileAt(x, y);
   if (t === T.SNOW || t === T.SNOWTREE) return Sound.setTrack('frost');
   if (t === T.SWAMP || t === T.SWAMPTREE) return Sound.setTrack('mire');
-  // sand only counts as desert in the sun-baked southeast — beaches keep
-  // the road-song
-  if (t === T.SAND && x + y > 2300) return Sound.setTrack('dunes');
-  Sound.setTrack('overworld');
+  // sand is desert only in the sun-baked southeast; other shores get the
+  // gull-light coast air
+  if (t === T.SAND) return Sound.setTrack(x + y > 2300 ? 'dunes' : 'coast');
+  Sound.setTrack(Math.floor(Date.now() / 600_000) % 2 ? 'wanderer' : 'overworld');
 }, 3000);
 
 // Stream in the chunks around the player as they travel.
