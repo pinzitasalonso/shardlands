@@ -25,6 +25,28 @@ const GroundRender = (() => {
     [T.SNOW]: ['snow', 4], [T.SNOWTREE]: ['snow', 4],
   };
 
+  // Curved shores: the wet-sand colour each biome shows at the waterline.
+  // Any of these meeting WATER gets a wavy, foam-lined coast instead of a
+  // grid-straight seam (see the coast pass in drawCell).
+  const COAST = {
+    [T.SAND]: '#bda876', [T.GRASS]: '#4c7a3a', [T.TREE]: '#4c7a3a',
+    [T.SWAMP]: '#556541', [T.SWAMPTREE]: '#4c5c3a',
+    [T.SNOW]: '#e2e8ef', [T.SNOWTREE]: '#dbe2ea',
+  };
+  const COAST_WET = '#2f77ad';  // shallow water biting into the shore
+  const COAST_FOAM = '#dcefff'; // the pale foam line riding the waterline
+
+  // Signed displacement of the waterline (px) along a seam, keyed to a
+  // WORLD coordinate so the curve flows unbroken from tile to tile. A few
+  // stacked sines read as an organic, non-repeating shoreline; the last,
+  // slow term lets the foam breathe with time.
+  function shoreWave(coord, time) {
+    return Math.sin(coord * 0.055 + 1.7) * 6.5
+      + Math.sin(coord * 0.021 + 0.5) * 4.5
+      + Math.sin(coord * 0.129) * 2.2
+      + Math.sin(time * 0.0011 + coord * 0.028) * 1.4;
+  }
+
   function hash(x, y) {
     let h = (x * 374761393 + y * 668265263) | 0;
     h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -102,7 +124,7 @@ const GroundRender = (() => {
     // fringe over this tile's edge — grass over sand, snow over grass.
     // autotiled roads bring their own grass shoulders; don't double them
     const fr = FRINGES[tile];
-    if (fr && !sink.underworld && !recipe.autoroadq) {
+    if (fr && !sink.underworld && !recipe.autoroadq && tile !== T.WATER) {
       const pr = fr[1];
       const spill = (fx, fy) => {
         const f = FRINGES[tileAt(fx, fy)];
@@ -124,6 +146,53 @@ const GroundRender = (() => {
       if (!s && !w && (d = spill(tx - 1, ty + 1))) Assets.drawFrame(ctx, 'td.fr.' + d + '.sw', sx, sy);
       if (!s && !e && (d = spill(tx + 1, ty + 1))) Assets.drawFrame(ctx, 'td.fr.' + d + '.se', sx, sy);
     }
+
+    // Curved shores. Every land/water seam is repainted along a wavy
+    // waterline that wanders ACROSS the tile grid rather than tracing it:
+    // on the crests the land bulges into the water, in the troughs the
+    // water bites back into the land, and a foam line rides the boundary.
+    // The wave is keyed to world pixels and drawn from BOTH sides of the
+    // seam, so the same curve is stamped identically by the water tile and
+    // its land neighbour and the two halves meet seamlessly.
+    if (!sink.underworld && !recipe.autoroadq) {
+      const meIsWater = tile === T.WATER;
+      const STEP = 3; // one source-pixel: keeps the shoreline chunky, not smooth
+      const q3 = (v) => Math.round(v / STEP) * STEP;
+      // seam across one edge: `nt` is the neighbour tile, `horiz` true when
+      // the seam runs left-right (wave keyed to world x), `nearZero` true
+      // when this tile lies on the low-coordinate side of the seam.
+      const paintSeam = (nt, horiz, nearZero) => {
+        const landWater = meIsWater && COAST[nt] != null;      // land bulges in
+        const waterLand = !meIsWater && COAST[tile] != null && nt === T.WATER; // water bites in
+        if (!landWater && !waterLand) return;
+        const fill = meIsWater ? COAST[nt] : COAST_WET;
+        for (let a = 0; a < TP; a += STEP) {
+          const world = (horiz ? tx : ty) * TP + a + STEP / 2;
+          const off = q3(shoreWave(world, time));
+          // boundary distance from THIS tile's edge, measured inward
+          const depth = nearZero ? off : -off; // low side fills [0,depth]; high side fills [TP+off,TP]
+          if (depth <= 0) continue;
+          const d = Math.min(depth, TP);
+          const b = nearZero ? d : TP - d; // foam-line position along the axis
+          if (horiz) {
+            ctx.fillStyle = fill;
+            ctx.fillRect(sx + a, sy + (nearZero ? 0 : TP - d), STEP, d);
+            ctx.fillStyle = COAST_FOAM;
+            ctx.fillRect(sx + a, sy + b - (nearZero ? STEP : 0), STEP, STEP);
+          } else {
+            ctx.fillStyle = fill;
+            ctx.fillRect(sx + (nearZero ? 0 : TP - d), sy + a, d, STEP);
+            ctx.fillStyle = COAST_FOAM;
+            ctx.fillRect(sx + b - (nearZero ? STEP : 0), sy + a, STEP, STEP);
+          }
+        }
+      };
+      paintSeam(tileAt(tx, ty - 1), true, true);   // north edge
+      paintSeam(tileAt(tx, ty + 1), true, false);  // south edge
+      paintSeam(tileAt(tx - 1, ty), false, true);  // west edge
+      paintSeam(tileAt(tx + 1, ty), false, false); // east edge
+    }
+
     const belowT = tileAt(tx, ty + 1);
     if (under && recipe.torch && (belowT === T.CAVE || belowT === T.PLANKS) && hash(tx * 7, ty * 3) < 0.14) {
       sink.push({ depth: ty, kind: 'sprite', name: 'td.o.torch', x: sx + HT, y: sy + TP + 12 });
