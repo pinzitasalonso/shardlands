@@ -29,9 +29,10 @@ const TILE = {
   SWAMP: 12,
   SWAMPTREE: 13,
   CAVE: 14,
+  STONEROAD: 15,
 };
 
-const WALKABLE = new Set([TILE.GRASS, TILE.ROAD, TILE.FLOOR, TILE.SAND, TILE.SHRINE, TILE.SNOW, TILE.PLANKS, TILE.SWAMP, TILE.CAVE]);
+const WALKABLE = new Set([TILE.GRASS, TILE.ROAD, TILE.FLOOR, TILE.SAND, TILE.SHRINE, TILE.SNOW, TILE.PLANKS, TILE.SWAMP, TILE.CAVE, TILE.STONEROAD]);
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -1284,7 +1285,7 @@ function sanitizeEdits(map, edits, { validKinds, validWeapons } = {}) {
   keep('removeSecrets', pairs(edits.removeSecrets));
   keep('tiles', (Array.isArray(edits.tiles) ? edits.tiles : [])
     .filter((t) => Array.isArray(t) && okXY(t[0], t[1]) &&
-      Number.isInteger(t[2]) && t[2] >= 0 && t[2] <= TILE.CAVE)
+      Number.isInteger(t[2]) && t[2] >= 0 && t[2] <= TILE.STONEROAD)
     .map((t) => [t[0], t[1], t[2]]));
   // hand-picked ground variants: [x, y, index]; up to 8 variants per tile
   keep('tileVariants', (Array.isArray(edits.tileVariants) ? edits.tileVariants : [])

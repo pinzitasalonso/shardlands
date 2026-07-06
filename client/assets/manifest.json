@@ -163,7 +163,8 @@
   "giantrat": "creatures/giantrat.png",
   "fox": "creatures/fox.png",
   "badger": "creatures/badger.png",
-  "roadauto": "roadauto.png"
+  "roadauto": "roadauto.png",
+  "roadstone": "roadstone.png"
  },
  "frames": {
   "grass.0": {
@@ -18099,6 +18100,226 @@
    "ax": 0,
    "ay": 0,
    "scale": 3
+  },
+  "td.rqs.nw.int": {
+   "img": "roadstone",
+   "x": 0,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.nw.inner": {
+   "img": "roadstone",
+   "x": 8,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.nw.edgeV": {
+   "img": "roadstone",
+   "x": 16,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.nw.edgeH": {
+   "img": "roadstone",
+   "x": 24,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.nw.outer": {
+   "img": "roadstone",
+   "x": 32,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.ne.int": {
+   "img": "roadstone",
+   "x": 40,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.ne.inner": {
+   "img": "roadstone",
+   "x": 48,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.ne.edgeV": {
+   "img": "roadstone",
+   "x": 56,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.ne.edgeH": {
+   "img": "roadstone",
+   "x": 64,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.ne.outer": {
+   "img": "roadstone",
+   "x": 72,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.sw.int": {
+   "img": "roadstone",
+   "x": 80,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.sw.inner": {
+   "img": "roadstone",
+   "x": 88,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.sw.edgeV": {
+   "img": "roadstone",
+   "x": 96,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.sw.edgeH": {
+   "img": "roadstone",
+   "x": 104,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.sw.outer": {
+   "img": "roadstone",
+   "x": 112,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.se.int": {
+   "img": "roadstone",
+   "x": 120,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.se.inner": {
+   "img": "roadstone",
+   "x": 128,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.se.edgeV": {
+   "img": "roadstone",
+   "x": 136,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.se.edgeH": {
+   "img": "roadstone",
+   "x": 144,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rqs.se.outer": {
+   "img": "roadstone",
+   "x": 152,
+   "y": 0,
+   "w": 8,
+   "h": 8,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rds.vmid": {
+   "img": "roadstone",
+   "x": 160,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
+  },
+  "td.rds.hmid": {
+   "img": "roadstone",
+   "x": 176,
+   "y": 0,
+   "w": 16,
+   "h": 16,
+   "ax": 0,
+   "ay": 0,
+   "scale": 3
   }
  },
  "tiles": {
@@ -18533,7 +18754,11 @@
    "ground": [
     "td.g.road.0"
    ],
-   "autoroadq": true
+   "autoroadq": {
+    "tile": 4,
+    "q": "td.rq",
+    "c": "td.rd"
+   }
   },
   "5": {
    "ground": [
@@ -18660,6 +18885,19 @@
     "td.g.ubrick.1"
    ],
    "torch": true
+  },
+  "15": {
+   "ground": [
+    "td.g.floor.0",
+    "td.g.floor.1",
+    "td.g.floor.2",
+    "td.g.floor.3"
+   ],
+   "autoroadq": {
+    "tile": 15,
+    "q": "td.rqs",
+    "c": "td.rds"
+   }
   }
  },
  "creatures": {

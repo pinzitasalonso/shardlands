@@ -5,7 +5,7 @@
 
 const assert = require('assert');
 const { Game } = require('../server/game');
-const { TILE, nearestWalkable } = require('../server/world');
+const { TILE, nearestWalkable, isWalkable } = require('../server/world');
 
 function fakeWs() {
   return { readyState: 1, sent: [], send(data) { this.sent.push(JSON.parse(data)); } };
@@ -1820,6 +1820,18 @@ const reborn = new Game(); // re-reads worldgen AND the overlay that removed it
 const cap2 = reborn.map.cities.find((c) => c.name === 'Briarhaven');
 assert.strictEqual(reborn.map.tiles[cap2.sy * reborn.map.w + cap2.sx], TILE.SHRINE,
   'yet the city rises from boot with its ankh restored');
+
+// -- batch M: the stone road is a first-class paintable tile ------------------------
+assert.strictEqual(TILE.STONEROAD, 15, 'stone road takes the next tile id');
+const sroadKey = (spot.x + 20) + ',' + spot.y;
+game.applyEditsLive({ tiles: [[spot.x + 20, spot.y, TILE.STONEROAD]] });
+assert.strictEqual(game.map.tiles[spot.y * game.map.w + spot.x + 20], TILE.STONEROAD,
+  'a painted stone road sticks');
+assert(isWalkable(game.map, spot.x + 20, spot.y), 'and you can walk it like any road');
+// out-of-range tile ids past stone are still refused
+game.applyEditsLive({ tiles: [[spot.x + 20, spot.y, 99]] });
+assert.strictEqual(game.map.tiles[spot.y * game.map.w + spot.x + 20], TILE.STONEROAD,
+  'nonsense tile ids never paint (the stone road stays)');
 
 console.log('smoke test: all assertions passed');
 process.exit(0);

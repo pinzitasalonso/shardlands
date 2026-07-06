@@ -12,13 +12,13 @@ const GroundRender = (() => {
   const TP = 48;
   const HT = TP / 2;
 
-  const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SAND: 7, SHRINE: 8, SNOW: 9, SNOWTREE: 10, PLANKS: 11, SWAMP: 12, SWAMPTREE: 13, CAVE: 14 };
+  const T = { WATER: 0, GRASS: 1, TREE: 2, ROCK: 3, ROAD: 4, FLOOR: 5, WALL: 6, SAND: 7, SHRINE: 8, SNOW: 9, SNOWTREE: 10, PLANKS: 11, SWAMP: 12, SWAMPTREE: 13, CAVE: 14, STONEROAD: 15 };
 
   // Soft biome seams: tile id -> [fringe art kind (null = never spills),
   // priority]. The higher-priority side lays its tufts onto the lower;
   // water and roads receive fringes but never spill their own.
   const FRINGES = {
-    [T.WATER]: [null, 0], [T.ROAD]: [null, 0.5], [T.FLOOR]: [null, 0.4],
+    [T.WATER]: [null, 0], [T.ROAD]: [null, 0.5], [T.STONEROAD]: [null, 0.5], [T.FLOOR]: [null, 0.4],
     [T.SAND]: ['sand', 1],
     [T.SWAMP]: ['swamp', 2], [T.SWAMPTREE]: ['swamp', 2],
     [T.GRASS]: ['grass', 3], [T.TREE]: ['grass', 3],
@@ -48,13 +48,16 @@ const GroundRender = (() => {
       // quadrants, and each quadrant picks its piece from the three
       // neighbours touching that corner — two cardinals and the diagonal.
       // This is what makes crossroads, T-junctions and plaza corners join
-      // cleanly instead of pinching to a flat borderless box.
-      const rd = (nx, ny) => tileAt(nx, ny) === T.ROAD;
+      // cleanly instead of pinching to a flat borderless box. `q`/`c` name
+      // this road's quadrant and corridor frame sets (tan or stone); both
+      // road kinds count as road so a tan/stone seam meets surface-to-surface.
+      const ar = recipe.autoroadq;
+      const rd = (nx, ny) => { const t = tileAt(nx, ny); return t === T.ROAD || t === T.STONEROAD; };
       const n = rd(tx, ty - 1), s = rd(tx, ty + 1), e = rd(tx + 1, ty), w = rd(tx - 1, ty);
       if (n && s && !e && !w) {
-        Assets.drawFrame(ctx, 'td.rd.vmid', sx, sy); // clean vertical straight
+        Assets.drawFrame(ctx, `${ar.c}.vmid`, sx, sy); // clean vertical straight
       } else if (e && w && !n && !s) {
-        Assets.drawFrame(ctx, 'td.rd.hmid', sx, sy); // clean horizontal straight
+        Assets.drawFrame(ctx, `${ar.c}.hmid`, sx, sy); // clean horizontal straight
       } else {
         const q = 24; // one 8px quadrant drawn at 3x
         // [pos, vertical cardinal road?, horizontal cardinal road?, diagonal road?, dx, dy]
@@ -69,7 +72,7 @@ const GroundRender = (() => {
             : (cardH && !cardV) ? 'edgeV'   // side neighbour is grass
             : (!cardH && cardV) ? 'edgeH'   // top/bottom neighbour is grass
             : 'outer';
-          Assets.drawFrame(ctx, `td.rq.${pos}.${t}`, sx + dx, sy + dy);
+          Assets.drawFrame(ctx, `${ar.q}.${pos}.${t}`, sx + dx, sy + dy);
         }
       }
     } else if (recipe.wanim) {
