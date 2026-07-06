@@ -1216,10 +1216,19 @@ function updateHud() {
   document.querySelector('#player-frame .bar.mana').setAttribute('aria-valuenow', Math.round(100 * y.mana / y.maxmana));
   document.getElementById('stats-line').textContent = `STR ${y.str}  DEX ${y.dex}  INT ${y.int}`;
   const eq = y.weapon != null && (y.items || []).find((i) => i.uid === y.weapon);
-  document.getElementById('pack-line').textContent =
-    `⛀ ${y.gold} gold · ${y.logs} logs · ${y.ore} ore` + (y.gems ? ` · ${y.gems} gems` : '') +
-    (y.fish ? ` · ${y.fish} fish` : '') + (y.food ? ` · ${y.food} meals` : '') +
-    (y.herbs ? ` · ${y.herbs} herbs` : '');
+  // The ledger: icon beside number, one chip per resource worth carrying.
+  const chip = (icon, n, name) => `<span class="res-chip" title="${name}">${icon}<b>${n}</b></span>`;
+  const px2 = (n) => `<img src="assets/ui/icons/${n}.png" alt="">`;
+  const em = (e) => `<span class="res-emoji">${e}</span>`;
+  document.getElementById('pack-line').innerHTML =
+    chip(px2('gold'), y.gold, 'Gold') +
+    chip(px2('logs'), y.logs, 'Logs') +
+    chip(px2('ore'), y.ore, 'Ore') +
+    (y.gems ? chip(px2('gems'), y.gems, 'Gems') : '') +
+    (y.fish ? chip(em('🐟'), y.fish, 'Raw fish') : '') +
+    (y.meat ? chip(em('🍖'), y.meat, 'Raw meat') : '') +
+    (y.food ? chip(px2('food'), y.food, 'Hot meals') : '') +
+    (y.herbs ? chip(em('🌱'), y.herbs, 'Herbs') : '');
   const eqA = y.armor != null && (y.items || []).find((i) => i.uid === y.armor);
   const eqO = y.offhand != null && (y.items || []).find((i) => i.uid === y.offhand);
   document.getElementById('weapon-line').textContent =
