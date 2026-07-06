@@ -1021,7 +1021,7 @@ assert(gh.options.hostname === 'api.github.com' &&
   'the publish request is well-formed');
 ed.configure(undefined); // disarm so nothing else in this run is gated
 
-// -- batch F: the new arts — alchemy, taming, treasure hunting ------------------------
+// -- batch G: the new arts — alchemy, taming, treasure hunting ------------------------
 assert(welcome.brews && welcome.brews.heal && welcome.brews.mana, 'welcome carries the brew recipes');
 for (const sk of ['alchemy', 'taming', 'treasurehunting']) {
   assert(typeof p.skills[sk] === 'number', `${sk} is on the sheet`);
@@ -1195,6 +1195,496 @@ assert([...game.drops.values()].some((d) => d.item === 'gold' && d.x === spot2.x
 assert([...game.drops.values()].some((d) => d.item === 'gems' && d.x === spot2.x && d.y === spot2.y &&
   d.cacheIdx === undefined), 'and buried gems besides');
 assert(p.deeds.digger, 'X marks the spot is a deed');
+
+// -- batch H: the dance — dash, windups, bolts, specials, boons, bonds, crafting ------
+assert(welcome.boonDefs && welcome.boonDefs.lifesteal && welcome.specials &&
+  welcome.specials.sword && welcome.brands && welcome.brands.flame,
+  'welcome carries the boon book, the specials and the brands');
+
+// dash: three tiles, i-frames, cooldown, and refusals that cost nothing
+p.dead = false;
+p.boons = [];
+p.evadeUntil = 0;
+p.riposteUntil = 0;
+p.target = 0;
+p.x = run.x;
+p.y = run.y;
+p.dashAt = 0;
+game.handleDash(p, 1, 0);
+assert.strictEqual(p.x, run.x + 3, 'dash covers three tiles');
+assert(p.evadeUntil > Date.now(), 'and buys a heartbeat of untouchability');
+const dashCdAt = p.dashAt;
+game.handleDash(p, 1, 0);
+assert(p.x === run.x + 3 && p.dashAt === dashCdAt, 'the dash respects its cooldown');
+p.dashAt = 0;
+p.x = tree.x + 1;
+p.y = tree.y;
+game.handleDash(p, -1, 0); // straight into the tree
+assert(p.x === tree.x + 1 && p.dashAt === 0, 'a refused dash costs nothing');
+// the landing runs the same ground hooks as a step (shared arriveAt)
+p.x = portal.x;
+p.y = portal.y;
+p.portalAt = 0;
+game.arriveAt(p, Date.now());
+assert(p.x === portal.tx && p.y === portal.ty, 'a dash landing still falls through portals');
+
+// heavy windups: the mark, the miss, the unavoidable hit, the i-frame
+p.x = run.x;
+p.y = run.y;
+p.evadeUntil = 0;
+const hSp = { alive: new Set(), x: run.x, y: run.y, r: 2, kind: 'ettin' };
+const brute = { id: 999979, kind: 'ettin', x: run.x + 1, y: run.y, hp: 500, maxhp: 500,
+  homeX: run.x + 1, homeY: run.y, target: p.id, moveAt: Infinity, swingAt: 0,
+  chatAt: Infinity, spawner: hSp };
+game.mobs.set(brute.id, brute);
+hSp.alive.add(brute.id);
+ws.sent.length = 0;
+game.mobTick(brute, Date.now());
+assert(brute.pendingStrike && brute.pendingStrike.x === p.x && brute.pendingStrike.y === p.y,
+  'the heavy winds up on your tile instead of swinging');
+assert(ws.sent.some((m) => m.t === 'fx' && m.kind === 'windup'), 'and shows its tell');
+const hpH = p.hp;
+p.x += 1; // step off the mark
+brute.pendingStrike.at = 0;
+game.mobTick(brute, Date.now());
+assert.strictEqual(p.hp, hpH, 'stepping off the mark is the whole defense');
+assert(!brute.pendingStrike && brute.swingAt > Date.now(), 'the blow spent itself on dirt');
+brute.x = p.x + 1; // close in again
+brute.swingAt = 0;
+game.mobTick(brute, Date.now());
+p.evadeUntil = 0;
+brute.pendingStrike.at = 0;
+game.mobTick(brute, Date.now());
+assert(p.hp < hpH, 'standing on the mark always hurts — no dice involved');
+const hpI = p.hp;
+brute.swingAt = 0;
+game.mobTick(brute, Date.now());
+p.evadeUntil = Date.now() + 10_000; // mid-dash
+brute.pendingStrike.at = 0;
+ws.sent.length = 0;
+game.mobTick(brute, Date.now());
+assert.strictEqual(p.hp, hpI, 'i-frames turn even a committed blow');
+assert(ws.sent.some((m) => m.t === 'fx' && m.kind === 'evade'), 'and say so');
+brute.target = 0;
+brute.swingAt = Infinity;
+
+// caster bolts take 300ms to arrive, and a dash slips them
+const mage = { id: 999978, kind: 'skelmage', x: p.x + 4, y: p.y, hp: 26, maxhp: 26,
+  homeX: p.x + 4, homeY: p.y, target: p.id, moveAt: Infinity, swingAt: Infinity,
+  castAt: 0, chatAt: Infinity, spawner: { alive: new Set() } };
+game.mobs.set(mage.id, mage);
+game.pendingBolts.length = 0;
+game.mobTick(mage, Date.now());
+assert.strictEqual(game.pendingBolts.length, 1, 'the bolt is in flight, not instant');
+p.evadeUntil = Date.now() + 10_000;
+game.pendingBolts[0].at = 0;
+const hpB = p.hp;
+game.tick();
+assert.strictEqual(p.hp, hpB, 'a well-read dash slips the bolt');
+p.evadeUntil = 0;
+mage.castAt = 0;
+game.mobTick(mage, Date.now());
+game.pendingBolts[game.pendingBolts.length - 1].at = 0;
+game.tick();
+assert(p.hp < hpB, 'a flat-footed mark takes it full');
+game.mobs.delete(mage.id);
+
+// specials: one button, a different verb per weapon class
+const rH = Math.random;
+const dummySp = { alive: new Set(), x: p.x, y: p.y, r: 3, kind: 'orc' };
+const mkOrc = (id, ox, oy) => {
+  const o = { id, kind: 'orc', x: p.x + ox, y: p.y + oy, hp: 500, maxhp: 500,
+    homeX: p.x + ox, homeY: p.y + oy, target: 0, moveAt: Infinity, swingAt: Infinity,
+    chatAt: Infinity, spawner: dummySp };
+  game.mobs.set(o.id, o);
+  dummySp.alive.add(o.id);
+  return o;
+};
+// riposte turns the next blade and answers it
+const swordH = game.makeItem(p, 'sword', 1);
+p.items.push(swordH);
+p.weapon = swordH.uid;
+p.specialAt = 0;
+game.handleSpecial(p);
+assert(p.riposteUntil > Date.now(), 'riposte arms the window');
+assert(p.specialAt > Date.now(), 'and the bet spends the cooldown');
+const striker = mkOrc(999977, 1, 0);
+striker.target = p.id;
+striker.swingAt = 0;
+const hpR = p.hp;
+Math.random = () => 0; // the orc's swing cannot miss
+game.mobTick(striker, Date.now());
+Math.random = rH;
+assert.strictEqual(p.hp, hpR, 'the read blade never lands');
+assert(striker.hp < 500, 'and the answer does');
+assert.strictEqual(p.riposteUntil, 0, 'one read per bet');
+striker.target = 0;
+// bellringer stuns the skull it rings — but crowned heads only stagger
+const maceH = game.makeItem(p, 'mace', 1);
+p.items.push(maceH);
+p.weapon = maceH.uid;
+p.specialAt = 0;
+p.target = striker.id;
+game.handleSpecial(p);
+assert(striker.stunUntil > Date.now(), 'the bell rings');
+striker.target = p.id;
+striker.swingAt = 0;
+const hpS = p.hp;
+game.mobTick(striker, Date.now());
+assert.strictEqual(p.hp, hpS, 'a rung bell does not swing back');
+const bossH = { id: 999976, kind: 'bonelord', x: p.x - 1, y: p.y, hp: 500, maxhp: 500,
+  homeX: p.x - 1, homeY: p.y, target: 0, moveAt: Infinity, swingAt: Infinity,
+  chatAt: Infinity, aoeAt: Infinity, spawner: { alive: new Set() } };
+game.mobs.set(bossH.id, bossH);
+p.specialAt = 0;
+p.target = bossH.id;
+game.handleSpecial(p);
+assert(!bossH.stunUntil && bossH.slowUntil > Date.now(), 'the crowned only stagger');
+game.mobs.delete(bossH.id);
+// whirlwind hits every neighbour but never a companion
+const axeH = game.makeItem(p, 'battleaxe', 1);
+p.items.push(axeH);
+p.weapon = axeH.uid;
+const wolfSpH = { alive: new Set(), x: p.x, y: p.y, r: 2, kind: 'wolf', respawnMs: 0 };
+game.spawnMob(wolfSpH);
+const petH = game.mobs.get([...wolfSpH.alive][0]);
+petH.owner = p.id;
+petH.x = p.x;
+petH.y = p.y - 1;
+const orcB1 = mkOrc(999975, 0, 1);
+striker.x = p.x + 1;
+striker.y = p.y;
+striker.stunUntil = 0;
+const b1Hp = orcB1.hp;
+const strHp = striker.hp;
+const petHp = petH.hp;
+p.specialAt = 0;
+game.handleSpecial(p);
+assert(orcB1.hp < b1Hp && striker.hp < strHp, 'the axe argues with everyone at once');
+assert.strictEqual(petH.hp, petHp, 'but never with a companion');
+// a special with nothing to do is a free no-op
+game.mobs.delete(orcB1.id);
+const savedX = p.x;
+p.x = run.x + 6; // empty grass, striker out of reach
+p.specialAt = 0;
+game.handleSpecial(p);
+assert.strictEqual(p.specialAt, 0, 'a whiffed special never burns the button');
+p.x = savedX;
+// shadowstep crosses the room and cuts twice as deep
+const dagH = game.makeItem(p, 'dagger', 1);
+p.items.push(dagH);
+p.weapon = dagH.uid;
+const mark = mkOrc(999974, 3, 0);
+p.target = mark.id;
+p.specialAt = 0;
+game.handleSpecial(p);
+assert(Math.hypot(p.x - mark.x, p.y - mark.y) <= 1.5, 'the dark puts you beside the mark');
+assert(mark.hp < 500, 'and the knife explains why');
+// heartseeker pierces the line and spends an arrow
+const bowH = game.makeItem(p, 'longbow', 1);
+p.items.push(bowH);
+p.weapon = bowH.uid;
+p.arrows = 5;
+mark.x = p.x + 4;
+mark.y = p.y;
+const markHp = mark.hp;
+p.target = mark.id;
+p.specialAt = 0;
+game.handleSpecial(p);
+assert(mark.hp < markHp, 'the heartseeker finds the line');
+assert.strictEqual(p.arrows, 4, 'and costs its arrow');
+// the commoner's answer: a boot, and some distance (staged on sure grass)
+p.weapon = null;
+p.x = run.x;
+p.y = run.y;
+mark.x = run.x + 1;
+mark.y = run.y;
+p.target = mark.id;
+p.specialAt = 0;
+game.handleSpecial(p);
+assert.strictEqual(mark.x, run.x + 3, 'the kick makes two tiles of room');
+
+// boons: prove thyself, choose from the water, and lose it all to death
+let shrineTile = null;
+outerH:
+for (let y = 0; y < game.map.h; y++) {
+  for (let x = 0; x < game.map.w; x++) {
+    if (game.map.tiles[y * game.map.w + x] === TILE.SHRINE) { shrineTile = { x, y }; break outerH; }
+  }
+}
+assert(shrineTile, 'the world keeps at least one shrine');
+p.boons = [];
+p.boonKills = 0;
+p.boonOffer = null;
+p.x = run.x;
+p.y = run.y;
+ws.sent.length = 0;
+game.handlePray(p);
+assert(ws.sent.some((m) => m.t === 'sys' && /Stand at a shrine/.test(m.text)), 'prayers travel poorly');
+p.x = shrineTile.x;
+p.y = shrineTile.y;
+ws.sent.length = 0;
+Math.random = () => 0;
+game.handlePray(p);
+Math.random = rH;
+const offer1 = ws.sent.find((m) => m.t === 'boons');
+assert(offer1 && offer1.offer.length === 3, 'three gifts float on the water');
+ws.sent.length = 0;
+game.handlePray(p); // no rerolling the spirits
+const offer2 = ws.sent.find((m) => m.t === 'boons');
+assert.deepStrictEqual(offer2.offer.map((b) => b.id), offer1.offer.map((b) => b.id),
+  'the offer stays until taken');
+game.handleBoon(p, offer1.offer[0].id);
+assert(p.boons.includes(offer1.offer[0].id) && !p.boonOffer, 'the gift is taken');
+assert(p.deeds.blessed, 'and it is a deed');
+ws.sent.length = 0;
+game.handlePray(p);
+assert(ws.sent.some((m) => m.t === 'sys' && /Prove thyself: 15/.test(m.text)),
+  'the second gift must be earned');
+// worthy kills move the gate; chicken coops do not
+p.boonKills = 0;
+p.skills.swordsmanship = 100;
+const prey = mkOrc(999973, 1, 1); // skill 55 >= 35: worthy
+prey.hp = 1;
+game.killMob(p, prey);
+assert.strictEqual(p.boonKills, 1, 'a worthy kill counts');
+const coopSp = { alive: new Set(), x: p.x, y: p.y, r: 2, kind: 'chicken' };
+const hen = { id: 999972, kind: 'chicken', x: p.x + 1, y: p.y, hp: 1, maxhp: 4,
+  homeX: p.x, homeY: p.y, target: 0, moveAt: 0, swingAt: 0, spawner: coopSp };
+game.mobs.set(hen.id, hen);
+coopSp.alive.add(hen.id);
+game.killMob(p, hen);
+assert.strictEqual(p.boonKills, 1, 'the chicken coop moves no spirits');
+// the pool's teeth, one by one
+p.boons = ['maxhp'];
+ws.sent.length = 0;
+game.sendYou(p);
+assert.strictEqual(ws.sent.find((m) => m.t === 'you').maxhp,
+  50 + Math.floor(p.str / 2) + 25, 'Oxheart widens the chest');
+p.boons = ['goldfind'];
+const purseH = p.gold;
+const rich = mkOrc(999971, 1, 0);
+rich.hp = 1;
+Math.random = () => 0;
+game.killMob(p, rich);
+Math.random = rH;
+assert(p.gold - purseH >= Math.round(Math.ceil(MOB_KINDS.orc.gold * 0.6) * 1.3),
+  'the Miser\'s Luck counts in your favour');
+p.boons = ['chainkill'];
+striker.x = run.x + 40; // clear the neighbourhood so the spark has one friend
+mark.x = run.x + 41;
+const sparkA = mkOrc(999970, 1, 0);
+const sparkB = mkOrc(999969, 2, 0);
+sparkA.hp = 1;
+game.killMob(p, sparkA);
+assert(sparkB.hp < 500, 'the Storm\'s Tithe goes looking for friends');
+// thorns and lifesteal, out in the wilds where the mob AI will engage
+p.x = run.x;
+p.y = run.y;
+p.boons = ['thorns'];
+p.evadeUntil = 0;
+p.riposteUntil = 0;
+const pricked = mkOrc(999968, 1, 0);
+pricked.x = run.x + 1;
+pricked.y = run.y;
+pricked.homeX = pricked.x;
+pricked.homeY = pricked.y;
+pricked.target = p.id;
+pricked.swingAt = 0;
+Math.random = () => 0;
+game.mobTick(pricked, Date.now());
+Math.random = rH;
+assert(pricked.hp < 500, 'Briarhide answers without a lifted finger');
+p.boons = ['lifesteal'];
+p.hp = 10;
+p.weapon = swordH.uid;
+p.target = pricked.id;
+p.swingAt = 0;
+Math.random = () => 0;
+game.meleeTick(p, Date.now());
+Math.random = rH;
+assert(p.hp > 10, 'Wolfsblood feeds on the wound');
+p.boons = ['cheatdeath'];
+p.hp = 5;
+game.killPlayer(p, 'the test');
+assert(!p.dead && p.hp === 1 && !p.boons.includes('cheatdeath'),
+  'the Ferryman blinks exactly once');
+p.boons = ['thorns', 'maxhp'];
+game.killPlayer(p, 'the test');
+assert(p.dead && p.boons.length === 0, 'death repossesses every gift');
+p.dead = false;
+p.hp = 60;
+// boons survive the record, not the grave
+p.boons = ['manaspring'];
+game.persistPlayer(p);
+assert.deepStrictEqual(game.records[p.key].boons, ['manaspring'], 'boons survive a save');
+p.boons = [];
+
+// bonds: talk, gift, milestones, the friend's price
+const vilSp = { alive: new Set(), x: run.x, y: run.y, r: 0, kind: 'villager', respawnMs: 0 };
+game.spawnMob(vilSp);
+const vil = game.mobs.get([...vilSp.alive][0]);
+assert(vil && vil.name, 'the villager has a name');
+const vilSp2 = { alive: new Set(), x: run.x, y: run.y, r: 0, kind: 'villager', respawnMs: 0 };
+game.spawnMob(vilSp2);
+const vil2 = game.mobs.get([...vilSp2.alive][0]);
+assert.strictEqual(vil.name, vil2.name, 'the same ground deals the same name — favor survives reboots');
+game.mobs.delete(vil2.id);
+p.x = vil.x + 1;
+p.y = vil.y;
+p.talkAt = 0;
+ws.sent.length = 0;
+game.handleTalk(p, vil.id);
+assert(ws.sent.some((m) => m.t === 'chat' && m.name === vil.name), 'the villager answers by name');
+p.fish = 3;
+p.giftAt = 0;
+p.favor = {};
+p.favorPaid = {};
+p.giftCdBy = {};
+game.handleGift(p, vil.id, 'fish');
+assert.strictEqual(p.favor[vil.name], 1, 'a fish buys a sliver of favor');
+assert.strictEqual(p.fish, 2, 'and costs a fish');
+p.giftAt = 0;
+game.handleGift(p, vil.id, 'fish');
+assert.strictEqual(p.favor[vil.name], 1, 'one gift per neighbour per five minutes');
+p.favor[vil.name] = 4;
+p.giftCdBy = {};
+p.giftAt = 0;
+const healsH = p.pots.heal;
+game.handleGift(p, vil.id, 'fish');
+assert.strictEqual(p.pots.heal, healsH + 1, 'a friend presses a potion into your hand');
+p.favor[vil.name] = 9;
+p.giftCdBy = {};
+p.giftAt = 0;
+p.tmaps = [];
+game.handleGift(p, vil.id, 'fish');
+assert.strictEqual(p.tmaps.length, 1, 'a confidant marks where the ground whispers');
+assert(p.deeds.confidant, 'and that is a deed');
+p.giftAt = 0;
+p.giftCdBy = {};
+const fishH = p.fish;
+game.handleGift(p, vil.id, 'fish');
+assert.strictEqual(p.fish, fishH, 'a maxed friend takes nothing more');
+game.persistPlayer(p);
+assert(game.records[p.key].favor[vil.name] >= 10, 'favor survives a save');
+// the friend's price, charged at the counter
+p.x = mira2.x;
+p.y = mira2.y - 1;
+p.favor[mira2.name] = 10;
+p.gold = 500;
+const healIdxH = mira2.goods.findIndex((g) => g.item === 'heal');
+game.handleBuy(p, healIdxH);
+assert.strictEqual(p.gold, 500 - Math.round(mira2.goods[healIdxH].price * 0.9),
+  'a confidant pays a tenth less');
+
+// crafting moments: unmake at the forge, brand at the bench, feast at the fire
+const brenH = game.vendors.find((v) => v.forge);
+p.x = brenH.x;
+p.y = brenH.y - 1;
+p.weapon = null;
+const scrapH = game.makeItem(p, 'sword', 1);
+p.items.push(scrapH);
+const oreH = p.ore;
+const logsH = p.logs;
+game.handleSalvage(p, scrapH.uid);
+assert(!p.items.some((i) => i.uid === scrapH.uid), 'the sword is unmade');
+assert(p.ore === oreH + 3 && p.logs === logsH + 1, 'and comes apart into its honest parts');
+p.weapon = swordH.uid;
+ws.sent.length = 0;
+game.handleSalvage(p, swordH.uid);
+assert(p.items.some((i) => i.uid === swordH.uid), 'the forge takes no blade from a living hand');
+assert(ws.sent.some((m) => m.t === 'sys' && /Unequip/.test(m.text)), 'and says so');
+// imbue: one gem-fired grudge per blade
+p.x = mira2.x;
+p.y = mira2.y - 1;
+p.gems = 5;
+p.gold = 500;
+ws.sent.length = 0;
+game.handleImbue(p, swordH.uid, 'flame');
+assert.strictEqual(swordH.brand, 'flame', 'the steel takes the brand');
+assert(p.gems === 2 && p.gold === 450, 'and the gems and gold are spent');
+assert(ws.sent.some((m) => m.t === 'sys' && /Smouldering/.test(m.text)), 'the blade bears its new name');
+ws.sent.length = 0;
+game.handleImbue(p, swordH.uid, 'frost');
+assert.strictEqual(swordH.brand, 'flame', 'the steel holds no two grudges');
+// the brand procs on a landed swing
+pricked.x = p.x + 1;
+pricked.y = p.y;
+p.target = pricked.id;
+p.weapon = swordH.uid;
+p.swingAt = 0;
+p.evadeUntil = 0;
+ws.sent.length = 0;
+Math.random = () => 0;
+game.meleeTick(p, Date.now());
+Math.random = rH;
+assert(ws.sent.some((m) => m.t === 'fx' && m.kind === 'brand'), 'the smouldering blade bites deeper');
+// feast: fish, meat and herb settle their differences
+const fireProp = game.map.props.find((pr) => pr.name === 'fx.campfire');
+assert(fireProp, 'somewhere a campfire burns');
+p.fish = 1;
+p.meat = 1;
+p.herbs = 1;
+p.x = run.x;
+p.y = run.y;
+ws.sent.length = 0;
+game.handleFeast(p);
+assert(ws.sent.some((m) => m.t === 'sys' && /campfire/.test(m.text)), 'no feast without a fire');
+p.x = fireProp.x + 1;
+p.y = fireProp.y;
+game.handleFeast(p);
+assert(p.fish === 0 && p.meat === 0 && p.herbs === 0, 'the pot takes all three');
+assert(p.fedUntil > Date.now() && p.buffUntil > Date.now(), 'warmth and strength for the road');
+
+// review regressions: the dead stay dead, the frozen stay frozen, the hungry stay hungry
+p.riposteUntil = Date.now() + 5000;
+const ghostOrc = mkOrc(999967, 1, 0);
+game.mobs.delete(ghostOrc.id); // died a heartbeat before the parry
+const purseR = p.gold;
+game.strikePlayer(p, 5, 'a ghost blow', { melee: true, srcMob: ghostOrc });
+assert.strictEqual(p.gold, purseR, 'a riposte answers a dead mob exactly zero times');
+p.riposteUntil = 0;
+// the floated offer survives a relog: no rerolling the spirits by reconnect
+p.boonOffer = ['thorns', 'maxhp', 'crit'];
+game.persistPlayer(p);
+assert.deepStrictEqual(game.records[p.key].boonOffer, ['thorns', 'maxhp', 'crit'],
+  'the offer stays on the water through a save');
+p.boonOffer = null;
+// a mob frozen in its windup swings at no one — not even the pet
+const bruteH = game.mobs.get(999979);
+p.x = bruteH.x - 1;
+p.y = bruteH.y;
+p.target = bruteH.id;
+petH.x = bruteH.x;
+petH.y = bruteH.y + 1;
+petH.swingAt = Infinity; // only the counter-swing is under test
+bruteH.pendingStrike = { x: p.x, y: p.y, at: Date.now() + 9999, dmg: 5 };
+bruteH.swingAt = 0;
+const petHpH = petH.hp;
+game.mobTick(petH, Date.now());
+assert.strictEqual(petH.hp, petHpH, 'a windup freezes the counter-swing too');
+bruteH.pendingStrike = null;
+p.target = 0;
+// vampires cannot dine on a dodged blow
+const countH = { id: 999966, kind: 'vampire', x: p.x + 1, y: p.y, hp: 100, maxhp: 280,
+  homeX: p.x + 1, homeY: p.y, target: p.id, moveAt: Infinity, swingAt: Infinity,
+  chatAt: Infinity, aoeAt: Infinity, spawner: { alive: new Set() },
+  pendingStrike: { x: p.x, y: p.y, at: 0, dmg: 20, plus: true } };
+game.mobs.set(countH.id, countH);
+p.evadeUntil = Date.now() + 10_000;
+game.mobTick(countH, Date.now());
+assert.strictEqual(countH.hp, 100, 'the Count goes hungry when you dash through him');
+game.mobs.delete(countH.id);
+p.evadeUntil = 0;
+
+// tidy the stage
+for (const id of [999979, 999977, 999975, 999974, 999973, 999972, 999971, 999970, 999969, 999968]) {
+  game.mobs.delete(id);
+}
+game.mobs.delete(vil.id);
+game.mobs.delete(petH.id);
+p.boons = [];
+p.target = 0;
 
 console.log('smoke test: all assertions passed');
 process.exit(0);

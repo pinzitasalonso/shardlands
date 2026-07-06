@@ -96,7 +96,8 @@ const QUALITY_COLORS = ['#9a9a9a', '#e8e2d0', '#6ac06a', '#6a9ae0', '#e0a040', '
 
 function weaponLabel(item) {
   const q = state.qualities[item.q];
-  return (q && q.name ? q.name + ' ' : '') + (state.weapons[item.id] ? state.weapons[item.id].name : item.id);
+  const b = item.brand && state.brands && state.brands[item.brand] ? state.brands[item.brand] + ' ' : '';
+  return (q && q.name ? q.name + ' ' : '') + b + (state.weapons[item.id] ? state.weapons[item.id].name : item.id);
 }
 
 // The world does not open until the art is in hand: the Play button (and
@@ -150,6 +151,10 @@ function handleMessage(msg) {
       state.spells = msg.spells;
       state.weapons = msg.weapons || {};
       state.brews = msg.brews || {};
+      state.boonDefs = msg.boonDefs || {};
+      state.specials = msg.specials || {};
+      state.specialClass = msg.specialClass || {};
+      state.brands = msg.brands || {};
       state.bestiary = msg.bestiary || {};
       state.qualities = msg.qualities || [];
       state.vendors = (msg.vendors || []).map((v) => ({ ...v, rx: v.x, ry: v.y, heading: 1 }));
@@ -196,11 +201,24 @@ function handleMessage(msg) {
       break;
     }
 
-    case 'you':
+    case 'you': {
       state.you = msg;
       updateHud();
+      if (msg.dead) document.getElementById('boons').classList.add('hidden'); // death recalls the offer
       if (!document.getElementById('inventory').classList.contains('hidden')) renderInventory();
+      // keep an open shop honest (salvage lists, brand lists, prices) — but
+      // only rebuild when something it shows actually changed, or a regen
+      // tick would yank buttons out from under a click mid-fight
+      if (state.shopVendor && !document.getElementById('shop').classList.contains('hidden')) {
+        const sig = JSON.stringify([msg.gold, msg.gems, msg.herbs, msg.pots,
+          (msg.items || []).map((i) => [i.uid, i.brand]), msg.weapon, msg.armor, msg.offhand]);
+        if (sig !== state.shopSig) {
+          state.shopSig = sig;
+          openShop(state.shopVendor);
+        }
+      }
       break;
+    }
 
     case 'chat': {
       state.speech.set(msg.id, { text: msg.text, until: Date.now() + 5000, magic: !!msg.magic });
@@ -243,6 +261,14 @@ function handleMessage(msg) {
 
     case 'fx':
       handleFx(msg);
+      break;
+
+    case 'favor':
+      state.favor = msg.favor || {};
+      break;
+
+    case 'boons':
+      showBoonOffer(msg.offer || []);
       break;
   }
 }
@@ -406,6 +432,26 @@ function handleFx(msg) {
       state.telegraphs.push({ x: msg.x, y: msg.y, born: t });
       Sound.play('bell');
       break;
+    case 'windup':
+      // a heavy blow marks its ground: one tile, or a cross for the crowned
+      state.telegraphs.push({ x: msg.x, y: msg.y, born: t,
+        life: msg.plus ? 700 : 800, plus: !!msg.plus, small: !msg.plus });
+      Sound.play('bell');
+      break;
+    case 'dash':
+      state.projectiles.push({ x: msg.x, y: msg.y, tx: msg.tx, ty: msg.ty, born: t, color: '#e8e0c0' });
+      Sound.play('miss');
+      break;
+    case 'stun':
+      state.floaters.push({ x: msg.x, y: msg.y, text: '✶ stunned ✶', color: '#ffd060', born: t });
+      Sound.play('bell');
+      break;
+    case 'brand':
+      state.floaters.push({ x: msg.x, y: msg.y,
+        text: { flame: '🔥', frost: '❄', venom: '☠' }[msg.brand] || '✧',
+        color: { flame: '#ff8030', frost: '#9adcff', venom: '#7ac05a' }[msg.brand] || '#fff',
+        born: t });
+      break;
     case 'slam':
       state.floaters.push({ x: msg.x, y: msg.y, text: '💥', color: '#ffaa44', born: t });
       Sound.play('hit');
@@ -470,6 +516,7 @@ document.addEventListener('keydown', (ev) => {
       document.getElementById('inventory').classList.add('hidden');
       document.getElementById('worldmap').classList.add('hidden');
       document.getElementById('settings').classList.add('hidden');
+      document.getElementById('boons').classList.add('hidden');
       break;
     case '1': triggerAction('cast:magicarrow'); break;
     case '2': triggerAction('cast:fireball'); break;
@@ -485,6 +532,9 @@ document.addEventListener('keydown', (ev) => {
     case 'b': case 'B': triggerAction('bandage'); break;
     case 'g': case 'G': triggerAction('gather'); break;
     case 't': case 'T': tameTarget(); break;
+    case 'q': case 'Q': triggerAction('special'); break;
+    case 'p': case 'P': triggerAction('pray'); break;
+    case 'Shift': dashNow(); break;
     case 'i': case 'I': toggleInventory(); break;
     case 'f': case 'F': toggleFullscreen(); break;
     case 'm': case 'M': toggleWorldMap(); break;
@@ -505,6 +555,37 @@ function tameTarget() {
   if (state.target) send({ t: 'tame', id: state.target });
 }
 document.getElementById('target-tame').addEventListener('click', tameTarget);
+
+// Talk and gifts, for the folk worth knowing.
+document.getElementById('target-bond').addEventListener('click', (ev) => {
+  if (!state.target) return;
+  if (ev.target.dataset.bondtalk !== undefined) send({ t: 'talk', id: state.target });
+  if (ev.target.dataset.bondgift) send({ t: 'gift', id: state.target, kind: ev.target.dataset.bondgift });
+});
+
+// Dash: burst three tiles the way you're pushing (held keys or joystick),
+// or the way you last moved. The server owns the cooldown; the button
+// sweep is just a mirror for the eyes.
+function dashNow() {
+  let dx = 0;
+  let dy = 0;
+  if (keys.has('w') || keys.has('arrowup')) dy -= 1;
+  if (keys.has('s') || keys.has('arrowdown')) dy += 1;
+  if (keys.has('a') || keys.has('arrowleft')) dx -= 1;
+  if (keys.has('d') || keys.has('arrowright')) dx += 1;
+  if (!dx && !dy && state.joy) { dx = state.joy.dx; dy = state.joy.dy; }
+  if (!dx && !dy && state.lastDir) { dx = state.lastDir.dx; dy = state.lastDir.dy; }
+  // Short debounce only — the server owns the real cooldown, and boons can
+  // shorten it below what the button sweep shows.
+  if (Date.now() < (state.dashSentAt || 0) + 300) return;
+  state.dashSentAt = Date.now();
+  send({ t: 'dash', dx, dy });
+  const btn = document.querySelector('#actions button[data-act="dash"]');
+  if (btn && !cooldowns.has('dash')) {
+    cooldowns.set('dash', { until: Date.now() + (btn.dataset.cd | 0), total: btn.dataset.cd | 0 });
+  }
+  Sound.play('click');
+}
 
 // Visual cooldown sweeps on the hotbar. The server stays authoritative;
 // these only mirror the known cooldowns for feedback.
@@ -567,6 +648,8 @@ function updateTargetFrame() {
   const beast = (state.bestiary || {})[mob.kind];
   document.getElementById('target-tame').classList.toggle('hidden',
     !beast || beast.tm === undefined || !!mob.pet);
+  document.getElementById('target-bond').classList.toggle('hidden',
+    !beast || !beast.bd);
   const frac = Math.max(0, Math.min(1, mob.hp / mob.maxhp));
   document.getElementById('target-fill').style.width = (100 * frac) + '%';
   document.getElementById('target-text').textContent = `${Math.max(0, mob.hp)} / ${mob.maxhp}`;
@@ -683,10 +766,21 @@ function pointerAction(cx, cy, pickR) {
   }
   if (best && best.kind === 'vendor') {
     if (best.e.stories) send({ t: 'story', id: best.e.id });
-    else openShop(best.e);
+    // even the bards keep a stall of sorts: the panel carries the bond buttons
+    openShop(best.e);
     return;
   }
   if (best) {
+    // The friendly are for talking to, not for swinging at: a tap greets
+    // them and brings up the bond buttons instead of a war declaration.
+    const info = (state.bestiary || {})[best.e.kind];
+    if (info && info.d === 'friendly') {
+      state.target = best.e.id;
+      state.walkTarget = { x: best.e.x, y: best.e.y };
+      if (info.bd) send({ t: 'talk', id: best.e.id });
+      updateTargetFrame();
+      return;
+    }
     state.target = best.e.id;
     send({ t: 'attack', id: best.e.id });
     state.walkTarget = { x: best.e.x, y: best.e.y };
@@ -829,6 +923,7 @@ setInterval(() => {
   if (dx || dy) {
     state.walkTarget = null;
     state.path = null;
+    state.lastDir = { dx, dy };
     send({ t: 'move', dx, dy });
     return;
   }
@@ -903,14 +998,19 @@ document.getElementById('actions').addEventListener('click', (ev) => {
 const shopPanel = document.getElementById('shop');
 
 function openShop(vendor) {
-  if (vendor.greeting) {
+  const firstOpen = shopPanel.classList.contains('hidden') || state.shopVendor !== vendor;
+  state.shopVendor = vendor;
+  if (vendor.greeting && firstOpen) {
     state.speech.set(vendor.id, { text: vendor.greeting, until: Date.now() + 5000 });
   }
+  // Confidants pay the friend's price; the server charges the same tenth off.
+  const friendly = (state.favor || {})[vendor.name] >= 10;
+  const disc = (price) => friendly ? Math.round(price * 0.9) : price;
   const lines = vendor.goods.map((g, idx) => {
     if (g.type === 'weapon') {
       const def = state.weapons[g.item] || {};
       const qual = state.qualities[g.q] || {};
-      const price = Math.round((def.price || 0) * (qual.priceMul || 1));
+      const price = disc(Math.round((def.price || 0) * (qual.priceMul || 1)));
       const label = (qual.name ? qual.name + ' ' : '') + def.name;
       return `<div class="shop-row">
          <img class="eq-icon" src="assets/ui/icons/eq/${esc(g.item)}.png" alt="">
@@ -920,7 +1020,7 @@ function openShop(vendor) {
     }
     return `<div class="shop-row">
        <span>${esc(g.name)}<small>${esc(g.desc || '')}</small></span>
-       <button data-idx="${idx}">${g.price} gp</button>
+       <button data-idx="${idx}">${disc(g.price)} gp</button>
      </div>`;
   }).join('');
   let forge = '';
@@ -932,6 +1032,21 @@ function openShop(vendor) {
            <span>${esc(def.name)}<small>${def.craft.ore} ore · ${def.craft.logs} logs · ${def.craft.gold} gp</small></span>
            <button data-craft="${esc(id)}">Forge</button>
          </div>`).join('');
+    // The forge also unmakes: your craftable arms back into honest parts.
+    const scrap = ((state.you || {}).items || []).filter((it) => {
+      const def = state.weapons[it.id] || {};
+      const y = state.you;
+      return def.craft && !def.secret &&
+        it.uid !== y.weapon && it.uid !== y.armor && it.uid !== y.offhand;
+    });
+    if (scrap.length) {
+      forge += '<div class="shop-title" style="margin-top:10px">Unmake (40% of parts back)</div>' +
+        scrap.map((it) => `<div class="shop-row">
+           <img class="eq-icon" src="assets/ui/icons/eq/${esc(it.id)}.png" alt="">
+           <span style="color:${QUALITY_COLORS[it.q]}">${esc(weaponLabel(it))}</span>
+           <button data-salvage="${it.uid}">Unmake</button>
+         </div>`).join('');
+    }
   }
   // Anyone selling potions or herbs keeps a bench a brewer may borrow.
   let bench = '';
@@ -943,9 +1058,30 @@ function openShop(vendor) {
            <span>${esc(b.name)}<small>${b.herbs} herbs · ${b.gold} gp</small></span>
            <button data-brew="${esc(kind)}">Brew</button>
          </div>`).join('');
+    // The bench also brands steel: one gem-fired grudge per blade.
+    const brandable = ((state.you || {}).items || []).filter((it) => {
+      const def = state.weapons[it.id] || {};
+      return def.dmg && !def.secret && !it.brand;
+    });
+    if (brandable.length && state.brands) {
+      bench += '<div class="shop-title" style="margin-top:10px">Imbue (3 gems · 50 gp)</div>' +
+        brandable.map((it) => `<div class="shop-row">
+           <img class="eq-icon" src="assets/ui/icons/eq/${esc(it.id)}.png" alt="">
+           <span style="color:${QUALITY_COLORS[it.q]}">${esc(weaponLabel(it))}</span>
+           <span class="brand-btns">${Object.entries(state.brands).map(([k, adj]) =>
+             `<button data-imbue="${it.uid}:${esc(k)}" title="${esc(adj)}">${{ flame: '🔥', frost: '❄', venom: '☠' }[k] || k}</button>`).join('')}</span>
+         </div>`).join('');
+    }
   }
+  const bond = `<span class="shop-bond">
+      <button data-talk="${vendor.id}" title="Talk">💬</button>
+      <button data-gift="${vendor.id}:fish" title="Gift a fish">🐟</button>
+      <button data-gift="${vendor.id}:food" title="Gift a meal">🍲</button>
+      <button data-gift="${vendor.id}:gems" title="Gift a gem">💎</button>
+    </span>`;
   shopPanel.innerHTML =
-    `<div class="shop-title">${esc(vendor.name)}</div>${lines}${forge}${bench}
+    `<div class="shop-title">${esc(vendor.name)}${friendly ? ' · friend\'s prices' : ''}${bond}</div>
+     ${lines}${forge}${bench}
      <button class="shop-close">Close</button>`;
   shopPanel.classList.remove('hidden');
   if (state.me && Math.hypot(vendor.x - state.me.x, vendor.y - state.me.y) > 3) {
@@ -955,6 +1091,7 @@ function openShop(vendor) {
 
 function closeShop() {
   shopPanel.classList.add('hidden');
+  state.shopVendor = null;
 }
 
 shopPanel.addEventListener('click', (ev) => {
@@ -962,6 +1099,42 @@ shopPanel.addEventListener('click', (ev) => {
   if (ev.target.dataset.idx !== undefined) send({ t: 'buy', idx: ev.target.dataset.idx | 0 });
   if (ev.target.dataset.craft) send({ t: 'craft', id: ev.target.dataset.craft });
   if (ev.target.dataset.brew) send({ t: 'brew', kind: ev.target.dataset.brew });
+  if (ev.target.dataset.salvage) send({ t: 'salvage', uid: ev.target.dataset.salvage | 0 });
+  if (ev.target.dataset.imbue) {
+    const [uid, brand] = ev.target.dataset.imbue.split(':');
+    send({ t: 'imbue', uid: uid | 0, brand });
+  }
+  if (ev.target.dataset.talk) send({ t: 'talk', id: ev.target.dataset.talk | 0 });
+  if (ev.target.dataset.gift) {
+    const [id, kind] = ev.target.dataset.gift.split(':');
+    send({ t: 'gift', id: id | 0, kind });
+  }
+});
+
+// ---- the shrine's offer: three gifts on the water --------------------------------
+
+function showBoonOffer(offer) {
+  const panel = document.getElementById('boons');
+  panel.innerHTML =
+    '<div class="shop-title">The shrine-water stills. Choose one gift.</div>' +
+    offer.map((b) => `<button class="boon-card" data-boon="${esc(b.id)}">
+       <b>${esc(b.name)}</b><small>${esc(b.desc)}</small>
+     </button>`).join('') +
+    '<button class="shop-close">Not yet</button>';
+  panel.classList.remove('hidden');
+}
+
+document.getElementById('boons').addEventListener('click', (ev) => {
+  const card = ev.target.closest('[data-boon]');
+  if (card) {
+    send({ t: 'boon', id: card.dataset.boon });
+    document.getElementById('boons').classList.add('hidden');
+    Sound.play('gain');
+    return;
+  }
+  if (ev.target.classList.contains('shop-close')) {
+    document.getElementById('boons').classList.add('hidden');
+  }
 });
 
 // ---- login --------------------------------------------------------------------
@@ -1035,6 +1208,10 @@ function updateHud() {
   document.getElementById('pot-heal-count').textContent = pots.heal || 0;
   document.getElementById('pot-mana-count').textContent = pots.mana || 0;
 
+  const boons = (y.boons || []).map((b) => (state.boonDefs[b] || {}).name || b);
+  document.getElementById('boons-line').textContent =
+    boons.length ? '✧ ' + boons.join(' · ') : '';
+
   const list = document.getElementById('skills-list');
   const pretty = (k) => k === 'treasurehunting' ? 'Treasure Hunting' : k[0].toUpperCase() + k.slice(1);
   list.innerHTML = Object.entries(y.skills)
@@ -1104,6 +1281,7 @@ function renderInventory() {
     ['🍖', 'Raw meat', y.meat || 0, 'cook'],
     [px('food'), 'Hot meals', y.food || 0, 'eat'],
     ['🌱', 'Herbs', y.herbs || 0, ''],
+    ['🍲', 'Feast (fish + meat + herb)', (y.fish && y.meat && y.herbs) ? 1 : 0, 'feast'],
     ['❄', 'Frostwood', mats.frostwood || 0, ''],
     ['☀', 'Sunsteel', mats.sunsteel || 0, ''],
     ['🌿', 'Ironbark', mats.ironbark || 0, ''],
@@ -1116,7 +1294,7 @@ function renderInventory() {
        <span class="inv-icon">${icon}</span>
        <span class="inv-label">${label}</span>
        <span class="inv-count">${count}</span>
-       ${act ? `<button data-act="${act}">${act === 'cook' ? 'cook' : act === 'eat' ? 'eat' : act.startsWith('readmap') ? 'read' : 'use'}</button>` : '<span></span>'}
+       ${act ? `<button data-act="${act}">${act === 'cook' ? 'cook' : act === 'eat' ? 'eat' : act === 'feast' ? 'feast' : act.startsWith('readmap') ? 'read' : 'use'}</button>` : '<span></span>'}
      </div>`).join('');
 }
 
@@ -1126,6 +1304,7 @@ document.getElementById('inventory').addEventListener('click', (ev) => {
   if (act && act.startsWith('drink:')) send({ t: 'drink', kind: act.slice(6) });
   if (act === 'cook') send({ t: 'cook' });
   if (act === 'eat') send({ t: 'eat' });
+  if (act === 'feast') send({ t: 'feast' });
   if (act && act.startsWith('readmap:')) {
     const [x, y] = act.slice(8).split(',').map(Number);
     document.getElementById('inventory').classList.add('hidden');
@@ -1862,6 +2041,10 @@ function drawMob(m, cam, time) {
   ctx.font = style.boss ? 'bold 12px Georgia' : '11px Georgia';
   ctx.textAlign = 'center';
   ctx.fillText(m.name || style.name, s.x, labelY);
+  if (m.st) { // a rung bell sees stars
+    ctx.fillStyle = '#ffd060';
+    ctx.fillText('✶  ✶', s.x, labelY - 12);
+  }
   ctx.textAlign = 'left';
 }
 
@@ -1946,10 +2129,21 @@ function drawHpBar(sx, sy, hp, maxhp) {
 }
 
 function drawTelegraphs(cam, time) {
-  state.telegraphs = state.telegraphs.filter((a) => time - a.born < 1600);
+  state.telegraphs = state.telegraphs.filter((a) => time - a.born < (a.life || 1600));
   for (const a of state.telegraphs) {
-    const k = (time - a.born) / 1600;
+    const k = (time - a.born) / (a.life || 1600);
     const pulse = 0.35 + 0.3 * Math.sin(time / 90);
+    // boss slams mark a 3x3; heavy windups a single tile or a boss cross
+    const tiles = a.plus ? [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]
+      : a.small ? [[0, 0]] : null;
+    if (tiles) {
+      for (const [dx, dy] of tiles) {
+        const s = worldToScreen(a.x + dx, a.y + dy, cam);
+        ctx.fillStyle = `rgba(255, ${60 + 80 * k}, 40, ${pulse * (0.5 + k * 0.5)})`;
+        ctx.fillRect(s.x + 1, s.y + 1, TP - 2, TP - 2);
+      }
+      continue;
+    }
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         const s = worldToScreen(a.x + dx, a.y + dy, cam);

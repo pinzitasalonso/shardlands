@@ -120,6 +120,38 @@ push back the dark.
 - **Treasure hunting** — the skill behind the shovel: every dig off a
   weathered map trains it, and a practiced eye turns up loose gold and
   buried gems beyond the cache itself.
+
+## The dance (roguelike combat)
+
+- **Dash** (Shift + direction) — three tiles in a burst and a heartbeat of
+  untouchability. It taxes your next step and swing: an escape, not a
+  free reposition.
+- **Telegraphed heavies** — the big hitters mark your tile and stand still
+  for the windup; step off and the blow spends itself on dirt, stand in
+  it and it *never* misses. Bosses mark a cross and keep their old ground
+  slam besides. Caster bolts take 300ms to arrive — only a well-read dash
+  slips them.
+- **Weapon specials** (Q, one shared cooldown) — a different verb per
+  weapon: Shadowstep, Riposte, Bellringer (stuns — bosses only stagger),
+  the Reaper's Round, the Long Harvest, Heartseeker, and the Commoner's
+  Answer for bare fists.
+- **Shrine boons** — pray at a shrine (P) and three gifts float on the
+  water: Wolfsblood, Briarhide, The Ferryman Blinks, nine more. Hold
+  three at most; further offers are earned in worthy kills; **death
+  repossesses everything**. The spirits lend — they do not give.
+
+## The quiet moments
+
+- **Bonds** — named villagers, dwarves and every shopkeeper accept gifts
+  (fish, meals, gems) and remember you for them. Favor unlocks warmer
+  words — confidants leak real secrets — and pays back: a potion pressed
+  into your hand, a treasure map, a permanent friend's price at the
+  counter.
+- **Salvage** — the forge unmakes craftable arms into 40% of their parts.
+- **Imbue** — three gems and fifty gold socket a brand at any alchemist's
+  bench: Smouldering, Rimed or Envenomed, one grudge per blade.
+- **Feasts** — fish, meat and herb at a campfire make a proper meal:
+  a minute of regeneration and the strength of a blessing.
 - **Magic with power words** — nine spells that shout *In Por Ylem* /
   *Vas Ort Grav* / *Rel Por* overhead, cost mana, fizzle at low Magery, and
   land with animated impacts.
