@@ -1672,8 +1672,12 @@ def main():
         'iconCategories': icon_categories,
         'coastPieces': coast_pieces,
     }
+    # sort_keys makes the manifest byte-reproducible: the output no longer
+    # depends on the order frames/images happened to be inserted during the
+    # build, so any machine that rebuilds gets an identical file. (Only object
+    # keys are sorted; render-order arrays like `ground`/`anim` keep theirs.)
     with open(os.path.join(OUT, 'manifest.json'), 'w') as f:
-        json.dump(manifest, f, indent=1)
+        json.dump(manifest, f, indent=1, sort_keys=True)
     print('wrote', os.path.join(OUT, 'manifest.json'))
 
     apply_overrides()
