@@ -1189,6 +1189,34 @@ def build_has_ui():
     print('ui chrome + icons baked from HAS UI / Magic Book / IconPack')
 
 
+def build_coast(frames, images_out):
+    """The pack's animated sand-shore autotile, sliced into hand-placeable
+    stamps for the world builder. Each non-empty row of the sheet becomes one
+    piece with 8 foam frames; drawFrame walks those frames in place, so a
+    coastline the keeper lays by hand ripples like the open sea beside it."""
+    src = Image.open(os.path.join(
+        HEROIC, 'HAS Overworld 2.1', 'SandBiome', 'Animated Tiles',
+        'SB-Sand-Coast-Animated.png')).convert('RGBA')
+    rows = src.height // 16
+    px = src.load()
+    # keep rows with real art; the sheet pads a few near-empty spacer rows
+    keep = [r for r in range(rows)
+            if sum(1 for y in range(16) for x in range(16) if px[x, r * 16 + y][3] > 40) >= 20]
+    atlas = Image.new('RGBA', (8 * TD, len(keep) * TD), (0, 0, 0, 0))
+    for ri, r in enumerate(keep):
+        for fr in range(8):
+            atlas.paste(src.crop((fr * 16, r * 16, fr * 16 + 16, r * 16 + 16)), (fr * TD, ri * TD))
+            frames[f'td.coast.{r}.{fr}'] = {'img': 'coastanim', 'x': fr * TD, 'y': ri * TD,
+                                            'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+        # the piece itself is the animated parent: drawFrame cycles its frames
+        frames[f'td.coast.{r}'] = {'img': 'coastanim', 'x': 0, 'y': ri * TD, 'w': TD, 'h': TD,
+                                   'ax': 0, 'ay': 0, 'scale': TD_SCALE,
+                                   'anim': [f'td.coast.{r}.{fr}' for fr in range(8)], 'animMs': 200}
+    atlas.save(os.path.join(OUT, 'coastanim.png'))
+    images_out['coastanim'] = 'coastanim.png'
+    return keep
+
+
 def build_topdown_placeholder(frames, images_out):
     import random
     rng = random.Random(20260613)
@@ -1612,6 +1640,7 @@ def main():
     prop_categories = build_prop_catalog(frames, td_images,
                                          export='--export-props' in sys.argv)
     icon_categories = build_icon_library(frames, td_images) if os.path.isdir(HEROIC) else {}
+    coast_pieces = build_coast(frames, td_images) if os.path.isdir(HEROIC) else []
 
     manifest = {
         'tileW': 64, 'tileH': 32,
@@ -1632,6 +1661,7 @@ def main():
         'creatures': creatures,
         'propCategories': prop_categories,
         'iconCategories': icon_categories,
+        'coastPieces': coast_pieces,
     }
     with open(os.path.join(OUT, 'manifest.json'), 'w') as f:
         json.dump(manifest, f, indent=1)

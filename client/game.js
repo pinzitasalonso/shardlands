@@ -1720,6 +1720,18 @@ function render() {
     }
   }
 
+  // Hand-placed coast stamps: the keeper's animated shore pieces, drawn
+  // flat right on top of the ground so they read as terrain and never
+  // occlude anything standing on them. drawFrame cycles their foam frames.
+  if (useSprites) {
+    for (const pr of state.props) {
+      if (!(typeof pr.name === 'string' && pr.name.startsWith('coast.'))) continue;
+      if (pr.x < x0 || pr.x > x1 || pr.y < y0 || pr.y > y1) continue;
+      const s = worldToScreen(pr.x, pr.y, cam);
+      Assets.drawFrame(ctx, 'td.coast.' + pr.name.slice(6), s.x, s.y);
+    }
+  }
+
   // Roofs cover buildings unless you are standing inside them.
   for (const b of state.buildings) {
     if (b.x + b.w < x0 || b.x > x1 || b.y + b.h < y0 || b.y > y1) continue;
@@ -1733,6 +1745,7 @@ function render() {
   // Furniture and trail dressing.
   for (const pr of state.props) {
     if (pr.x < x0 || pr.x > x1 || pr.y < y0 || pr.y > y1) continue;
+    if (typeof pr.name === 'string' && pr.name.startsWith('coast.')) continue; // drawn flat above
     const s = worldToScreen(pr.x, pr.y, cam);
     if (pr.name === 'fx.campfire') {
       drawables.push({ depth: pr.y, kind: 'campfire', x: s.x + HT, y: s.y + HT });
