@@ -577,6 +577,16 @@ class Game {
         `${c.secrets} secrets, ${c.buildings || 0} buildings, ${c.vendors || 0} vendors, ` +
         `${c.removed} removals`);
     }
+    // Every crown city keeps its resurrection ankh. A builder edit can paint
+    // over anything — but a bastion with no shrine strands the fallen with
+    // nowhere to rise, so we set it back if it went missing.
+    let ankhsRestored = 0;
+    for (const c of this.map.cities || []) {
+      if (c.sx == null) continue;
+      const i = c.sy * this.map.w + c.sx;
+      if (this.map.tiles[i] !== TILE.SHRINE) { this.map.tiles[i] = TILE.SHRINE; ankhsRestored++; }
+    }
+    if (ankhsRestored) console.log(`restored ${ankhsRestored} city resurrection ankh(s)`);
     this.players = new Map(); // id -> player (online only)
     this.mobs = new Map();    // id -> mob
     this.nextId = 1;

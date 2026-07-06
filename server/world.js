@@ -500,11 +500,12 @@ function generate(seed = 1337) {
       for (let x = cx - 1; x <= cx + 1; x++) set(x, y, TILE.WALL);
     }
     props.push({ x: cx, y: cy - 11, name: 'prop.' + hall });
-    cities.push({ name: def.name, x: cx, y: cy, r: 12 });
+    // sx,sy mark the resurrection ankh, so the shard can guarantee it survives
+    cities.push({ name: def.name, x: cx, y: cy, r: 12, sx: cx, sy: cy - 2 });
   }
   // The capital is the first city of all: guarded and safe within the plaza.
   spawners.push({ kind: 'guard', count: 6, x: CX, y: CY, r: 9 });
-  cities.push({ name: 'Briarhaven', x: CX, y: CY, r: 13 });
+  cities.push({ name: 'Briarhaven', x: CX, y: CY, r: 13, sx: CX, sy: CY - 7 });
 
   // ---- The barrow-deeps: caverns beneath the world ------------------------------
   // Carved in the dead ocean strip along the top edge; reachable only through
