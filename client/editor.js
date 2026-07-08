@@ -614,6 +614,15 @@ function screenToWorld(px, py) {
   };
 }
 
+// Pointer events carry VIEWPORT coordinates, but screenToWorld expects
+// canvas-local ones. The canvas sits to the right of the tool sidebar, so
+// without subtracting the canvas's on-screen box every click landed several
+// tiles to the right of the cursor. Convert through the live bounding rect.
+function eventToWorld(ev) {
+  const r = cv.getBoundingClientRect();
+  return screenToWorld(ev.clientX - r.left, ev.clientY - r.top);
+}
+
 const removedPair = (list, x, y) => list.some(([rx, ry]) => rx === x && ry === y);
 
 function visibleRange(pad = 2) {
@@ -1109,7 +1118,7 @@ cv.addEventListener('mousedown', (ev) => {
     cv.style.cursor = 'grabbing';
     return;
   }
-  const w = screenToWorld(ev.clientX, ev.clientY);
+  const w = eventToWorld(ev);
   const wx = Math.floor(w.x);
   const wy = Math.floor(w.y);
   if (tool === 'paint') {
@@ -1123,7 +1132,7 @@ cv.addEventListener('mousedown', (ev) => {
 });
 
 window.addEventListener('mousemove', (ev) => {
-  const w = screenToWorld(ev.clientX, ev.clientY);
+  const w = eventToWorld(ev);
   const wx = Math.floor(w.x);
   const wy = Math.floor(w.y);
   if (world && wx >= 0 && wy >= 0 && wx < world.w && wy < world.h) {
@@ -1161,9 +1170,9 @@ cv.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
 cv.addEventListener('wheel', (ev) => {
   ev.preventDefault();
-  const before = screenToWorld(ev.clientX, ev.clientY);
+  const before = eventToWorld(ev);
   view.scale = Math.max(0.18, Math.min(64, view.scale * (ev.deltaY < 0 ? 1.25 : 0.8)));
-  const after = screenToWorld(ev.clientX, ev.clientY);
+  const after = eventToWorld(ev);
   view.x += before.x - after.x; // zoom toward the cursor
   view.y += before.y - after.y;
   draw();
