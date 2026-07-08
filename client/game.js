@@ -1549,8 +1549,15 @@ const lightCanvas = document.createElement('canvas');
 // and the player's own lantern.
 const weather = { drops: [], mode: null };
 
-function drawWeather(cam, time) {
+function drawWeather(cam, time, dtMs) {
   if (!state.myTile) return;
+  // Frame-rate independence: the fall/drift speeds below were dialled in at
+  // 60fps, so scale every per-frame step by how many 60fps frames actually
+  // elapsed. At 60Hz f===1 (unchanged); at 144Hz each step is smaller but
+  // more frequent, so rain and snow fall at the same real-world speed on any
+  // display. (dtMs is already capped at 120ms upstream, so a stalled tab
+  // can't teleport the drops across the screen.)
+  const f = (dtMs || 1000 / 60) / (1000 / 60);
   const here = tileAt(state.myTile.x, state.myTile.y);
   const snowy = here === T.SNOW || here === T.SNOWTREE;
   // rain comes in episodes keyed to the clock
@@ -1569,13 +1576,13 @@ function drawWeather(cam, time) {
   ctx.beginPath();
   for (const d of weather.drops) {
     if (mode === 'snow') {
-      d.y += d.v * 1.1;
-      d.x += Math.sin(time / 600 + d.y / 40) * 0.6;
+      d.y += d.v * 1.1 * f;
+      d.x += Math.sin(time / 600 + d.y / 40) * 0.6 * f;
       ctx.moveTo(d.x, d.y);
       ctx.lineTo(d.x + 1, d.y + 1);
     } else {
-      d.y += d.v * 9;
-      d.x -= d.v * 2;
+      d.y += d.v * 9 * f;
+      d.x -= d.v * 2 * f;
       ctx.moveTo(d.x, d.y);
       ctx.lineTo(d.x - 2, d.y + 9);
     }
@@ -1783,7 +1790,7 @@ function render() {
   drawDashTrails(cam, time);
   drawProjectiles(cam, time);
   drawSpellFx(cam, time);
-  drawWeather(cam, time);
+  drawWeather(cam, time, dtMs);
   drawNight(cam, time);
   drawFloaters(cam, time);
   drawSpeech(cam, time);
