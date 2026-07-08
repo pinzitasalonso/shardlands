@@ -1992,8 +1992,11 @@ const DROP_COLORS = {
   logs: ['#8a6a42', '#4a3520'],
   ore: ['#9a968a', '#56524a'],
   herbs: ['#5aa04a', '#2c5c24'],
-  meat: ['#b5583c', '#7a3320'],
 };
+
+// Loot with a hand-drawn pixel-art sprite (td.drop.<item>) rather than a
+// canvas-primitive shape — so meat looks like meat and not a potion.
+const DROP_SPRITES = new Set(['meat', 'fish', 'gems', 'food', 'tmap']);
 
 function drawDrop(d, cam, time) {
   const s = worldToScreen(d.x + 0.5, d.y + 0.5, cam);
@@ -2003,6 +2006,11 @@ function drawDrop(d, cam, time) {
   ctx.beginPath();
   ctx.ellipse(s.x, s.y + 2, 8, 4, 0, 0, Math.PI * 2);
   ctx.fill();
+  if (DROP_SPRITES.has(d.item) && Assets.state.ok
+      && Assets.state.manifest.frames['td.drop.' + d.item]) {
+    Assets.drawFrame(ctx, 'td.drop.' + d.item, s.x, s.y - 5 + bob);
+    return;
+  }
   if (d.item === 'gold') {
     for (const [ox, oy] of [[-4, 0], [4, -1], [0, 2], [1, -3]]) {
       ctx.fillStyle = main;
@@ -2043,37 +2051,8 @@ function drawDrop(d, cam, time) {
     ctx.fillRect(-5, 3, 10, 2.5);
     ctx.fillRect(-1.5, 5, 3, 5);
     ctx.restore();
-  } else if (d.item === 'meat') {
-    // A drumstick: a plump haunch with a little knuckle of bone, so a
-    // hunter's spoils read as a cut of meat and not a potion.
-    const y = s.y - 4 + bob;
-    ctx.lineCap = 'round';
-    // the bone, jutting from the narrow end
-    ctx.strokeStyle = '#efe7d0';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(s.x + 2, y + 2);
-    ctx.lineTo(s.x + 7, y + 6);
-    ctx.stroke();
-    ctx.fillStyle = '#efe7d0';
-    ctx.beginPath(); ctx.arc(s.x + 8, y + 5.5, 1.7, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(s.x + 8, y + 8, 1.7, 0, Math.PI * 2); ctx.fill();
-    // the meat, a fat teardrop of haunch
-    ctx.fillStyle = main;
-    ctx.beginPath();
-    ctx.ellipse(s.x - 1, y, 6, 5, -0.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = dark;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    // a glisten of glaze
-    ctx.fillStyle = 'rgba(255, 205, 160, 0.55)';
-    ctx.beginPath();
-    ctx.ellipse(s.x - 2.5, y - 2, 2, 1.3, -0.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.lineCap = 'butt';
   } else {
-    // A little potion bottle.
+    // A little potion bottle (heal/mana).
     ctx.fillStyle = main;
     ctx.beginPath();
     ctx.arc(s.x, s.y - 4 + bob, 5, 0, Math.PI * 2);

@@ -22805,6 +22805,56 @@
    "x": 112,
    "y": 96
   },
+  "td.drop.fish": {
+   "ax": 8,
+   "ay": 8,
+   "h": 16,
+   "img": "drops16",
+   "scale": 2,
+   "w": 16,
+   "x": 16,
+   "y": 0
+  },
+  "td.drop.food": {
+   "ax": 8,
+   "ay": 8,
+   "h": 16,
+   "img": "drops16",
+   "scale": 2,
+   "w": 16,
+   "x": 48,
+   "y": 0
+  },
+  "td.drop.gems": {
+   "ax": 8,
+   "ay": 8,
+   "h": 16,
+   "img": "drops16",
+   "scale": 2,
+   "w": 16,
+   "x": 32,
+   "y": 0
+  },
+  "td.drop.meat": {
+   "ax": 8,
+   "ay": 8,
+   "h": 16,
+   "img": "drops16",
+   "scale": 2,
+   "w": 16,
+   "x": 0,
+   "y": 0
+  },
+  "td.drop.tmap": {
+   "ax": 8,
+   "ay": 8,
+   "h": 16,
+   "img": "drops16",
+   "scale": 2,
+   "w": 16,
+   "x": 64,
+   "y": 0
+  },
   "td.f.door": {
    "ax": 8,
    "ay": 32,
@@ -36000,6 +36050,7 @@
   "djinn": "creatures/djinn.png",
   "dragon": "creatures/dragon.png",
   "dreadknight": "creatures/dreadknight.png",
+  "drops16": "drops16.png",
   "dryad": "creatures/dryad.png",
   "duneserpent": "creatures/duneserpent.png",
   "dwarf": "creatures/dwarf.png",
