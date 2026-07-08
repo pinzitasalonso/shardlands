@@ -49,14 +49,26 @@ const Sound = (() => {
 
   // ---- tiny synth helpers -----------------------------------------------------
 
+  // Sound effects grate when every repeat is pitch-identical (Challacade,
+  // "Sound effects are ANNOYING without this!"). So nudge pitch and volume a
+  // touch on every play — repeated swings, coins and footfalls come alive
+  // instead of machine-gunning the same click. Tonal blips stay near their
+  // note (well under a semitone); noise, having no pitch to knock out of
+  // tune, is free to wander further.
+  const wobble = (amt) => 1 + (Math.random() * 2 - 1) * amt;
+
   function blip(freq, dur, type = 'square', gain = 0.12, slide = 0) {
     if (!ctx) return;
     const t = ctx.currentTime;
+    const p = wobble(0.04);      // ±4% pitch (~±0.7 semitone)
+    freq *= p;
+    gain *= wobble(0.12);        // ±12% loudness
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.type = type;
     o.frequency.setValueAtTime(freq, t);
-    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
+    // keep the slide proportional to the shifted pitch so its shape holds
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide * p), t + dur);
     g.gain.setValueAtTime(gain, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     o.connect(g).connect(sfxBus);
@@ -67,6 +79,8 @@ const Sound = (() => {
   function noise(dur, gain = 0.15, freq = 1200, q = 1) {
     if (!ctx) return;
     const t = ctx.currentTime;
+    freq *= wobble(0.12);        // ±12% timbre; a rockier or airier hiss each time
+    gain *= wobble(0.12);
     const len = Math.ceil(ctx.sampleRate * dur);
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = buf.getChannelData(0);
@@ -96,6 +110,8 @@ const Sound = (() => {
       blip(140, 0.08, 'square', 0.08, -60);
     },
     miss: () => noise(0.08, 0.05, 1500, 1),
+    // the dash: a hard rush of air with a low body lifting through it
+    dash: () => { noise(0.17, 0.10, 1100, 0.5); blip(300, 0.15, 'sine', 0.05, 520); },
     // the bow: string pluck, then the arrow's hiss
     bow: () => {
       blip(220, 0.06, 'triangle', 0.12, 160);  // string snap

@@ -624,7 +624,7 @@ function dashNow() {
   if (btn && !cooldowns.has('dash')) {
     cooldowns.set('dash', { until: Date.now() + (btn.dataset.cd | 0), total: btn.dataset.cd | 0 });
   }
-  Sound.play('click');
+  Sound.play('dash');
 }
 
 // Visual cooldown sweeps on the hotbar. The server stays authoritative;
