@@ -546,6 +546,17 @@ function hashPassword(password, salt) {
 class Game {
   constructor() {
     this.map = generate(1337);
+    // The road-wardens' runestones: one hums in every city plaza and village
+    // green. Placed as ordinary props BEFORE the pristine snapshot, so the
+    // world builder can move or remove them like anything else worldgen made.
+    for (const c of this.map.cities || []) {
+      const spot = nearestWalkable(this.map, c.x + 3, c.y + 2);
+      this.map.props.push({ x: spot.x, y: spot.y, name: 'prop.runestone' });
+    }
+    for (const v of this.map.villages || []) {
+      const spot = nearestWalkable(this.map, v.x + 2, v.y + 1);
+      this.map.props.push({ x: spot.x, y: spot.y, name: 'prop.runestone' });
+    }
     // The world builder's overlay sits on top of worldgen. It lives in the
     // data dir (a mounted volume in prod, so it survives redeploys); the
     // repo's world/edits.json is the published copy — whichever of the two
@@ -587,6 +598,19 @@ class Game {
       if (this.map.tiles[i] !== TILE.SHRINE) { this.map.tiles[i] = TILE.SHRINE; ankhsRestored++; }
     }
     if (ankhsRestored) console.log(`restored ${ankhsRestored} city resurrection ankh(s)`);
+    // The travel network is whatever runestone props survived the world
+    // builder's edits (plus any it added): each stone is named for the
+    // nearest settlement, and its key is its position, so attunements
+    // persist across reboots of the same world.
+    this.runestones = this.map.props
+      .filter((pr) => pr.name === 'prop.runestone')
+      .map((pr) => {
+        const near = [...(this.map.cities || []), ...(this.map.villages || [])]
+          .map((s) => ({ s, d: Math.max(Math.abs(s.x - pr.x), Math.abs(s.y - pr.y)) }))
+          .sort((a, b) => a.d - b.d)[0];
+        const name = near && near.d <= 24 ? near.s.name : 'a lone waystone';
+        return { key: `r:${pr.x},${pr.y}`, name, x: pr.x, y: pr.y };
+      });
     // Places a traveller can DISCOVER: villages and the great landmarks
     // worldgen scattered. They appear on a player's world map only once
     // walked near (arriveAt), and stay there for good. The four crown
@@ -806,6 +830,9 @@ class Game {
       // POI keys this traveller has walked near; the map fills in for good
       discovered: Array.isArray(rec.discovered)
         ? rec.discovered.filter((k) => typeof k === 'string') : [],
+      // runestones this traveller has touched; travel runs between them
+      runes: Array.isArray(rec.runes)
+        ? rec.runes.filter((k) => typeof k === 'string') : [],
       buffUntil: 0,
       itemUid: rec.itemUid || 1,
       dead: false,
@@ -855,6 +882,9 @@ class Game {
       landmarks: this.pois
         .filter((o) => o.kind === 'landmark' && p.discovered.includes(o.key))
         .map((l) => ({ name: l.name, x: l.x, y: l.y })),
+      // the travel network: names for the rune-travel menu, keys for intents
+      runestones: this.runestones.map((rs) => ({ key: rs.key, name: rs.name })),
+      runes: p.runes,
       // sx,sy is the city's resurrection ankh — the dead need it on their map
       cities: (this.map.cities || []).map((c) => ({ name: c.name, x: c.x, y: c.y, r: c.r, sx: c.sx, sy: c.sy })),
       epoch: Date.now(),
@@ -919,6 +949,7 @@ class Game {
       arrows: p.arrows,
       home: p.home ? { ...p.home } : null,
       discovered: (p.discovered || []).slice(),
+      runes: (p.runes || []).slice(),
       itemUid: p.itemUid,
       boons: (p.boons || []).slice(),
       boonKills: p.boonKills || 0,
@@ -973,6 +1004,7 @@ class Game {
       case 'brew': return this.handleBrew(p, String(msg.kind || ''));
       case 'tame': return this.handleTame(p, msg.id | 0);
       case 'dash': return this.handleDash(p, msg.dx | 0, msg.dy | 0);
+      case 'runetravel': return this.handleRuneTravel(p, String(msg.key || ''));
       case 'special': return this.handleSpecial(p);
       case 'pray': return this.handlePray(p);
       case 'boon': return this.handleBoon(p, String(msg.id || ''));
@@ -1406,6 +1438,15 @@ class Game {
           : 'The shrine hums softly. /home will carry you back here.');
       }
     }
+    // Runestones attune by touch: stand beside one and it knows you forever.
+    for (const rs of this.runestones) {
+      if (Math.abs(p.x - rs.x) > 1 || Math.abs(p.y - rs.y) > 1) continue;
+      if (p.runes.includes(rs.key)) continue;
+      p.runes.push(rs.key);
+      this.sys(p, `The runestone of ${rs.name} hums — you are attuned. ` +
+        'Stand at any runestone to travel between attuned stones.');
+      this.send(p.ws, { t: 'runes', runes: p.runes });
+    }
     // The map fills in as you travel: come within sight of a village or
     // landmark and it takes its place on your world map for good.
     for (const poi of this.pois) {
@@ -1420,6 +1461,33 @@ class Game {
     // of the deeps to reach a shrine — but the world only whispers to,
     // and buries treasure for, the living (handled in checkSecrets).
     this.checkSecrets(p, t);
+  }
+
+  // ---- rune transport: stone to attuned stone ----------------------------------
+
+  handleRuneTravel(p, key) {
+    if (p.dead) return this.sys(p, 'The stones do not carry shades.');
+    const here = this.runestones.find((rs) =>
+      Math.abs(p.x - rs.x) <= 1 && Math.abs(p.y - rs.y) <= 1);
+    if (!here) return this.sys(p, 'You must stand at a runestone to travel.');
+    const dest = this.runestones.find((rs) => rs.key === key);
+    if (!dest || !p.runes.includes(key)) {
+      return this.sys(p, 'You are not attuned to that stone.');
+    }
+    if (dest === here) return this.sys(p, 'You are already here.');
+    const t = now();
+    if (t < (p.runeAt || 0)) {
+      return this.sys(p, 'The stone is still gathering its strength.');
+    }
+    p.runeAt = t + 15000;
+    this.fxNear(p, { t: 'fx', kind: 'portal', x: p.x, y: p.y });
+    const spot = nearestWalkable(this.map, dest.x, dest.y + 1);
+    p.x = spot.x;
+    p.y = spot.y;
+    p.moveAt = t + 400; // arrival staggers the first step
+    this.fxNear(p, { t: 'fx', kind: 'portal', x: p.x, y: p.y });
+    this.sys(p, `The world folds — you stand at the runestone of ${dest.name}.`);
+    this.arriveAt(p, t);
   }
 
   // ---- the dance: dash, i-frames, the special ---------------------------------
