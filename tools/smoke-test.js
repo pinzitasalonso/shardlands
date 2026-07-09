@@ -1847,5 +1847,27 @@ game.applyEditsLive({ tiles: [[spot.x + 20, spot.y, 99]] });
 assert.strictEqual(game.map.tiles[spot.y * game.map.w + spot.x + 20], TILE.STONEROAD,
   'nonsense tile ids never paint (the stone road stays)');
 
+// Diagonal movement is normalised: a diagonal mob step covers √2 tiles, so it
+// must cost √2× the base interval (like the player's 118/165ms strides) — mobs
+// no longer sprint 41% faster whenever they chase on a diagonal.
+let diagSpot = null;
+for (let y = spot.y - 2; y <= spot.y + 2 && !diagSpot; y++) {
+  for (let x = spot.x - 2; x <= spot.x + 2; x++) {
+    if (isWalkable(game.map, x, y) && isWalkable(game.map, x + 1, y) && isWalkable(game.map, x + 1, y + 1)) {
+      diagSpot = { x, y }; break;
+    }
+  }
+}
+assert(diagSpot, 'found a spot to test diagonal step cost');
+const mkStepMob = () => ({ x: diagSpot.x, y: diagSpot.y, spawner: { alive: new Set() }, moveAt: 0 });
+const mc = mkStepMob();
+game.mobStep(mc, diagSpot.x + 1, diagSpot.y, 1000, 350);
+assert.strictEqual(mc.moveAt - 1000, 350, 'a cardinal mob step costs the base interval');
+const md = mkStepMob();
+game.mobStep(md, diagSpot.x + 1, diagSpot.y + 1, 1000, 350);
+assert(md.x === diagSpot.x + 1 && md.y === diagSpot.y + 1, 'the diagonal step actually moves diagonally');
+assert.strictEqual(md.moveAt - 1000, Math.round(350 * Math.SQRT2),
+  'a diagonal mob step costs √2× the base interval');
+
 console.log('smoke test: all assertions passed');
 process.exit(0);
