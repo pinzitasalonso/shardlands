@@ -557,6 +557,16 @@ class Game {
       const spot = nearestWalkable(this.map, v.x + 2, v.y + 1);
       this.map.props.push({ x: spot.x, y: spot.y, name: 'prop.runestone' });
     }
+    // Every city keeps a builder with plans and empty scaffolds: bring them
+    // timber and ore and the town visibly grows, a cottage at a time.
+    (this.map.cities || []).forEach((c, i) => {
+      const spot = nearestWalkable(this.map, c.x - 4, c.y + 4);
+      this.map.vendors.push({
+        name: ['Aldric', 'Berga', 'Corvin', 'Duna'][i % 4] + ' the Builder',
+        x: spot.x, y: spot.y, goods: [], model: 'dwarf', builder: true,
+        greeting: 'Timber and ore raise homes. Bring what you carry, and the town will grow.',
+      });
+    });
     // The world builder's overlay sits on top of worldgen. It lives in the
     // data dir (a mounted volume in prod, so it survives redeploys); the
     // repo's world/edits.json is the published copy — whichever of the two
@@ -598,6 +608,16 @@ class Game {
       if (this.map.tiles[i] !== TILE.SHRINE) { this.map.tiles[i] = TILE.SHRINE; ankhsRestored++; }
     }
     if (ankhsRestored) console.log(`restored ${ankhsRestored} city resurrection ankh(s)`);
+    // What the towns have already built rises again on boot: the growth
+    // ledger lives on the data volume beside the world edits.
+    this.growthPath = path.join(persist.DATA_DIR, 'towngrowth.json');
+    this.growth = { sites: {}, built: [] };
+    try {
+      const g = JSON.parse(fs.readFileSync(this.growthPath, 'utf8'));
+      this.growth = { sites: g.sites || {}, built: g.built || [] };
+    } catch (e) { if (e.code !== 'ENOENT') console.error('towngrowth.json is broken, starting fresh:', e.message); }
+    for (const b of this.growth.built) this.map.props.push({ x: b.x, y: b.y, name: b.name });
+    if (this.growth.built.length) console.log(`raised ${this.growth.built.length} town-built cottage(s)`);
     // The travel network is whatever runestone props survived the world
     // builder's edits (plus any it added): each stone is named for the
     // nearest settlement, and its key is its position, so attunements
@@ -885,6 +905,7 @@ class Game {
       // the travel network: names for the rune-travel menu, keys for intents
       runestones: this.runestones.map((rs) => ({ key: rs.key, name: rs.name })),
       runes: p.runes,
+      projects: this.growth.sites,
       // sx,sy is the city's resurrection ankh — the dead need it on their map
       cities: (this.map.cities || []).map((c) => ({ name: c.name, x: c.x, y: c.y, r: c.r, sx: c.sx, sy: c.sy })),
       epoch: Date.now(),
@@ -1005,6 +1026,7 @@ class Game {
       case 'tame': return this.handleTame(p, msg.id | 0);
       case 'dash': return this.handleDash(p, msg.dx | 0, msg.dy | 0);
       case 'runetravel': return this.handleRuneTravel(p, String(msg.key || ''));
+      case 'contribute': return this.handleContribute(p, String(msg.kind || ''));
       case 'special': return this.handleSpecial(p);
       case 'pray': return this.handlePray(p);
       case 'boon': return this.handleBoon(p, String(msg.id || ''));
@@ -1461,6 +1483,80 @@ class Game {
     // of the deeps to reach a shrine — but the world only whispers to,
     // and buries treasure for, the living (handled in checkSecrets).
     this.checkSecrets(p, t);
+  }
+
+  // ---- town growth: bring materials, the town builds ---------------------------
+
+  // Each house asks a little more than the last; five per builder, then rest.
+  needFor(site) {
+    return { logs: 20 + site.houses * 10, ore: site.houses ? 5 + site.houses * 5 : 0 };
+  }
+
+  saveGrowth() {
+    try { fs.writeFileSync(this.growthPath, JSON.stringify(this.growth)); } catch (e) {
+      console.error('could not save towngrowth:', e.message);
+    }
+  }
+
+  // A clear patch of grass near the builder, away from anything standing.
+  findBuildPlot(b) {
+    for (let r = 4; r <= 16; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const x = b.x + dx;
+          const y = b.y + dy;
+          if (tileAt(this.map, x, y) !== TILE.GRASS) continue;
+          const crowded = this.map.props.some((pr) =>
+            Math.abs(pr.x - x) <= 2 && Math.abs(pr.y - y) <= 2) ||
+            this.map.vendors.some((v) => Math.abs(v.x - x) <= 2 && Math.abs(v.y - y) <= 2);
+          if (!crowded) return { x, y };
+        }
+      }
+    }
+    return null;
+  }
+
+  handleContribute(p, kind) {
+    if (p.dead) return;
+    if (kind !== 'logs' && kind !== 'ore') return;
+    const b = this.map.vendors.find((v) => v.builder &&
+      Math.abs(v.x - p.x) <= 3 && Math.abs(v.y - p.y) <= 3);
+    if (!b) return this.sys(p, 'There is no builder near enough to take it.');
+    const key = b.x + ',' + b.y;
+    const site = this.growth.sites[key] ||
+      (this.growth.sites[key] = { houses: 0, logs: 0, ore: 0 });
+    if (site.houses >= 5) return this.sys(p, 'The town is fully built — for now.');
+    const need = this.needFor(site);
+    const remaining = need[kind] - site[kind];
+    if (remaining <= 0) return this.sys(p, `No more ${kind} are needed for this house.`);
+    const give = Math.min(p[kind], remaining);
+    if (give <= 0) return this.sys(p, `You carry no ${kind}.`);
+    p[kind] -= give;
+    site[kind] += give;
+    // the builder pays honest wages: wood is common, ore is heavier work
+    const pay = give * (kind === 'logs' ? 2 : 3);
+    p.gold += pay;
+    this.sys(p, `You hand over ${give} ${kind} — ${b.name.split(' ')[0]} pays ${pay} gp.`);
+    if (site.logs >= need.logs && site.ore >= need.ore) {
+      const plot = this.findBuildPlot(b);
+      if (plot) {
+        const name = 'prop.cottage' + ((site.houses + b.x) % 4);
+        this.map.props.push({ x: plot.x, y: plot.y, name });
+        this.growth.built.push({ x: plot.x, y: plot.y, name });
+        site.houses += 1;
+        site.logs = 0;
+        site.ore = 0;
+        this.broadcast({ t: 'props', props: this.map.props });
+        this.broadcastSys(`⌂ A new cottage rises in the town, raised on materials ${p.name} carried.`);
+        this.sys(p, 'The last beam settles: the cottage is yours to be proud of.');
+      } else {
+        this.sys(p, 'The builder has the materials but no clear ground — the town square is full.');
+      }
+    }
+    this.saveGrowth();
+    this.sendYou(p);
+    this.broadcast({ t: 'project', key, site: { ...site } });
   }
 
   // ---- rune transport: stone to attuned stone ----------------------------------
@@ -2108,7 +2204,7 @@ class Game {
     // -- merchants: the shop list is small, so rebuild and rebroadcast it
     let vendorsDirty = false;
     const vKey = (o) => `${o.x},${o.y},${o.name},${JSON.stringify(o.goods || null)},` +
-      `${o.model || ''},${o.forge ? 1 : 0},${o.greeting || ''}`;
+      `${o.model || ''},${o.forge ? 1 : 0},${o.builder ? 1 : 0},${o.greeting || ''}`;
     for (const v of diff(clean.vendors, prev.vendors, vKey)) {
       const i = this.map.vendors.findIndex((o) => o.x === v.x && o.y === v.y);
       if (i >= 0) this.map.vendors.splice(i, 1); // same spot, new terms
