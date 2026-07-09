@@ -1145,8 +1145,7 @@ class Game {
           }
         }
       } else if (t >= pet.moveAt) {
-        pet.moveAt = t + (t < (pet.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
-        this.stepToward(pet, foe.x, foe.y);
+        this.mobStep(pet, foe.x, foe.y, t, t < (pet.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
       }
       return;
     }
@@ -1157,8 +1156,7 @@ class Game {
       pet.x = spot.x;
       pet.y = spot.y;
     } else if (d > 2 && t >= pet.moveAt) {
-      pet.moveAt = t + def.speedMs;
-      this.stepToward(pet, owner.x, owner.y);
+      this.mobStep(pet, owner.x, owner.y, t, def.speedMs);
     }
     pet.homeX = pet.x;
     pet.homeY = pet.y;
@@ -2833,8 +2831,8 @@ class Game {
     // The frightened run first and think later.
     if (mob.fleeUntil && t < mob.fleeUntil) {
       if (t >= mob.moveAt) {
-        mob.moveAt = t + (t < (mob.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
-        this.stepToward(mob, 2 * mob.x - mob.fleeFrom.x, 2 * mob.y - mob.fleeFrom.y);
+        this.mobStep(mob, 2 * mob.x - mob.fleeFrom.x, 2 * mob.y - mob.fleeFrom.y, t,
+          t < (mob.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
       }
       return;
     }
@@ -2874,8 +2872,7 @@ class Game {
             }
           }
         } else if (t >= mob.moveAt) {
-          mob.moveAt = t + (t < (mob.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
-          this.stepToward(mob, foe.x, foe.y);
+          this.mobStep(mob, foe.x, foe.y, t, t < (mob.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
         }
         return;
       }
@@ -2899,8 +2896,7 @@ class Game {
         mob.evading = false;
       } else {
         if (t >= mob.moveAt) {
-          mob.moveAt = t + (t < (mob.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
-          this.stepToward(mob, mob.homeX, mob.homeY);
+          this.mobStep(mob, mob.homeX, mob.homeY, t, t < (mob.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
         }
         return;
       }
@@ -2992,8 +2988,7 @@ class Game {
           }
         }
       } else if (t >= mob.moveAt) {
-        mob.moveAt = t + (t < (mob.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
-        this.stepToward(mob, target.x, target.y);
+        this.mobStep(mob, target.x, target.y, t, t < (mob.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
       }
       return;
     }
@@ -3018,21 +3013,23 @@ class Game {
     if (mob.dest) {
       if (dist(mob, mob.dest) <= 2) mob.dest = null;
       else if (t >= mob.moveAt) {
-        mob.moveAt = t + (t < (mob.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
-        this.stepToward(mob, mob.dest.x, mob.dest.y);
+        this.mobStep(mob, mob.dest.x, mob.dest.y, t, t < (mob.slowUntil || 0) ? def.speedMs * 2 : def.speedMs);
       }
       return;
     }
 
     // No target: leash home if wandered far, otherwise amble around.
     if (t >= mob.moveAt && Math.random() < 0.25) {
-      mob.moveAt = t + def.speedMs * 2;
       const home = { x: mob.homeX, y: mob.homeY };
-      if (dist(mob, home) > mob.spawner.r + 4) this.stepToward(mob, home.x, home.y);
-      else this.stepToward(mob, mob.x + rand(-1, 1), mob.y + rand(-1, 1));
+      const base = def.speedMs * 2;
+      if (dist(mob, home) > mob.spawner.r + 4) this.mobStep(mob, home.x, home.y, t, base);
+      else this.mobStep(mob, mob.x + rand(-1, 1), mob.y + rand(-1, 1), t, base);
     }
   }
 
+  // One step toward (tx,ty). Returns true if the step taken was DIAGONAL, so
+  // the caller can charge it the √2 tax (see mobStep) — a diagonal tile is
+  // 1.41× the distance of a cardinal one.
   stepToward(mob, tx, ty) {
     const dx = Math.sign(tx - mob.x);
     const dy = Math.sign(ty - mob.y);
@@ -3053,8 +3050,17 @@ class Game {
       if (blocked) continue;
       mob.x = nx;
       mob.y = ny;
-      return;
+      return ox !== 0 && oy !== 0;
     }
+    return false;
+  }
+
+  // Take one step toward (tx,ty) and set the next-move time. A diagonal step
+  // covers √2 tiles, so it costs √2× the base interval — the same fix the
+  // player's 118/165ms cardinal/diagonal strides use. Without this, monsters
+  // (and pets) sprinted ~41% faster whenever they chased on a diagonal.
+  mobStep(mob, tx, ty, t, base) {
+    mob.moveAt = t + (this.stepToward(mob, tx, ty) ? Math.round(base * Math.SQRT2) : base);
   }
 
   // ---- world events: every so often, raiders march on a village -------------------
