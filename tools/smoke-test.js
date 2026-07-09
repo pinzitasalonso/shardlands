@@ -1931,6 +1931,18 @@ assert.strictEqual(game.map.tiles[spot.y * game.map.w + spot.x + 20], TILE.STONE
     'an unknown calling falls back to the old spread');
 }
 
+// Logout burns the session token, so it can't be replayed from another device.
+{
+  const wsl = fakeWs();
+  game.handle(wsl, { t: 'join', email: 'leaver@test.dev', password: 'secret1', name: 'Leaver' });
+  const lp = wsl.player;
+  const acct = game.accounts['leaver@test.dev'];
+  assert(acct && acct.token && acct.token.v, 'a sign-in issues a session token');
+  game.handleLogout(lp);
+  assert(!acct.token, 'logout burns the token');
+  assert(wsl.sent.some((m) => m.t === 'loggedout'), 'and the client is told to leave');
+}
+
 // Town growth: bring the builder materials and the town raises a cottage.
 {
   const bp = ws.player;

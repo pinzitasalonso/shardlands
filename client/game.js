@@ -127,6 +127,7 @@ function connect(join) {
   };
   ws.onmessage = (ev) => handleMessage(JSON.parse(ev.data));
   ws.onclose = () => {
+    if (state.loggingOut) return location.reload();
     document.getElementById('login').classList.remove('hidden');
     document.getElementById('hud').classList.add('hidden');
     loginError('Connection lost. Refresh to rejoin.');
@@ -270,6 +271,12 @@ function handleMessage(msg) {
     case 'props':
       // The world builder redressed the world while we stand in it.
       state.props = msg.props || [];
+      break;
+    case 'loggedout':
+      // the server burned the token; leave cleanly to the login screen
+      localStorage.removeItem('shardlands:token');
+      localStorage.removeItem('shardlands:char');
+      location.reload();
       break;
     case 'discover':
       // A place found is a place kept: it joins the world map at once.
@@ -853,6 +860,16 @@ function toggleSettings() {
     }
   }
 }
+
+document.getElementById('logout').addEventListener('click', () => {
+  // clear the local session first, then ask the server to burn the token;
+  // reload regardless so a dead socket can't strand us in-world
+  localStorage.removeItem('shardlands:token');
+  localStorage.removeItem('shardlands:char');
+  state.loggingOut = true;
+  try { send({ t: 'logout' }); } catch (e) { /* socket already gone */ }
+  setTimeout(() => location.reload(), 800);
+});
 
 document.getElementById('settings').addEventListener('input', (ev) => {
   if (ev.target.dataset.vol) Sound.setVol(ev.target.dataset.vol, +ev.target.value);
