@@ -824,7 +824,8 @@ class Game {
       }),
       props: this.map.props,
       villages: this.map.villages.map((v) => ({ name: v.name, x: v.x, y: v.y })),
-      cities: (this.map.cities || []).map((c) => ({ name: c.name, x: c.x, y: c.y, r: c.r })),
+      // sx,sy is the city's resurrection ankh — the dead need it on their map
+      cities: (this.map.cities || []).map((c) => ({ name: c.name, x: c.x, y: c.y, r: c.r, sx: c.sx, sy: c.sy })),
       epoch: Date.now(),
       spells: SPELLS,
       weapons: WEAPONS,

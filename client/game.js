@@ -742,6 +742,17 @@ function toggleWorldMap() {
     g.strokeStyle = '#120d08';
     g.strokeRect(c.x * k - 3.5, c.y * k - 3.5, 7, 7);
   }
+  // a ghost sees every resurrection ankh marked in gold
+  if (state.you && state.you.dead) {
+    g.font = 'bold 20px serif';
+    for (const c of state.cities) {
+      if (c.sx == null) continue;
+      g.fillStyle = '#120d08';
+      g.fillText('☥', c.sx * k + 1, c.sy * k + 8);
+      g.fillStyle = '#ffe08a';
+      g.fillText('☥', c.sx * k, c.sy * k + 7);
+    }
+  }
   g.font = 'bold 13px Georgia';
   if (state.myTile) {
     g.fillStyle = '#ffffff';
@@ -1804,7 +1815,7 @@ function render() {
     ctx.fillStyle = '#c8d0e0';
     ctx.font = FS(22);
     ctx.textAlign = 'center';
-    ctx.fillText('You are dead. Walk to the glowing ankh in Briarhaven to resurrect.', canvas.width / 2, 60);
+    ctx.fillText('You are dead. Walk to a glowing ankh to resurrect — marked ☥ on your maps.', canvas.width / 2, 60);
     ctx.textAlign = 'left';
   }
 }
@@ -1822,6 +1833,12 @@ function drawShrine(cx, cy, time) {
   ctx.beginPath();
   ctx.arc(cx, cy, HT - 3, 0, Math.PI * 2);
   ctx.fill();
+  // the golden monument itself: a hand-drawn ankh on its stone plinth
+  if (Assets.state.ok && Assets.state.manifest.frames['td.o.ankh']) {
+    Assets.drawFrame(ctx, 'td.o.ankh', cx, cy + HT - 2);
+    return;
+  }
+  // stroked fallback for a stale cached manifest
   ctx.strokeStyle = `rgba(240, 210, 110, ${glow})`;
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -2491,6 +2508,25 @@ function drawMinimap() {
   mctx.fillStyle = '#e8c25e';
   for (const c of state.cities) {
     mctx.fillRect(Math.round(c.x / s) - 1, Math.round(c.y / s) - 1, 3, 3);
+  }
+  // Death is not the time to squint: while you walk as a ghost, every city's
+  // resurrection ankh pulses gold on the minimap so you know where to go.
+  if (state.you && state.you.dead) {
+    const pulse = 0.6 + 0.4 * Math.sin(Date.now() / 250);
+    mctx.font = 'bold 11px serif';
+    mctx.textAlign = 'center';
+    for (const c of state.cities) {
+      if (c.sx == null) continue;
+      const mx = Math.round(c.sx / s);
+      const my = Math.round(c.sy / s);
+      mctx.globalAlpha = pulse;
+      mctx.fillStyle = '#120d08';
+      mctx.fillText('☥', mx + 1, my + 5);
+      mctx.fillStyle = '#ffe08a';
+      mctx.fillText('☥', mx, my + 4);
+      mctx.globalAlpha = 1;
+    }
+    mctx.textAlign = 'left';
   }
   for (const p of state.players.values()) {
     mctx.fillStyle = p.id === state.myId ? '#ffffff' : '#ffd040';
