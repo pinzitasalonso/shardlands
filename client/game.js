@@ -100,6 +100,13 @@ const state = {
 
 const QUALITY_COLORS = ['#9a9a9a', '#e8e2d0', '#6ac06a', '#6a9ae0', '#e0a040', '#ff5a3c'];
 
+// Each calling rides its own hero sprite; the classic knight carries
+// everyone else (old characters, or a stale manifest missing the variants).
+function playerKind(calling) {
+  return calling && Assets.state.ok && Assets.state.manifest.creatures['player_' + calling]
+    ? 'player_' + calling : 'player';
+}
+
 function weaponLabel(item) {
   const q = state.qualities[item.q];
   const b = item.brand && state.brands && state.brands[item.brand] ? state.brands[item.brand] + ' ' : '';
@@ -178,6 +185,7 @@ function handleMessage(msg) {
       state.runestones = msg.runestones || [];
       state.runes = new Set(msg.runes || []);
       state.projects = msg.projects || {};
+      state.myCalling = msg.calling || null;
       state.cities = msg.cities || [];
       state.mini = msg.mini;
       buildMinimap();
@@ -1354,14 +1362,13 @@ for (const card of document.querySelectorAll('.calling')) {
 
 // Card portraits: the traveller as each calling would arm them.
 function drawCallingCards() {
-  const arms = { warrior: ['longsword'], ranger: ['longbow'], mage: [] };
   for (const card of document.querySelectorAll('.calling')) {
     const cv2 = card.querySelector('canvas');
     const g = cv2.getContext('2d');
     g.imageSmoothingEnabled = false;
     g.clearRect(0, 0, cv2.width, cv2.height);
-    Assets.drawCreature(g, 'player', 2, 'stance', 0, cv2.width / 2, cv2.height - 6, 1.5,
-      arms[card.dataset.calling]);
+    Assets.drawCreature(g, playerKind(card.dataset.calling), 2, 'stance', 0,
+      cv2.width / 2, cv2.height - 6, 1.5);
   }
 }
 
@@ -2012,7 +2019,7 @@ function render() {
   drawSpeech(cam, time);
   drawMinimap();
   updateCooldowns(time);
-  if (!portraitDrawn) portraitDrawn = drawPortrait('portrait', 'player');
+  if (!portraitDrawn) portraitDrawn = drawPortrait('portrait', playerKind(state.myCalling));
 
   if (state.you && state.you.dead) {
     ctx.fillStyle = 'rgba(40, 50, 70, 0.45)';
@@ -2407,7 +2414,8 @@ function drawPlayer(p, cam, time) {
   ctx.save();
   if (p.dead) ctx.globalAlpha = 0.45;
 
-  const c = Assets.state.ok && Assets.creature('player');
+  const kind = playerKind(p.c);
+  const c = Assets.state.ok && Assets.creature(kind);
   let labelY;
   if (c) {
     entityShadow(s.x, s.y, 11);
@@ -2423,7 +2431,7 @@ function drawPlayer(p, cam, time) {
         const g = worldToScreen(p.rx + 0.5 - p.burstDir.dx * back,
           p.ry + 0.5 - p.burstDir.dy * back, cam);
         ctx.globalAlpha = a * fade;
-        Assets.drawCreature(ctx, 'player', p.heading, 'run', time + p.id * 137, g.x, g.y, 1, overlays);
+        Assets.drawCreature(ctx, kind, p.heading, 'run', time + p.id * 137, g.x, g.y, 1, overlays);
       }
       ctx.globalAlpha = p.dead ? 0.45 : 1;
     }
@@ -2441,11 +2449,11 @@ function drawPlayer(p, cam, time) {
       }
       ctx.translate(-s.x, -s.y);
     }
-    Assets.drawCreature(ctx, 'player', p.heading, entityAnim(p), time + p.id * 137, s.x, s.y,
+    Assets.drawCreature(ctx, kind, p.heading, entityAnim(p), time + p.id * 137, s.x, s.y,
       1, overlays);
     if (flinch) {
       ctx.filter = 'brightness(2.6)';
-      Assets.drawCreature(ctx, 'player', p.heading, entityAnim(p), time + p.id * 137, s.x, s.y,
+      Assets.drawCreature(ctx, kind, p.heading, entityAnim(p), time + p.id * 137, s.x, s.y,
         1, overlays);
       ctx.filter = 'none';
     }

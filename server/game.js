@@ -805,9 +805,11 @@ class Game {
         };
         // A chosen calling shapes the start; no calling keeps the old spread.
         const call = CALLINGS[String(msg.calling || '')] || null;
+        const calling = call ? String(msg.calling) : null;
         const stats = call || { str: 35, dex: 35, int: 30 };
         rec = this.records[key] = {
           name,
+          calling,
           x: this.map.spawn.x,
           y: this.map.spawn.y,
           str: stats.str, dex: stats.dex, int: stats.int,
@@ -873,6 +875,7 @@ class Game {
       offhand: rec.offhand ?? null,
       arrows: rec.arrows || 0,
       home: rec.home || null,
+      calling: rec.calling || null,
       // POI keys this traveller has walked near; the map fills in for good
       discovered: Array.isArray(rec.discovered)
         ? rec.discovered.filter((k) => typeof k === 'string') : [],
@@ -932,6 +935,7 @@ class Game {
       runestones: this.runestones.map((rs) => ({ key: rs.key, name: rs.name })),
       runes: p.runes,
       projects: this.growth.sites,
+      calling: p.calling || null,
       // sx,sy is the city's resurrection ankh — the dead need it on their map
       cities: (this.map.cities || []).map((c) => ({ name: c.name, x: c.x, y: c.y, r: c.r, sx: c.sx, sy: c.sy })),
       epoch: Date.now(),
@@ -997,6 +1001,7 @@ class Game {
       home: p.home ? { ...p.home } : null,
       discovered: (p.discovered || []).slice(),
       runes: (p.runes || []).slice(),
+      calling: p.calling || null,
       itemUid: p.itemUid,
       boons: (p.boons || []).slice(),
       boonKills: p.boonKills || 0,
@@ -3518,6 +3523,7 @@ class Game {
             hp: q.hp, maxhp: maxHp(q), dead: q.dead,
             a: t - (q.swungAt || 0) < 600 ? 1 : 0,
             w: gear('weapon'), ar: gear('armor'), oh: gear('offhand'),
+            c: q.calling || undefined,
           };
         }),
         mobs: mobs.filter(near).map((m) => ({
