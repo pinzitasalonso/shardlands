@@ -1847,6 +1847,26 @@ game.applyEditsLive({ tiles: [[spot.x + 20, spot.y, 99]] });
 assert.strictEqual(game.map.tiles[spot.y * game.map.w + spot.x + 20], TILE.STONEROAD,
   'nonsense tile ids never paint (the stone road stays)');
 
+// Discovery: villages and landmarks join a traveller's map only once walked
+// near, and stay there for good.
+{
+  const dp = ws.player;
+  assert(Array.isArray(dp.discovered), 'players carry a discovery list');
+  assert(game.pois.some((o) => o.kind === 'village') &&
+    game.pois.some((o) => o.kind === 'landmark'), 'the world has villages and landmarks to find');
+  const vpoi = game.pois.find((o) => o.kind === 'village' && !dp.discovered.includes(o.key));
+  dp.x = vpoi.x;
+  dp.y = vpoi.y;
+  ws.sent.length = 0;
+  game.arriveAt(dp, Date.now());
+  assert(dp.discovered.includes(vpoi.key), 'walking into a village discovers it');
+  assert(ws.sent.some((m) => m.t === 'discover' && m.poi.name === vpoi.name),
+    'and the traveller hears of the find');
+  game.arriveAt(dp, Date.now());
+  assert.strictEqual(dp.discovered.filter((key) => key === vpoi.key).length, 1,
+    'a place discovers only once');
+}
+
 // Diagonal movement is normalised: a diagonal mob step covers √2 tiles, so it
 // must cost √2× the base interval (like the player's 118/165ms strides) — mobs
 // no longer sprint 41% faster whenever they chase on a diagonal.
