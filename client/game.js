@@ -76,6 +76,7 @@ const state = {
   landmarks: [],        // great ruins and lairs found by travel
   runestones: [],       // the travel network: { key, name }
   runes: new Set(),     // stones this character is attuned to
+  projects: {},         // builder-site tallies: "x,y" -> { houses, logs, ore }
   cities: [],           // walled bastions: safe ground, bindable shrines
   me: null,             // my entry in players
   you: null,            // private stats from the server
@@ -174,6 +175,7 @@ function handleMessage(msg) {
       state.landmarks = msg.landmarks || [];
       state.runestones = msg.runestones || [];
       state.runes = new Set(msg.runes || []);
+      state.projects = msg.projects || {};
       state.cities = msg.cities || [];
       state.mini = msg.mini;
       buildMinimap();
@@ -276,6 +278,12 @@ function handleMessage(msg) {
       // a fresh attunement: refresh the travel panel if it's open
       state.runes = new Set(msg.runes || []);
       if (!document.getElementById('runepanel').classList.contains('hidden')) buildRunePanel();
+      break;
+    case 'project':
+      // the town's tally moved; redraw the builder's ledger if we're in it
+      state.projects[msg.key] = msg.site;
+      if (state.shopVendor && state.shopVendor.builder &&
+          !shopPanel.classList.contains('hidden')) openShop(state.shopVendor);
       break;
     case 'vendors':
       state.vendors = msg.vendors || [];
@@ -1198,6 +1206,20 @@ function openShop(vendor) {
          </div>`).join('');
     }
   }
+  // The builder's ledger: what this house still needs, and a way to give.
+  let build = '';
+  if (vendor.builder) {
+    const s = (state.projects || {})[vendor.x + ',' + vendor.y] || { houses: 0, logs: 0, ore: 0 };
+    const needLogs = 20 + s.houses * 10;
+    const needOre = s.houses ? 5 + s.houses * 5 : 0;
+    const y = state.you || {};
+    build = '<div class="shop-title" style="margin-top:10px">Town project</div>' +
+      (s.houses >= 5
+        ? '<div class="shop-row"><span>The town is fully built — for now.</span></div>'
+        : `<div class="shop-row"><span>Cottage #${s.houses + 1}<small>logs ${s.logs}/${needLogs}${needOre ? ' · ore ' + s.ore + '/' + needOre : ''} · houses raised: ${s.houses}</small></span></div>
+           <div class="shop-row"><span>🪵 Logs you carry: ${y.logs ?? 0}<small>2 gp each</small></span><button data-contribute="logs">Give logs</button></div>` +
+          (needOre ? `<div class="shop-row"><span>🪨 Ore you carry: ${y.ore ?? 0}<small>3 gp each</small></span><button data-contribute="ore">Give ore</button></div>` : ''));
+  }
   const bond = `<span class="shop-bond">
       <button data-talk="${vendor.id}" title="Talk">💬</button>
       <button data-gift="${vendor.id}:fish" title="Gift a fish">🐟</button>
@@ -1206,7 +1228,7 @@ function openShop(vendor) {
     </span>`;
   shopPanel.innerHTML =
     `<div class="shop-title">${esc(vendor.name)}${friendly ? ' · friend\'s prices' : ''}${bond}</div>
-     ${lines}${forge}${bench}
+     ${lines}${forge}${bench}${build}
      <button class="shop-close">Close</button>`;
   shopPanel.classList.remove('hidden');
 }
@@ -1221,6 +1243,7 @@ shopPanel.addEventListener('click', (ev) => {
   if (ev.target.dataset.idx !== undefined) send({ t: 'buy', idx: ev.target.dataset.idx | 0 });
   if (ev.target.dataset.craft) send({ t: 'craft', id: ev.target.dataset.craft });
   if (ev.target.dataset.brew) send({ t: 'brew', kind: ev.target.dataset.brew });
+  if (ev.target.dataset.contribute) send({ t: 'contribute', kind: ev.target.dataset.contribute });
   if (ev.target.dataset.salvage) send({ t: 'salvage', uid: ev.target.dataset.salvage | 0 });
   if (ev.target.dataset.imbue) {
     const [uid, brand] = ev.target.dataset.imbue.split(':');

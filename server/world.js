@@ -1320,6 +1320,7 @@ function sanitizeEdits(map, edits, { validKinds, validWeapons } = {}) {
         goods: sanitizeGoods(v.goods, validWeapons) };
       if (typeof v.model === 'string' && /^[a-z0-9]{1,24}$/.test(v.model)) o.model = v.model;
       if (v.forge === true) o.forge = true;
+      if (v.builder === true) o.builder = true;
       if (typeof v.greeting === 'string' && v.greeting.trim()) {
         o.greeting = v.greeting.trim().slice(0, 140);
       }

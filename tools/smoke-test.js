@@ -1903,6 +1903,35 @@ assert.strictEqual(game.map.tiles[spot.y * game.map.w + spot.x + 20], TILE.STONE
     'a second hop straight away is refused by the cooldown');
 }
 
+// Town growth: bring the builder materials and the town raises a cottage.
+{
+  const bp = ws.player;
+  const builder = game.map.vendors.find((v) => v.builder);
+  assert(builder, 'every city keeps a builder');
+  // out of reach: refused
+  bp.x = builder.x + 20;
+  bp.y = builder.y;
+  bp.logs = 25;
+  ws.sent.length = 0;
+  game.handleContribute(bp, 'logs');
+  assert(bp.logs === 25 && ws.sent.some((m) => /no builder near/i.test(m.text || '')),
+    'a distant builder takes nothing');
+  // hand over a first batch
+  bp.x = builder.x + 1;
+  bp.y = builder.y;
+  const goldBefore = bp.gold;
+  game.handleContribute(bp, 'logs');
+  const key = builder.x + ',' + builder.y;
+  assert.strictEqual(bp.logs, 5, 'only the 20 logs the house needed are taken');
+  assert.strictEqual(bp.gold, goldBefore + 40, 'the builder pays 2 gp a log');
+  // the first house needs no ore, so it completes on the spot
+  assert.strictEqual(game.growth.sites[key].houses, 1, 'the cottage is raised');
+  assert(game.map.props.some((pr) => /^prop\.cottage/.test(pr.name) &&
+    game.growth.built.some((b2) => b2.x === pr.x && b2.y === pr.y)),
+    'the cottage stands in the world and in the ledger');
+  assert.strictEqual(game.growth.sites[key].logs, 0, 'the tally resets for the next house');
+}
+
 // Diagonal movement is normalised: a diagonal mob step covers √2 tiles, so it
 // must cost √2× the base interval (like the player's 118/165ms strides) — mobs
 // no longer sprint 41% faster whenever they chase on a diagonal.
