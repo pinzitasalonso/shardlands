@@ -590,16 +590,30 @@ def build_topdown_heroic(frames, images_out):
     images_out['fringe16'] = 'fringe16.png'
     images_out['fringe16c'] = 'fringe16c.png'
 
-    # Mountains the pack's way: the brown 3x3 interlocking peak block tiles
-    # into solid ranges when cells are picked by map position, and its
-    # transparent gaps let the grass beneath show through at the edges.
+    # Mountains, corrected: the pack's peak block (rows 22-24) is a complete
+    # hand-drawn RANGE with feathered edges, not a repeating 3x3 — tiling it
+    # blindly stamped its empty corner and sky gaps into the middle of every
+    # ridge. Bake the range as three BANDS (crowns / flanks / feet, one row
+    # each) of four cells: a left flank, two interior columns and a right
+    # flank. The renderer picks the band by vertical neighbours and the cell
+    # by horizontal ones, so ranges of any shape read as solid mountains.
+    # Cell picks are MEASURED, not guessed: col 3 tiles seamlessly against
+    # itself in the flank and feet rows (16/16 edge-pixel continuity) and
+    # stacks perfectly through all three rows; the flanks below scored 15-16
+    # against it. (left, interior, interior, right) per band.
     trees = sheets['TREES']
-    peaks = Image.new('RGBA', (9 * TD, TD), (0, 0, 0, 0))
-    for i in range(9):
-        cx, cy = i % 3, 22 + i // 3
-        peaks.paste(trees.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16)), (i * TD, 0))
-        frames[f'td.mtn.{i}'] = {'img': 'peaks16', 'x': i * TD, 'y': 0,
-                                 'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+    MTN_BANDS = [('t', 22, [2, 3, 3, 5]), ('m', 23, [1, 3, 3, 6]), ('b', 24, [2, 3, 3, 6])]
+    peaks = Image.new('RGBA', (13 * TD, TD), (0, 0, 0, 0))
+    for bi, (band, cy, cols) in enumerate(MTN_BANDS):
+        for ci, cx in enumerate(cols):
+            i = bi * 4 + ci
+            peaks.paste(trees.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16)), (i * TD, 0))
+            frames[f'td.mtn.{band}.{ci}'] = {'img': 'peaks16', 'x': i * TD, 'y': 0,
+                                             'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+    # a lone standalone peak for one-tile-high ridges
+    peaks.paste(trees.crop((1 * 16, 22 * 16, 1 * 16 + 16, 22 * 16 + 16)), (12 * TD, 0))
+    frames['td.mtn.lone'] = {'img': 'peaks16', 'x': 12 * TD, 'y': 0,
+                             'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
     peaks.save(os.path.join(OUT, 'peaks16.png'))
     images_out['peaks16'] = 'peaks16.png'
 
@@ -764,7 +778,10 @@ def build_topdown_heroic(frames, images_out):
                   ['td.o.dead0', 'td.o.dead1', 'td.o.pine1'],
               ]},
         # mountains sit straight on the grass, ranges of interlocking peaks
-        '3': {'ground': g('grass'), 'peaks': [f'td.mtn.{i}' for i in range(9)]},
+        '3': {'ground': g('grass'),
+              'peaks': {'lone': 'td.mtn.lone',
+                        **{band: [f'td.mtn.{band}.{ci}' for ci in range(4)]
+                           for band in ('t', 'm', 'b')}}},
         '4': {'ground': g('road'), 'autoroadq': {'tile': 4, 'q': 'td.rq', 'c': 'td.rd'}},
         '5': {'ground': g('floor')},
         '6': {'ground': g('grass'), 'autowall': autowall},

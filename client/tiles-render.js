@@ -114,10 +114,30 @@ const GroundRender = (() => {
         Assets.drawGround(ctx, recipe, h, sx, sy);
       }
     }
-    // mountain ranges: interlocking peak cells picked by map position,
-    // grass showing through the gaps exactly like the pack's own maps
+    // Mountain ranges: the pack's peak block is a complete range with
+    // feathered edges, so cells are picked by NEIGHBOURS, not raw position —
+    // crowns where no rock stands above, feet where none stands below,
+    // flank cells at the sides, and interlocking interior in between.
     if (recipe.peaks) {
-      Assets.drawFrame(ctx, recipe.peaks[(tx % 3) + (ty % 3) * 3], sx, sy);
+      const P = recipe.peaks;
+      if (Array.isArray(P)) {
+        // a stale cached manifest still carries the old 3x3 block
+        Assets.drawFrame(ctx, P[(tx % 3) + (ty % 3) * 3], sx, sy);
+      } else {
+        const rock = (nx, ny) => tileAt(nx, ny) === tile;
+        const up = rock(tx, ty - 1);
+        const dn = rock(tx, ty + 1);
+        let f;
+        if (!up && !dn) {
+          f = P.lone; // a one-tile-high ridge: a run of lone crowns
+        } else {
+          const band = !up ? P.t : !dn ? P.b : P.m;
+          f = !rock(tx - 1, ty) ? band[0]
+            : !rock(tx + 1, ty) ? band[3]
+            : band[1 + (tx % 2)];
+        }
+        Assets.drawFrame(ctx, f, sx, sy);
+      }
     }
 
     // Soft biome seams: a higher-priority neighbour lays its tufty

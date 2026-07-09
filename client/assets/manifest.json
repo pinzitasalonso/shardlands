@@ -25265,47 +25265,57 @@
    "x": 112,
    "y": 144
   },
-  "td.mtn.0": {
+  "td.mtn.b.0": {
    "ax": 0,
    "ay": 0,
    "h": 16,
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 0,
+   "x": 128,
    "y": 0
   },
-  "td.mtn.1": {
+  "td.mtn.b.1": {
    "ax": 0,
    "ay": 0,
    "h": 16,
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 16,
+   "x": 144,
    "y": 0
   },
-  "td.mtn.2": {
+  "td.mtn.b.2": {
    "ax": 0,
    "ay": 0,
    "h": 16,
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 32,
+   "x": 160,
    "y": 0
   },
-  "td.mtn.3": {
+  "td.mtn.b.3": {
    "ax": 0,
    "ay": 0,
    "h": 16,
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 48,
+   "x": 176,
    "y": 0
   },
-  "td.mtn.4": {
+  "td.mtn.lone": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 192,
+   "y": 0
+  },
+  "td.mtn.m.0": {
    "ax": 0,
    "ay": 0,
    "h": 16,
@@ -25315,7 +25325,7 @@
    "x": 64,
    "y": 0
   },
-  "td.mtn.5": {
+  "td.mtn.m.1": {
    "ax": 0,
    "ay": 0,
    "h": 16,
@@ -25325,7 +25335,7 @@
    "x": 80,
    "y": 0
   },
-  "td.mtn.6": {
+  "td.mtn.m.2": {
    "ax": 0,
    "ay": 0,
    "h": 16,
@@ -25335,7 +25345,7 @@
    "x": 96,
    "y": 0
   },
-  "td.mtn.7": {
+  "td.mtn.m.3": {
    "ax": 0,
    "ay": 0,
    "h": 16,
@@ -25345,14 +25355,44 @@
    "x": 112,
    "y": 0
   },
-  "td.mtn.8": {
+  "td.mtn.t.0": {
    "ax": 0,
    "ay": 0,
    "h": 16,
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 128,
+   "x": 0,
+   "y": 0
+  },
+  "td.mtn.t.1": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 16,
+   "y": 0
+  },
+  "td.mtn.t.2": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 32,
+   "y": 0
+  },
+  "td.mtn.t.3": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 48,
    "y": 0
   },
   "td.o.alchemistlab": {
@@ -37411,17 +37451,27 @@
     "td.g.grass.2",
     "td.g.grass.3"
    ],
-   "peaks": [
-    "td.mtn.0",
-    "td.mtn.1",
-    "td.mtn.2",
-    "td.mtn.3",
-    "td.mtn.4",
-    "td.mtn.5",
-    "td.mtn.6",
-    "td.mtn.7",
-    "td.mtn.8"
-   ]
+   "peaks": {
+    "b": [
+     "td.mtn.b.0",
+     "td.mtn.b.1",
+     "td.mtn.b.2",
+     "td.mtn.b.3"
+    ],
+    "lone": "td.mtn.lone",
+    "m": [
+     "td.mtn.m.0",
+     "td.mtn.m.1",
+     "td.mtn.m.2",
+     "td.mtn.m.3"
+    ],
+    "t": [
+     "td.mtn.t.0",
+     "td.mtn.t.1",
+     "td.mtn.t.2",
+     "td.mtn.t.3"
+    ]
+   }
   },
   "4": {
    "autoroadq": {
