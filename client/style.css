@@ -679,8 +679,8 @@ button { font-family: inherit; cursor: pointer; }
 }
 
 #worldmap-canvas {
-  width: min(80vh, 80vw);
-  height: min(80vh, 80vw);
+  width: min(94vh, 94vw);
+  height: min(94vh, 94vw);
   border: 2px solid var(--gold-dim);
   border-radius: 6px;
   box-shadow: 0 0 0 4px #241b10, 0 12px 60px rgba(0, 0, 0, 0.8);
@@ -826,7 +826,7 @@ button { font-family: inherit; cursor: pointer; }
 
   /* dialogs fit the screen */
   #shop, #inventory, #settings, #charsheet { width: min(330px, calc(100vw - 16px)); max-height: 72vh; }
-  #worldmap-canvas { width: min(92vw, 80vh); height: min(92vw, 80vh); }
+  #worldmap-canvas { width: min(96vw, 88vh); height: min(96vw, 88vh); }
 
   /* login card */
   .login-box { padding: 22px 18px; margin: 0 10px; }

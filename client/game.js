@@ -72,7 +72,8 @@ const state = {
   vendors: [],          // static shopkeepers from the welcome message
   drops: [],            // loot lying on the ground
   props: [],            // furniture inside buildings (client-side dressing)
-  villages: [],         // named settlements, for the world map
+  villages: [],         // named settlements, for the world map (discovered only)
+  landmarks: [],        // great ruins and lairs found by travel
   cities: [],           // walled bastions: safe ground, bindable shrines
   me: null,             // my entry in players
   you: null,            // private stats from the server
@@ -168,6 +169,7 @@ function handleMessage(msg) {
       state.tileVariants = new Map((msg.tileVariants || []).map(([x, y, v]) => [x + ',' + y, v]));
       state.props = msg.props || [];
       state.villages = msg.villages || [];
+      state.landmarks = msg.landmarks || [];
       state.cities = msg.cities || [];
       state.mini = msg.mini;
       buildMinimap();
@@ -261,6 +263,10 @@ function handleMessage(msg) {
     case 'props':
       // The world builder redressed the world while we stand in it.
       state.props = msg.props || [];
+      break;
+    case 'discover':
+      // A place found is a place kept: it joins the world map at once.
+      (msg.poi.kind === 'village' ? state.villages : state.landmarks).push(msg.poi);
       break;
     case 'vendors':
       state.vendors = msg.vendors || [];
@@ -720,47 +726,65 @@ function toggleWorldMap() {
   g.clearRect(0, 0, cv.width, cv.height);
   g.drawImage(off, 0, 0, cv.width, cv.height);
   const k = cv.width / (state.mini.w * state.mini.s);
-  g.font = 'bold 13px Georgia';
+  g.font = 'bold 19px Georgia';
   g.textAlign = 'center';
   for (const v of state.villages) {
     g.fillStyle = '#120d08';
-    g.fillText(v.name, v.x * k + 1, v.y * k - 5);
+    g.fillText(v.name, v.x * k + 1, v.y * k - 8);
     g.fillStyle = '#f4e9c8';
-    g.fillText(v.name, v.x * k, v.y * k - 6);
+    g.fillText(v.name, v.x * k, v.y * k - 9);
     g.fillStyle = '#d8b35e';
-    g.fillRect(v.x * k - 2, v.y * k - 2, 4, 4);
+    g.fillRect(v.x * k - 3, v.y * k - 3, 6, 6);
   }
-  // cities get the big letters and a keep icon — they're the safe harbours
-  g.font = 'bold 16px Georgia';
-  for (const c of state.cities) {
+  // landmarks found by travel: dark-red waymarks with an italic hand
+  g.font = 'italic 17px Georgia';
+  for (const l of state.landmarks) {
     g.fillStyle = '#120d08';
-    g.fillText(c.name, c.x * k + 1, c.y * k - 8);
-    g.fillStyle = '#ffe9a8';
-    g.fillText(c.name, c.x * k, c.y * k - 9);
-    g.fillStyle = '#e8c25e';
-    g.fillRect(c.x * k - 3, c.y * k - 3, 6, 6);
-    g.strokeStyle = '#120d08';
-    g.strokeRect(c.x * k - 3.5, c.y * k - 3.5, 7, 7);
-  }
-  // a ghost sees every resurrection ankh marked in gold
-  if (state.you && state.you.dead) {
-    g.font = 'bold 20px serif';
-    for (const c of state.cities) {
-      if (c.sx == null) continue;
-      g.fillStyle = '#120d08';
-      g.fillText('☥', c.sx * k + 1, c.sy * k + 8);
-      g.fillStyle = '#ffe08a';
-      g.fillText('☥', c.sx * k, c.sy * k + 7);
-    }
-  }
-  g.font = 'bold 13px Georgia';
-  if (state.myTile) {
-    g.fillStyle = '#ffffff';
+    g.fillText(l.name, l.x * k + 1, l.y * k - 8);
+    g.fillStyle = '#e8b9a2';
+    g.fillText(l.name, l.x * k, l.y * k - 9);
+    g.fillStyle = '#c05a3a';
     g.beginPath();
-    g.arc(state.myTile.x * k, state.myTile.y * k, 4, 0, Math.PI * 2);
+    g.moveTo(l.x * k, l.y * k - 5);
+    g.lineTo(l.x * k + 5, l.y * k + 3);
+    g.lineTo(l.x * k - 5, l.y * k + 3);
+    g.closePath();
     g.fill();
     g.strokeStyle = '#120d08';
     g.stroke();
+  }
+  // cities get the big letters and a keep icon — they're the safe harbours
+  g.font = 'bold 24px Georgia';
+  for (const c of state.cities) {
+    g.fillStyle = '#120d08';
+    g.fillText(c.name, c.x * k + 1, c.y * k - 12);
+    g.fillStyle = '#ffe9a8';
+    g.fillText(c.name, c.x * k, c.y * k - 13);
+    g.fillStyle = '#e8c25e';
+    g.fillRect(c.x * k - 4, c.y * k - 4, 9, 9);
+    g.strokeStyle = '#120d08';
+    g.strokeRect(c.x * k - 4.5, c.y * k - 4.5, 10, 10);
+  }
+  // a ghost sees every resurrection ankh marked in gold
+  if (state.you && state.you.dead) {
+    g.font = 'bold 30px serif';
+    for (const c of state.cities) {
+      if (c.sx == null) continue;
+      g.fillStyle = '#120d08';
+      g.fillText('☥', c.sx * k + 1, c.sy * k + 12);
+      g.fillStyle = '#ffe08a';
+      g.fillText('☥', c.sx * k, c.sy * k + 11);
+    }
+  }
+  if (state.myTile) {
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    g.arc(state.myTile.x * k, state.myTile.y * k, 6, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = '#120d08';
+    g.lineWidth = 2;
+    g.stroke();
+    g.lineWidth = 1;
   }
   g.textAlign = 'left';
 }

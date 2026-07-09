@@ -587,6 +587,27 @@ class Game {
       if (this.map.tiles[i] !== TILE.SHRINE) { this.map.tiles[i] = TILE.SHRINE; ankhsRestored++; }
     }
     if (ankhsRestored) console.log(`restored ${ankhsRestored} city resurrection ankh(s)`);
+    // Places a traveller can DISCOVER: villages and the great landmarks
+    // worldgen scattered. They appear on a player's world map only once
+    // walked near (arriveAt), and stay there for good. The four crown
+    // cities are famous — everyone's map starts with those.
+    const LANDMARK_NAMES = {
+      keep: 'the Old Keep', ruins: 'Ancient Ruins', graveyard: 'the Barrow-fields',
+      dragoncity: 'the Dragon Roost', snakelair: 'the Serpent Warren',
+      daemoncave: 'the Daemon Cave', dwarffortress: 'the Dwarf Fortress',
+      bloodtemple: 'the Blood Temple',
+    };
+    this.pois = [
+      ...this.map.villages.map((v) => (
+        { key: 'v:' + v.name, kind: 'village', name: v.name, x: v.x, y: v.y, r: 12 })),
+      ...this.map.props
+        .filter((pr) => LANDMARK_NAMES[(pr.name || '').replace(/^prop\./, '')])
+        .map((pr) => {
+          const kind = pr.name.replace(/^prop\./, '');
+          return { key: `l:${kind}:${pr.x},${pr.y}`, kind: 'landmark',
+            name: LANDMARK_NAMES[kind], x: pr.x, y: pr.y, r: 10 };
+        }),
+    ];
     this.players = new Map(); // id -> player (online only)
     this.mobs = new Map();    // id -> mob
     this.nextId = 1;
@@ -782,6 +803,9 @@ class Game {
       offhand: rec.offhand ?? null,
       arrows: rec.arrows || 0,
       home: rec.home || null,
+      // POI keys this traveller has walked near; the map fills in for good
+      discovered: Array.isArray(rec.discovered)
+        ? rec.discovered.filter((k) => typeof k === 'string') : [],
       buffUntil: 0,
       itemUid: rec.itemUid || 1,
       dead: false,
@@ -823,7 +847,14 @@ class Game {
         return [x, y, v];
       }),
       props: this.map.props,
-      villages: this.map.villages.map((v) => ({ name: v.name, x: v.x, y: v.y })),
+      // only the places this traveller has actually found; the rest of the
+      // world map stays blank until they walk it (cities are always known)
+      villages: this.pois
+        .filter((o) => o.kind === 'village' && p.discovered.includes(o.key))
+        .map((v) => ({ name: v.name, x: v.x, y: v.y })),
+      landmarks: this.pois
+        .filter((o) => o.kind === 'landmark' && p.discovered.includes(o.key))
+        .map((l) => ({ name: l.name, x: l.x, y: l.y })),
       // sx,sy is the city's resurrection ankh — the dead need it on their map
       cities: (this.map.cities || []).map((c) => ({ name: c.name, x: c.x, y: c.y, r: c.r, sx: c.sx, sy: c.sy })),
       epoch: Date.now(),
@@ -887,6 +918,7 @@ class Game {
       offhand: p.offhand,
       arrows: p.arrows,
       home: p.home ? { ...p.home } : null,
+      discovered: (p.discovered || []).slice(),
       itemUid: p.itemUid,
       boons: (p.boons || []).slice(),
       boonKills: p.boonKills || 0,
@@ -1373,6 +1405,16 @@ class Game {
           ? `The shrine of ${c.name} accepts you. /home will carry you back here.`
           : 'The shrine hums softly. /home will carry you back here.');
       }
+    }
+    // The map fills in as you travel: come within sight of a village or
+    // landmark and it takes its place on your world map for good.
+    for (const poi of this.pois) {
+      if (Math.abs(p.x - poi.x) > poi.r || Math.abs(p.y - poi.y) > poi.r) continue;
+      if (p.discovered.includes(poi.key)) continue;
+      p.discovered.push(poi.key);
+      this.sys(p, `You discover ${poi.name} — it is marked on your map.`);
+      this.send(p.ws, { t: 'discover',
+        poi: { kind: poi.kind, name: poi.name, x: poi.x, y: poi.y } });
     }
     // Ghosts may use the portals too — a shade must be able to climb out
     // of the deeps to reach a shrine — but the world only whispers to,
