@@ -1867,6 +1867,42 @@ assert.strictEqual(game.map.tiles[spot.y * game.map.w + spot.x + 20], TILE.STONE
     'a place discovers only once');
 }
 
+// Rune transport: touch a stone to attune, then travel between attuned stones.
+{
+  const rp = ws.player;
+  assert(game.runestones.length >= (game.map.cities.length + game.map.villages.length),
+    'every city and village keeps a runestone');
+  const [stoneA, stoneB] = game.runestones;
+  // walking beside a stone attunes
+  rp.x = stoneA.x + 1;
+  rp.y = stoneA.y;
+  ws.sent.length = 0;
+  game.arriveAt(rp, Date.now());
+  assert(rp.runes.includes(stoneA.key), 'standing at a runestone attunes you');
+  assert(ws.sent.some((m) => m.t === 'runes'), 'the attunement reaches the client');
+  // travel to an unattuned stone is refused
+  ws.sent.length = 0;
+  game.handleRuneTravel(rp, stoneB.key);
+  assert(rp.x === stoneA.x + 1 && ws.sent.some((m) => /not attuned/.test(m.text || '')),
+    'an unattuned destination is refused');
+  // attune B by touch, come back to A, travel to B
+  rp.x = stoneB.x;
+  rp.y = stoneB.y + 1;
+  game.arriveAt(rp, Date.now());
+  assert(rp.runes.includes(stoneB.key), 'the second stone attunes too');
+  rp.x = stoneA.x;
+  rp.y = stoneA.y + 1;
+  rp.runeAt = 0;
+  game.handleRuneTravel(rp, stoneB.key);
+  assert(Math.max(Math.abs(rp.x - stoneB.x), Math.abs(rp.y - stoneB.y)) <= 3,
+    'rune travel carries you to the destination stone');
+  // the cooldown holds
+  ws.sent.length = 0;
+  game.handleRuneTravel(rp, stoneA.key);
+  assert(ws.sent.some((m) => /gathering its strength/.test(m.text || '')),
+    'a second hop straight away is refused by the cooldown');
+}
+
 // Diagonal movement is normalised: a diagonal mob step covers √2 tiles, so it
 // must cost √2× the base interval (like the player's 118/165ms strides) — mobs
 // no longer sprint 41% faster whenever they chase on a diagonal.

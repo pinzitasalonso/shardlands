@@ -74,6 +74,8 @@ const state = {
   props: [],            // furniture inside buildings (client-side dressing)
   villages: [],         // named settlements, for the world map (discovered only)
   landmarks: [],        // great ruins and lairs found by travel
+  runestones: [],       // the travel network: { key, name }
+  runes: new Set(),     // stones this character is attuned to
   cities: [],           // walled bastions: safe ground, bindable shrines
   me: null,             // my entry in players
   you: null,            // private stats from the server
@@ -170,6 +172,8 @@ function handleMessage(msg) {
       state.props = msg.props || [];
       state.villages = msg.villages || [];
       state.landmarks = msg.landmarks || [];
+      state.runestones = msg.runestones || [];
+      state.runes = new Set(msg.runes || []);
       state.cities = msg.cities || [];
       state.mini = msg.mini;
       buildMinimap();
@@ -267,6 +271,11 @@ function handleMessage(msg) {
     case 'discover':
       // A place found is a place kept: it joins the world map at once.
       (msg.poi.kind === 'village' ? state.villages : state.landmarks).push(msg.poi);
+      break;
+    case 'runes':
+      // a fresh attunement: refresh the travel panel if it's open
+      state.runes = new Set(msg.runes || []);
+      if (!document.getElementById('runepanel').classList.contains('hidden')) buildRunePanel();
       break;
     case 'vendors':
       state.vendors = msg.vendors || [];
@@ -788,6 +797,43 @@ function toggleWorldMap() {
   }
   g.textAlign = 'left';
 }
+
+// ---- rune travel -----------------------------------------------------------------
+// Stand beside a runestone and the travel panel opens by itself; step away
+// and it folds shut. Travelling is one tap on any attuned stone.
+
+function nearRunestone() {
+  if (!state.myTile) return false;
+  return state.props.some((pr) => pr.name === 'prop.runestone' &&
+    Math.abs(pr.x - state.myTile.x) <= 1 && Math.abs(pr.y - state.myTile.y) <= 1);
+}
+
+function buildRunePanel() {
+  const panel = document.getElementById('runepanel');
+  const stones = state.runestones.filter((rs) => state.runes.has(rs.key));
+  panel.innerHTML = '<div class="shop-title">Runestone</div>' +
+    (stones.length > 1
+      ? '<div class="rune-list">' + stones.map((rs) =>
+          `<button class="rune-go" data-key="${rs.key}">◈ ${rs.name}</button>`).join('') + '</div>'
+      : '<div class="rune-hint">This stone knows you. Attune more runestones — every town keeps one — and travel between them from here.</div>');
+  panel.classList.remove('hidden');
+}
+
+document.getElementById('runepanel').addEventListener('click', (ev) => {
+  const b = ev.target.closest('.rune-go');
+  if (b) {
+    send({ t: 'runetravel', key: b.dataset.key });
+    document.getElementById('runepanel').classList.add('hidden');
+  }
+});
+
+setInterval(() => {
+  const panel = document.getElementById('runepanel');
+  if (!state.me || !panel) return;
+  const at = nearRunestone() && !(state.you && state.you.dead);
+  if (at && panel.classList.contains('hidden')) buildRunePanel();
+  else if (!at && !panel.classList.contains('hidden')) panel.classList.add('hidden');
+}, 300);
 
 function toggleSettings() {
   const panel = document.getElementById('settings');

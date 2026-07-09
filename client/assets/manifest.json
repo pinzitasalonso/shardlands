@@ -29858,6 +29858,16 @@
    "x": 288,
    "y": 32
   },
+  "td.o.runestone": {
+   "ax": 8,
+   "ay": 16,
+   "h": 16,
+   "img": "drops16",
+   "scale": 3,
+   "w": 16,
+   "x": 96,
+   "y": 0
+  },
   "td.o.sanddecor0": {
    "ax": 8,
    "ay": 16,

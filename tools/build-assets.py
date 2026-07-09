@@ -1926,13 +1926,44 @@ ANKH_ART = [
 ]
 
 
+# The road-wardens' runestone: a weathered monolith cut with glowing cyan
+# runes — the waypoints of the rune transport network.
+RUNE_PAL = {
+    '.': None,
+    'O': (30, 30, 40, 255), '*': (232, 255, 255, 255),
+    'S': (172, 176, 192, 255), 's': (128, 132, 150, 255), 'D': (86, 90, 108, 255),
+    'C': (110, 232, 236, 255), 'c': (52, 168, 186, 255),
+    'm': (94, 128, 74, 255),   # moss at the foot
+}
+
+RUNE_ART = [
+    '.....OOOOO......',
+    '....OSSSsDO.....',
+    '...OSS*SsDO.....',
+    '...OSCcSsDO.....',
+    '...OSScCsDO.....',
+    '..OSSCcSssDO....',
+    '..OSSSSCcsDO....',
+    '..OSCcSSssDO....',
+    '..OSSSCcssDO....',
+    '.OSSCcSSsssDO...',
+    '.OSSSSSCcssDO...',
+    '.OSSCcSSsssDO...',
+    '.OSSSSSssssDO...',
+    'OmSSSssssssDmO..',
+    'OmmOOOOOOOOmmO..',
+    '.OOO......OOO...',
+]
+
+
 def build_drops(frames, images_out):
     """Bake the pixel-art ground-loot sprites into one strip; each is an
     anchored td.drop.<item> frame the client draws where loot falls. The
-    resurrection ankh rides along as the strip's last cell — a bottom-anchored
-    monument drawn at world-object scale."""
+    resurrection ankh and the runestone ride along as the strip's last cells —
+    bottom-anchored monuments drawn at world-object scale."""
     names = list(DROP_ART)
-    atlas = Image.new('RGBA', (16 * (len(names) + 1), 16), (0, 0, 0, 0))
+    monuments = [('ankh', ANKH_ART, ANKH_PAL), ('runestone', RUNE_ART, RUNE_PAL)]
+    atlas = Image.new('RGBA', (16 * (len(names) + len(monuments)), 16), (0, 0, 0, 0))
     for i, name in enumerate(names):
         for y, row in enumerate(DROP_ART[name]):
             assert len(row) == 16 and len(DROP_ART[name]) == 16, f'{name} bad shape'
@@ -1943,15 +1974,16 @@ def build_drops(frames, images_out):
         # centre anchor at 2x, so a drop sits over the tile where it fell
         frames[f'td.drop.{name}'] = {'img': 'drops16', 'x': i * 16, 'y': 0,
                                      'w': 16, 'h': 16, 'ax': 8, 'ay': 8, 'scale': 2}
-    ax = len(names) * 16
-    for y, row in enumerate(ANKH_ART):
-        assert len(row) == 16 and len(ANKH_ART) == 16, 'ankh bad shape'
-        for x, ch in enumerate(row):
-            c = ANKH_PAL[ch]
-            if c:
-                atlas.putpixel((ax + x, y), c)
-    frames['td.o.ankh'] = {'img': 'drops16', 'x': ax, 'y': 0,
-                           'w': 16, 'h': 16, 'ax': 8, 'ay': 16, 'scale': TD_SCALE}
+    for mi, (mname, art, pal) in enumerate(monuments):
+        ax = (len(names) + mi) * 16
+        for y, row in enumerate(art):
+            assert len(row) == 16 and len(art) == 16, f'{mname} bad shape'
+            for x, ch in enumerate(row):
+                c = pal[ch]
+                if c:
+                    atlas.putpixel((ax + x, y), c)
+        frames[f'td.o.{mname}'] = {'img': 'drops16', 'x': ax, 'y': 0,
+                                   'w': 16, 'h': 16, 'ax': 8, 'ay': 16, 'scale': TD_SCALE}
     atlas.save(os.path.join(OUT, 'drops16.png'))
     images_out['drops16'] = 'drops16.png'
     return names

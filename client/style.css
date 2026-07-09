@@ -688,6 +688,39 @@ button { font-family: inherit; cursor: pointer; }
   background: #0a1828;
 }
 
+#runepanel {
+  position: fixed;
+  left: 50%;
+  bottom: 130px;
+  transform: translateX(-50%);
+  min-width: 220px;
+  max-width: 340px;
+  padding: 12px 14px;
+  background: linear-gradient(165deg, rgba(24, 34, 40, 0.96), rgba(12, 18, 24, 0.96));
+  border: 1px solid #3d6a72;
+  border-radius: 8px;
+  box-shadow: 0 0 18px rgba(80, 200, 220, 0.15), 0 8px 30px rgba(0, 0, 0, 0.6);
+  z-index: 14;
+}
+
+#runepanel .rune-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+
+#runepanel .rune-go {
+  padding: 7px 10px;
+  background: rgba(60, 140, 155, 0.18);
+  border: 1px solid #38626b;
+  border-radius: 5px;
+  color: #a8e4ec;
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+#runepanel .rune-go:hover { background: rgba(80, 190, 210, 0.3); color: #dff8fc; }
+
+#runepanel .rune-hint { margin-top: 8px; font-size: 12px; color: #8fb4bb; line-height: 1.45; }
+
 #settings {
   position: fixed;
   left: 50%;
