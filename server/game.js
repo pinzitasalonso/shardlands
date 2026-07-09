@@ -1052,6 +1052,7 @@ class Game {
       case 'tame': return this.handleTame(p, msg.id | 0);
       case 'dash': return this.handleDash(p, msg.dx | 0, msg.dy | 0);
       case 'runetravel': return this.handleRuneTravel(p, String(msg.key || ''));
+      case 'logout': return this.handleLogout(p);
       case 'contribute': return this.handleContribute(p, String(msg.kind || ''));
       case 'special': return this.handleSpecial(p);
       case 'pray': return this.handlePray(p);
@@ -1583,6 +1584,18 @@ class Game {
     this.saveGrowth();
     this.sendYou(p);
     this.broadcast({ t: 'project', key, site: { ...site } });
+  }
+
+  // A deliberate sign-out burns the account's session token server-side, so
+  // the bearer token saved on other devices can't walk back in.
+  handleLogout(p) {
+    const account = Object.values(this.accounts).find((a) => a.charKey === p.key);
+    if (account && account.token) {
+      delete account.token;
+      persist.saveAccounts(this.accounts);
+    }
+    this.send(p.ws, { t: 'loggedout' });
+    try { p.ws.close(); } catch (e) { /* already gone */ }
   }
 
   // ---- rune transport: stone to attuned stone ----------------------------------
