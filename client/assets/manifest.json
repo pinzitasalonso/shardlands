@@ -2927,6 +2927,81 @@
    "dirs": 8,
    "img": "player"
   },
+  "player_mage": {
+   "anims": {
+    "melee": {
+     "frames": 4,
+     "ms": 130,
+     "start": 8
+    },
+    "run": {
+     "frames": 4,
+     "ms": 150,
+     "start": 4
+    },
+    "stance": {
+     "frames": 1,
+     "ms": 400,
+     "start": 0
+    }
+   },
+   "ax": 24,
+   "ay": 39,
+   "cellH": 48,
+   "cellW": 48,
+   "dirs": 8,
+   "img": "player_mage"
+  },
+  "player_ranger": {
+   "anims": {
+    "melee": {
+     "frames": 4,
+     "ms": 130,
+     "start": 8
+    },
+    "run": {
+     "frames": 4,
+     "ms": 150,
+     "start": 4
+    },
+    "stance": {
+     "frames": 1,
+     "ms": 400,
+     "start": 0
+    }
+   },
+   "ax": 24,
+   "ay": 39,
+   "cellH": 48,
+   "cellW": 48,
+   "dirs": 8,
+   "img": "player_ranger"
+  },
+  "player_warrior": {
+   "anims": {
+    "melee": {
+     "frames": 4,
+     "ms": 130,
+     "start": 8
+    },
+    "run": {
+     "frames": 4,
+     "ms": 150,
+     "start": 4
+    },
+    "stance": {
+     "frames": 1,
+     "ms": 400,
+     "start": 0
+    }
+   },
+   "ax": 24,
+   "ay": 39,
+   "cellH": 48,
+   "cellW": 48,
+   "dirs": 8,
+   "img": "player_warrior"
+  },
   "rabbit": {
    "anims": {
     "melee": {
@@ -36190,6 +36265,9 @@
   "pitlord": "creatures/pitlord.png",
   "pixie": "creatures/pixie.png",
   "player": "creatures/player.png",
+  "player_mage": "creatures/player_mage.png",
+  "player_ranger": "creatures/player_ranger.png",
+  "player_warrior": "creatures/player_warrior.png",
   "props-extra": "props-extra.png",
   "rabbit": "creatures/rabbit.png",
   "ramcavalier": "creatures/ramcavalier.png",

@@ -1916,6 +1916,8 @@ assert.strictEqual(game.map.tiles[spot.y * game.map.w + spot.x + 20], TILE.STONE
   assert.strictEqual(rp.arrows, 40, 'forty arrows in the quiver');
   const bow = rp.items.find((it) => it.id === 'longbow');
   assert(bow && rp.weapon === bow.uid, 'the longbow is in hand');
+  assert.strictEqual(rp.calling, 'ranger', 'the calling rides with the player');
+  assert.strictEqual(game.records.fletch.calling, 'ranger', 'and is remembered in the record');
   const wsm = fakeWs();
   game.handle(wsm, { t: 'join', email: 'mage@test.dev', password: 'secret1',
     name: 'Wisp', calling: 'mage' });

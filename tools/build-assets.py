@@ -951,8 +951,12 @@ for _k, (_sheet, _row, _z) in BESTIARY_UNITS.items():
 
 HAS_HERO_DIRS = ['Right', 'Right-Down', 'Down', 'Left-Down', 'Left', 'Left-Up', 'Up', 'Right-Up']
 HAS_HEROES = {  # kind -> (faction dir name, file prefix, gender)
-    # Only the player rides: a mounted knight, in the finest UO tradition.
-    'player':    ('Castle', 'CastleSprite', 'Male'),
+    # Only players ride, in the finest UO tradition. The default traveller is
+    # the Castle knight; each calling mounts its own faction hero.
+    'player':         ('Castle', 'CastleSprite', 'Male'),
+    'player_warrior': ('Stronghold', 'StrongholdSprite', 'Male'),
+    'player_ranger':  ('Rampart', 'RampartSprite', 'Male'),
+    'player_mage':    ('Tower', 'TowerSprite', 'Male'),
 }
 
 
@@ -1645,6 +1649,7 @@ def main():
         hue=(0.75, (0.16, 0.45, 0.18)))  # rust-red work shirt
     creatures['villager3'] = build_creature(
         'villager3', [chest, hands, boots, lpants, lchest, head], scale=0.6, stance_ms=300)
+
 
     # Wildlife and livestock.
     creatures['wolf'] = build_dir4_creature('wolf', 3, 48, 64, scale=1.1)
