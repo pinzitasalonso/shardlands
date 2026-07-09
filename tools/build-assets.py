@@ -1897,11 +1897,42 @@ DROP_ART = {
 }
 
 
+# The resurrection ankh, drawn as a proper golden monument on a stone plinth
+# instead of the old three stroked lines. Same hand-drawn palette manner.
+ANKH_PAL = {
+    '.': None,
+    'O': (40, 26, 20, 255), '*': (255, 255, 255, 255),
+    'G': (246, 210, 100, 255), 'g': (206, 160, 58, 255), 'd': (148, 108, 34, 255),
+    'S': (176, 176, 190, 255), 's': (116, 116, 132, 255),
+}
+
+ANKH_ART = [
+    '......OOOO......',
+    '.....OGGgdO.....',
+    '....OG*..gdO....',
+    '....OG...gdO....',
+    '....OGg..gdO....',
+    '.....OGggdO.....',
+    '..OOOOOGdOOOO...',
+    '.OGGgggGGgggdO..',
+    '..OOOOOGgOOOO...',
+    '......OGgO......',
+    '......OGgO......',
+    '......OGdO......',
+    '.....OOOOOO.....',
+    '....OSSSSSsO....',
+    '...OSSssssssO...',
+    '...OOOOOOOOOO...',
+]
+
+
 def build_drops(frames, images_out):
     """Bake the pixel-art ground-loot sprites into one strip; each is an
-    anchored td.drop.<item> frame the client draws where loot falls."""
+    anchored td.drop.<item> frame the client draws where loot falls. The
+    resurrection ankh rides along as the strip's last cell — a bottom-anchored
+    monument drawn at world-object scale."""
     names = list(DROP_ART)
-    atlas = Image.new('RGBA', (16 * len(names), 16), (0, 0, 0, 0))
+    atlas = Image.new('RGBA', (16 * (len(names) + 1), 16), (0, 0, 0, 0))
     for i, name in enumerate(names):
         for y, row in enumerate(DROP_ART[name]):
             assert len(row) == 16 and len(DROP_ART[name]) == 16, f'{name} bad shape'
@@ -1912,6 +1943,15 @@ def build_drops(frames, images_out):
         # centre anchor at 2x, so a drop sits over the tile where it fell
         frames[f'td.drop.{name}'] = {'img': 'drops16', 'x': i * 16, 'y': 0,
                                      'w': 16, 'h': 16, 'ax': 8, 'ay': 8, 'scale': 2}
+    ax = len(names) * 16
+    for y, row in enumerate(ANKH_ART):
+        assert len(row) == 16 and len(ANKH_ART) == 16, 'ankh bad shape'
+        for x, ch in enumerate(row):
+            c = ANKH_PAL[ch]
+            if c:
+                atlas.putpixel((ax + x, y), c)
+    frames['td.o.ankh'] = {'img': 'drops16', 'x': ax, 'y': 0,
+                           'w': 16, 'h': 16, 'ax': 8, 'ay': 16, 'scale': TD_SCALE}
     atlas.save(os.path.join(OUT, 'drops16.png'))
     images_out['drops16'] = 'drops16.png'
     return names
