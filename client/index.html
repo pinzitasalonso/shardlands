@@ -10,22 +10,39 @@
   <canvas id="game"></canvas>
 
   <div id="login" class="overlay">
+    <canvas id="login-bg" aria-hidden="true"></canvas>
     <div class="login-box">
       <h1>Shardlands</h1>
       <p class="tagline">A small shard in the spirit of Ultima Online</p>
+      <div class="login-tabs" role="tablist">
+        <button id="tab-return" class="on" role="tab">Returning</button>
+        <button id="tab-new" role="tab">New traveller</button>
+      </div>
       <input id="email" type="email" placeholder="Email" autocomplete="email" />
       <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
-      <input id="name" maxlength="15" placeholder="Character name (new accounts)" autocomplete="off" />
+      <div id="create-fields" class="hidden">
+        <input id="name" maxlength="15" placeholder="Character name" autocomplete="off" />
+        <div class="callings" role="radiogroup" aria-label="Choose your calling">
+          <button class="calling on" data-calling="warrior" role="radio" aria-checked="true">
+            <canvas width="72" height="72" aria-hidden="true"></canvas>
+            <b>Warrior</b><small>Strong arm, thick hide. Steel answers first.</small>
+          </button>
+          <button class="calling" data-calling="ranger" role="radio" aria-checked="false">
+            <canvas width="72" height="72" aria-hidden="true"></canvas>
+            <b>Ranger</b><small>A longbow, forty arrows, and the patience to use them.</small>
+          </button>
+          <button class="calling" data-calling="mage" role="radio" aria-checked="false">
+            <canvas width="72" height="72" aria-hidden="true"></canvas>
+            <b>Mage</b><small>Words of power, and the mana to speak them.</small>
+          </button>
+        </div>
+      </div>
       <button id="play" disabled>Summoning the world…</button>
-      <p class="hint">First visit? Pick a password and a character name — your account is created on the spot.</p>
+      <p class="hint" id="login-hint">Welcome back, traveller.</p>
       <p id="login-error" class="error"></p>
       <div class="help">
-        <b>WASD / arrows</b> move &nbsp;·&nbsp; <b>click</b> walk or attack &nbsp;·&nbsp;
-        <b>Space</b> attack nearest &nbsp;·&nbsp; <b>Enter</b> chat<br/>
-        <b>1</b> Magic Arrow &nbsp;·&nbsp; <b>2</b> Fireball &nbsp;·&nbsp; <b>3</b> Greater Heal &nbsp;·&nbsp;
-        <b>4/5</b> drink potion &nbsp;·&nbsp; <b>I</b> inventory &nbsp;·&nbsp; <b>F</b> fullscreen<br/>
-        <b>B</b> bandage &nbsp;·&nbsp; <b>G</b> chop / mine &nbsp;·&nbsp;
-        <b>/teleport</b> returns to the plaza &nbsp;·&nbsp; the wilds hide secrets…
+        <b>WASD</b> move · <b>Space</b> attack · <b>Shift</b> dash · <b>Enter</b> chat ·
+        <b>M</b> map · <b>I</b> pack · the wilds hide secrets…
       </div>
     </div>
   </div>

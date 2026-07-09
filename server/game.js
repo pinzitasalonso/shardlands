@@ -27,6 +27,28 @@ const CACHE_RESPAWN_MS = 15 * 60_000;
 const SKILLS = ['swordsmanship', 'tactics', 'magery', 'healing', 'lumberjacking', 'mining',
   'fishing', 'cooking', 'blacksmithy', 'alchemy', 'taming', 'treasurehunting'];
 
+// The three callings a new character may take up. Each spends the same 100
+// stat points and starts with honest gear; the default (no calling picked)
+// keeps the old balanced spread.
+const CALLINGS = {
+  warrior: {
+    str: 45, dex: 30, int: 25, skills: { swordsmanship: 30, tactics: 25 },
+    pots: { heal: 2, mana: 0 }, arrows: 0,
+    items: [{ uid: 1, id: 'dagger', q: 0, dur: 54, maxDur: 54 }], weapon: 1, itemUid: 2,
+  },
+  ranger: {
+    str: 28, dex: 45, int: 27, skills: { swordsmanship: 30 },
+    pots: { heal: 1, mana: 0 }, arrows: 40,
+    items: [{ uid: 1, id: 'dagger', q: 0, dur: 54, maxDur: 54 },
+            { uid: 2, id: 'longbow', q: 0, dur: 60, maxDur: 60 }], weapon: 2, itemUid: 3,
+  },
+  mage: {
+    str: 27, dex: 28, int: 45, skills: { magery: 30 },
+    pots: { heal: 1, mana: 2 }, arrows: 0,
+    items: [{ uid: 1, id: 'dagger', q: 0, dur: 54, maxDur: 54 }], weapon: 1, itemUid: 2,
+  },
+};
+
 const SPELLS = {
   magicarrow: { name: 'Magic Arrow', mana: 4, minSkill: 0, dmg: [5, 10], words: 'In Por Ylem' },
   fireball: { name: 'Fireball', mana: 9, minSkill: 40, dmg: [12, 22], words: 'Vas Flam' },
@@ -781,21 +803,25 @@ class Game {
           hash: hashPassword(password, salt),
           charKey: key,
         };
+        // A chosen calling shapes the start; no calling keeps the old spread.
+        const call = CALLINGS[String(msg.calling || '')] || null;
+        const stats = call || { str: 35, dex: 35, int: 30 };
         rec = this.records[key] = {
           name,
           x: this.map.spawn.x,
           y: this.map.spawn.y,
-          str: 35, dex: 35, int: 30,
-          hp: 67, mana: 30,
-          skills: Object.fromEntries(SKILLS.map((s) => [s, 20])),
+          str: stats.str, dex: stats.dex, int: stats.int,
+          hp: 50 + Math.floor(stats.str / 2), mana: stats.int,
+          skills: { ...Object.fromEntries(SKILLS.map((s) => [s, 20])), ...(call ? call.skills : {}) },
           gold: 100, logs: 0, ore: 0, gems: 0,
-          pots: { heal: 1, mana: 0 },
-          items: [{ uid: 1, id: 'dagger', q: 0, dur: 54, maxDur: 54 }],
-          weapon: 1,
+          pots: call ? { ...call.pots } : { heal: 1, mana: 0 },
+          items: (call ? call.items : [{ uid: 1, id: 'dagger', q: 0, dur: 54, maxDur: 54 }])
+            .map((i) => ({ ...i })),
+          weapon: call ? call.weapon : 1,
           armor: null,
           offhand: null,
-          arrows: 0,
-          itemUid: 2,
+          arrows: call ? call.arrows : 0,
+          itemUid: call ? call.itemUid : 2,
         };
         persist.saveAccounts(this.accounts);
         // save the record alongside the account, atomically from the player's

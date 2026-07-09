@@ -1903,6 +1903,34 @@ assert.strictEqual(game.map.tiles[spot.y * game.map.w + spot.x + 20], TILE.STONE
     'a second hop straight away is refused by the cooldown');
 }
 
+// Callings: a new account may take up warrior, ranger or mage — and the
+// default spread stays exactly as it was for accounts that pick nothing.
+{
+  const wsr = fakeWs();
+  game.handle(wsr, { t: 'join', email: 'ranger@test.dev', password: 'secret1',
+    name: 'Fletch', calling: 'ranger' });
+  const rp = wsr.player;
+  assert(rp, 'the ranger joins');
+  assert.strictEqual(rp.dex, 45, 'a ranger is dexterous');
+  assert.strictEqual(rp.skills.swordsmanship, 30, 'and trained enough to draw the longbow');
+  assert.strictEqual(rp.arrows, 40, 'forty arrows in the quiver');
+  const bow = rp.items.find((it) => it.id === 'longbow');
+  assert(bow && rp.weapon === bow.uid, 'the longbow is in hand');
+  const wsm = fakeWs();
+  game.handle(wsm, { t: 'join', email: 'mage@test.dev', password: 'secret1',
+    name: 'Wisp', calling: 'mage' });
+  const mp = wsm.player;
+  assert.strictEqual(mp.int, 45, 'a mage is learned');
+  assert.strictEqual(mp.skills.magery, 30, 'with magery to match');
+  assert.strictEqual(mp.pots.mana, 2, 'and mana in the satchel');
+  const wsx = fakeWs();
+  game.handle(wsx, { t: 'join', email: 'plain@test.dev', password: 'secret1',
+    name: 'Plainfolk', calling: 'nonsense' });
+  const xp = wsx.player;
+  assert(xp.str === 35 && xp.dex === 35 && xp.int === 30 && xp.pots.heal === 1,
+    'an unknown calling falls back to the old spread');
+}
+
 // Town growth: bring the builder materials and the town raises a cottage.
 {
   const bp = ws.player;

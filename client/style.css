@@ -81,25 +81,99 @@ button { font-family: inherit; cursor: pointer; }
   z-index: 20;
 }
 
+/* a living slice of the world breathes behind the login box */
+#login-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  filter: brightness(0.55) saturate(0.9);
+}
+
+#login-bg + .login-box { position: relative; }
+
 .login-box {
   text-align: center;
-  padding: 40px 48px;
-  border: 1px solid #5a4a28;
-  border-radius: 6px;
-  background: var(--panel);
-  box-shadow: 0 0 60px rgba(180, 140, 60, 0.15);
-  max-width: 470px;
+  padding: 30px 44px 26px;
+  border: 2px solid var(--gold-dim, #8a6d35);
+  border-radius: 8px;
+  background: linear-gradient(170deg, rgba(32, 25, 15, 0.94), rgba(16, 13, 9, 0.96));
+  box-shadow: 0 0 0 4px #241b10, 0 0 80px rgba(180, 140, 60, 0.22), 0 24px 80px rgba(0, 0, 0, 0.75);
+  max-width: 520px;
+  max-height: 92vh;
+  overflow-y: auto;
 }
 
 .login-box h1 {
   font-family: 'MiKroll Fantasy', Georgia, serif;
-  font-size: 44px;
-  letter-spacing: 6px;
+  font-size: 48px;
+  letter-spacing: 7px;
   color: var(--gold);
-  text-shadow: 0 2px 12px rgba(212, 175, 90, 0.4);
+  text-shadow: 0 0 24px rgba(255, 214, 120, 0.5), 0 2px 0 #2b1f0d;
 }
 
-.tagline { margin: 8px 0 24px; color: #8b8674; font-style: italic; }
+.tagline { margin: 6px 0 18px; color: #a89f85; font-style: italic; }
+
+.login-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.login-tabs button {
+  flex: 1;
+  padding: 9px 0;
+  font-family: inherit;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  color: #9c9480;
+  background: rgba(20, 17, 12, 0.8);
+  border: 1px solid #45361a;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.login-tabs button.on {
+  color: #f4e9c8;
+  border-color: var(--gold);
+  background: linear-gradient(rgba(122, 95, 36, 0.5), rgba(70, 54, 22, 0.5));
+}
+
+.callings {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 4px 0 6px;
+}
+
+.calling {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 6px 9px;
+  background: rgba(18, 15, 11, 0.85);
+  border: 1px solid #45361a;
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.calling canvas { image-rendering: pixelated; }
+
+.calling b { font-size: 14px; color: #e8dcb8; letter-spacing: 0.5px; }
+
+.calling small { font-size: 10.5px; line-height: 1.35; color: #8f8770; }
+
+.calling.on {
+  border-color: var(--gold);
+  background: linear-gradient(rgba(122, 95, 36, 0.35), rgba(50, 40, 20, 0.5));
+  box-shadow: 0 0 14px rgba(212, 175, 90, 0.25);
+}
+
+.calling.on b { color: var(--gold); }
 
 .login-box input {
   width: 100%;

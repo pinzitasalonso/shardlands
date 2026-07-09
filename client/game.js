@@ -140,6 +140,7 @@ function send(msg) {
 function handleMessage(msg) {
   switch (msg.t) {
     case 'reject':
+      if (/New account/.test(msg.reason || '')) setLoginTab(true);
       state.ws.onclose = null;
       state.ws.close();
       if (msg.expired) {
@@ -1293,14 +1294,108 @@ nameInput.value = localStorage.getItem('shardlands:lastname') || '';
 function tryLogin() {
   const email = emailInput.value.trim();
   const password = passwordInput.value;
-  const name = nameInput.value.trim();
+  const creating = !document.getElementById('create-fields').classList.contains('hidden');
+  const name = creating ? nameInput.value.trim() : '';
   if (!email) return loginError('Enter your email address.');
   if (password.length < 6) return loginError('Password must be at least 6 characters.');
+  if (creating && !name) return loginError('Choose a character name.');
   localStorage.setItem('shardlands:email', email);
   if (name) localStorage.setItem('shardlands:lastname', name);
   loginError('');
-  assetsReady.then(() => connect({ email, password, name }));
+  assetsReady.then(() => connect(creating
+    ? { email, password, name, calling: loginState.calling }
+    : { email, password, name: '' }));
 }
+
+// ---- the door to the world: tabs, callings, and a living backdrop -----------------
+
+const loginState = { calling: 'warrior' };
+
+function setLoginTab(create) {
+  document.getElementById('create-fields').classList.toggle('hidden', !create);
+  document.getElementById('tab-new').classList.toggle('on', create);
+  document.getElementById('tab-return').classList.toggle('on', !create);
+  document.getElementById('login-hint').textContent = create
+    ? 'Your account is forged on the spot — pick a name and a calling.'
+    : 'Welcome back, traveller.';
+  const play = document.getElementById('play');
+  if (!play.disabled) play.textContent = create ? 'Begin the Tale' : 'Enter the World';
+}
+
+document.getElementById('tab-return').addEventListener('click', () => setLoginTab(false));
+document.getElementById('tab-new').addEventListener('click', () => setLoginTab(true));
+
+for (const card of document.querySelectorAll('.calling')) {
+  card.addEventListener('click', () => {
+    loginState.calling = card.dataset.calling;
+    for (const o of document.querySelectorAll('.calling')) {
+      o.classList.toggle('on', o === card);
+      o.setAttribute('aria-checked', o === card ? 'true' : 'false');
+    }
+  });
+}
+
+// Card portraits: the traveller as each calling would arm them.
+function drawCallingCards() {
+  const arms = { warrior: ['longsword'], ranger: ['longbow'], mage: [] };
+  for (const card of document.querySelectorAll('.calling')) {
+    const cv2 = card.querySelector('canvas');
+    const g = cv2.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    g.clearRect(0, 0, cv2.width, cv2.height);
+    Assets.drawCreature(g, 'player', 2, 'stance', 0, cv2.width / 2, cv2.height - 6, 1.5,
+      arms[card.dataset.calling]);
+  }
+}
+
+// A living slice of the shard breathes behind the box: forest above a
+// beach above the animated sea, drawn with the game's own renderer.
+function drawLoginBg() {
+  const cv2 = document.getElementById('login-bg');
+  const login = document.getElementById('login');
+  if (!cv2 || login.classList.contains('hidden')) return;
+  const TPB = 48;
+  const W = Math.ceil(innerWidth / TPB) + 1;
+  const H = Math.ceil(innerHeight / TPB) + 1;
+  if (cv2.width !== W * TPB) { cv2.width = W * TPB; cv2.height = H * TPB; }
+  const g = cv2.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  // a fixed little world: woods, meadow, a sandy shore, open water
+  const seaTop = Math.floor(H * 0.62);
+  const sandTop = seaTop - 2;
+  const bgTile = (x, y) => {
+    if (y >= seaTop) return 0;                                   // WATER
+    if (y >= sandTop) return 7;                                  // SAND
+    if (y < H * 0.3 && hash(x * 7, y * 13) < 0.5) return 2;      // TREE
+    return 1;                                                     // GRASS
+  };
+  const dr = [];
+  const sink = { push: (d) => dr.push(d), waterGlint: drawWaterGlintOn(g) };
+  const time = Date.now();
+  for (let ty = 0; ty < H; ty++) {
+    for (let tx = 0; tx < W; tx++) {
+      GroundRender.drawCell(g, bgTile, tx, ty, tx * TPB, ty * TPB, time, sink);
+    }
+  }
+  dr.sort((a, b) => a.depth - b.depth);
+  for (const d of dr) if (d.kind === 'sprite') Assets.drawFrame(g, d.name, d.x, d.y);
+  requestAnimationFrame(drawLoginBg);
+}
+
+// waterGlint writes to the game canvas ctx by default; wrap it for the bg
+function drawWaterGlintOn(g) {
+  return (tx, ty, sx, sy, time) => {
+    if (hash(tx, ty * 7) <= 0.8) return;
+    const phase = (time / 900 + hash(tx, ty) * 6) % 1;
+    g.fillStyle = `rgba(170, 210, 235, ${0.35 * Math.sin(phase * Math.PI)})`;
+    g.fillRect(sx + 4 + hash(ty, tx) * 28, sy + 6 + hash(tx * 3, ty) * 36, 14, 2);
+  };
+}
+
+assetsReady.then(() => {
+  drawCallingCards();
+  requestAnimationFrame(drawLoginBg);
+});
 
 // A saved session token walks straight back into the world — no password,
 // which matters most on a phone. An expired token falls back to the form.
