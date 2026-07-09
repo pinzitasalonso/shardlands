@@ -2168,18 +2168,15 @@ function drawMob(m, cam, time) {
   if (!style.sprite || style.boss) drawHpBar(s.x, labelY + 4, m.hp, m.maxhp);
   // UO-style name plates: gold for the crowned, blue for friends of the
   // realm, pale tan for harmless beasts, red for everything that bites.
-  ctx.fillStyle = style.boss ? '#ffd060'
-    : style.friendly ? 'rgba(140, 199, 255, 0.92)'
-    : style.neutral ? 'rgba(208, 202, 173, 0.85)'
-    : 'rgba(255, 150, 132, 0.92)';
-  ctx.font = style.boss ? 'bold ' + FS(12) : FS(11);
-  ctx.textAlign = 'center';
-  ctx.fillText(m.name || style.name, s.x, labelY);
+  const nameColor = style.boss ? '#ffd060'
+    : style.friendly ? '#a6d0ff'
+    : style.neutral ? '#ddd6ae'
+    : '#ff9e8a';
+  nameplate(m.name || style.name, s.x, labelY, nameColor,
+    style.boss ? 'bold ' + FS(12) : FS(11));
   if (m.st) { // a rung bell sees stars
-    ctx.fillStyle = '#ffd060';
-    ctx.fillText('✶  ✶', s.x, labelY - 12);
+    nameplate('✶  ✶', s.x, labelY - 12, '#ffd060', FS(11));
   }
-  ctx.textAlign = 'left';
 }
 
 function drawPlayer(p, cam, time) {
@@ -2251,11 +2248,7 @@ function drawPlayer(p, cam, time) {
   ctx.restore();
 
   if (!p.dead && p.hp < p.maxhp) drawHpBar(s.x, labelY + 4, p.hp, p.maxhp);
-  ctx.fillStyle = p.id === state.myId ? '#ffd870' : '#dce4f0';
-  ctx.font = FS(12);
-  ctx.textAlign = 'center';
-  ctx.fillText(p.name, s.x, labelY);
-  ctx.textAlign = 'left';
+  nameplate(p.name, s.x, labelY, p.id === state.myId ? '#ffd870' : '#e6ecf8', FS(12));
 }
 
 function drawVendor(v, cam, time) {
@@ -2282,11 +2275,23 @@ function drawVendor(v, cam, time) {
     ctx.fill();
     labelY = s.y - 38;
   }
-  ctx.fillStyle = v.stories ? '#c8a8e8' : '#88e0a0';
-  ctx.font = FS(12);
+  nameplate(v.name, s.x, labelY, v.stories ? '#d4b6f2' : '#93e8ab', FS(12));
+}
+
+// Nameplates must survive any backdrop — snow glare, pale sand, open water.
+// A dark casing around the letters does what the old half-transparent fills
+// couldn't: the name reads at a glance wherever it stands.
+function nameplate(text, x, y, color, font) {
+  ctx.font = font;
   ctx.textAlign = 'center';
-  ctx.fillText(v.name, s.x, labelY);
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(10, 12, 18, 0.9)';
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
   ctx.textAlign = 'left';
+  ctx.lineWidth = 1;
 }
 
 function drawHpBar(sx, sy, hp, maxhp) {
