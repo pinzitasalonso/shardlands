@@ -763,10 +763,19 @@ def build_topdown_heroic(frames, images_out):
     g = lambda kind: [f'td.g.{kind}.{v}' for v in range(len(HAS_GROUNDS[kind]))]
     autowall = {k: f'td.wall.{k}' for k in
                 ('h', 'v', 'tl', 'tr', 'bl', 'br', 'capL', 'capR', 'capT', 'capB')}
+    # The ocean reads by DEPTH, the way the pack's own maps paint it: bright
+    # lattice in the shallows by the shore, mid water beyond, dark blobs out
+    # at sea. Bands grouped by measured brightness of the sheet's 20 rows.
+    # each group is a CONSECUTIVE run of sheet rows, so stacked tiles keep
+    # the artist's own vertical continuity inside a depth zone
+    W_SHALLOW = [0, 1]
+    W_MID = [6, 7]
+    W_DEEP = [15, 16, 17]
+    wband = lambda rows_: [[f'td.g.wateranim.{r}.{fr}' for fr in range(8)] for r in rows_]
     return {
         '0': {'ground': g('water'), 'effect': 'water',
-              # one entry per ocean band; the inner lists are its 8 frames
-              'wanim': [[f'td.g.wateranim.{r}.{fr}' for fr in range(8)] for r in range(20)]},
+              # depth-grouped ocean bands; each inner list is one band's 8 frames
+              'wanim': {'shallow': wband(W_SHALLOW), 'mid': wband(W_MID), 'deep': wband(W_DEEP)}},
         '1': {'ground': g('grass'),
               'decor': {'chance': 0.05,
                         'objects': ['td.o.flower', 'td.o.tuft', 'td.o.stone0', 'td.o.twig']}},
