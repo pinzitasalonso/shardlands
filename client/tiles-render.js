@@ -73,6 +73,45 @@ const GroundRender = (() => {
 
   function clearWaterDepth() {
     depthCache = new Map();
+    biomeCache = new Map();
+  }
+
+  // Pick a banded-block cell (crowns/flanks/feet x left/interior/right) by
+  // NEIGHBOURS of the same tile kind — shared by mountains and forests.
+  function bandedFrame(prefix, tileAt, tx, ty, tile) {
+    const same = (nx, ny) => tileAt(nx, ny) === tile;
+    const up = same(tx, ty - 1);
+    const dn = same(tx, ty + 1);
+    if (!up && !dn) return prefix + '.lone';
+    const band = !up ? 't' : !dn ? 'b' : 'm';
+    const ci = !same(tx - 1, ty) ? 0 : !same(tx + 1, ty) ? 3 : 1 + (tx % 2);
+    return prefix + '.' + band + '.' + ci;
+  }
+
+  // Which country does this mountain stand in? First special biome found in
+  // the near rings decides; memoised beside the water depths.
+  let biomeCache = new Map();
+
+  function nearbyBiome(tileAt, tx, ty) {
+    const key = tx + ',' + ty;
+    const hit = biomeCache.get(key);
+    if (hit !== undefined) return hit;
+    let found = 'default';
+    outer:
+    for (let r = 1; r <= 4; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const t = tileAt(tx + dx, ty + dy);
+          if (t === T.SNOW || t === T.SNOWTREE) { found = 'snow'; break outer; }
+          if (t === T.SWAMP || t === T.SWAMPTREE) { found = 'swamp'; break outer; }
+          if (t === T.SAND) { found = 'sand'; break outer; }
+        }
+      }
+    }
+    if (biomeCache.size > 30000) biomeCache = new Map();
+    biomeCache.set(key, found);
+    return found;
   }
 
   function hash(x, y) {
@@ -162,13 +201,18 @@ const GroundRender = (() => {
       if (Array.isArray(P)) {
         // a stale cached manifest still carries the old 3x3 block
         Assets.drawFrame(ctx, P[(tx % 3) + (ty % 3) * 3], sx, sy);
+      } else if (P.variants) {
+        // the range wears the country it stands in
+        const block = P.variants[nearbyBiome(tileAt, tx, ty)] || P.variants.default;
+        Assets.drawFrame(ctx, bandedFrame('td.blk.' + block, tileAt, tx, ty, tile), sx, sy);
       } else {
+        // older structured manifest: a single brown block
         const rock = (nx, ny) => tileAt(nx, ny) === tile;
         const up = rock(tx, ty - 1);
         const dn = rock(tx, ty + 1);
         let f;
         if (!up && !dn) {
-          f = P.lone; // a one-tile-high ridge: a run of lone crowns
+          f = P.lone;
         } else {
           const band = !up ? P.t : !dn ? P.b : P.m;
           f = !rock(tx - 1, ty) ? band[0]
@@ -177,6 +221,16 @@ const GroundRender = (() => {
         }
         Assets.drawFrame(ctx, f, sx, sy);
       }
+    }
+
+    // Forests as the pack paints them: solid interlocking canopy masses.
+    // Multi-block biomes (the mire) pick their grove per coarse region, so
+    // toadstool patches clump amid the blossom-trees instead of dithering.
+    if (recipe.canopy) {
+      const blocks = recipe.canopy;
+      const block = blocks.length === 1 ? blocks[0]
+        : blocks[Math.floor(hash((tx >> 3) * 11 + 5, (ty >> 3) * 7 + 3) * blocks.length)];
+      Assets.drawFrame(ctx, bandedFrame('td.blk.' + block, tileAt, tx, ty, tile), sx, sy);
     }
 
     // Soft biome seams: a higher-priority neighbour lays its tufty
