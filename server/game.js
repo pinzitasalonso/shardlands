@@ -672,11 +672,13 @@ class Game {
       }
       return path;
     };
+    // the course bends once at open water to round the mid-strait sandbar
+    const outbound = [...sail(1556, 1381, 1584, 1399), ...sail(1584, 1399, 1651, 1450).slice(1)];
     this.ferries = {
       lamu: { price: 100, label: 'Lamu',
-        path: sail(1556, 1381, 1662, 1450), land: { x: 1663, y: 1450 } },
+        path: outbound, land: { x: 1652, y: 1450 } },
       lamuBack: { price: 0, label: 'the Duskwell pier',
-        path: sail(1662, 1450, 1556, 1381), land: { x: 1555, y: 1381 } },
+        path: [...outbound].reverse(), land: { x: 1555, y: 1381 } },
     };
     // Places a traveller can DISCOVER: villages and the great landmarks
     // worldgen scattered. They appear on a player's world map only once
@@ -692,7 +694,7 @@ class Game {
       ...this.map.villages.map((v) => (
         // an island is discovered the moment you step off the ship at its
         // pier, which stands well outside a mainland village's radius
-        { key: 'v:' + v.name, kind: 'village', name: v.name, x: v.x, y: v.y, r: v.island ? 20 : 12 })),
+        { key: 'v:' + v.name, kind: 'village', name: v.name, x: v.x, y: v.y, r: v.island ? 32 : 12 })),
       ...this.map.props
         .filter((pr) => LANDMARK_NAMES[(pr.name || '').replace(/^prop\./, '')])
         .map((pr) => {
@@ -3606,7 +3608,10 @@ class Game {
             a: t - (q.swungAt || 0) < 600 ? 1 : 0,
             w: gear('weapon'), ar: gear('armor'), oh: gear('offhand'),
             c: q.calling || undefined,
-            s: q.voyage ? 1 : undefined,
+            // 0 rather than undefined: JSON drops undefined keys, and the
+            // client MERGES rows — an absent key would leave yesterday's
+            // ship (or stun-stars) painted on forever
+            s: q.voyage ? 1 : 0,
           };
         }),
         mobs: mobs.filter(near).map((m) => ({
@@ -3614,7 +3619,7 @@ class Game {
           a: t - (m.swungAt || 0) < 700 ? 1 : 0,
           name: m.name,
           pet: m.owner ? 1 : undefined,
-          st: m.stunUntil > t ? 1 : undefined,
+          st: m.stunUntil > t ? 1 : 0,
         })),
         drops: drops.filter(near).map((d) => ({ id: d.id, x: d.x, y: d.y, item: d.item, q: d.w ? d.w.q : undefined })),
       });

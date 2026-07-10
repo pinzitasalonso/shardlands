@@ -1337,31 +1337,44 @@ function generate(seed = 1337) {
   }
 
   // ---- Lamu: a far isle in the warm southern sea ------------------------------
-  // No road or runestone reaches it: passage is by ship from the desert
-  // coast, for coin. Carved last so nothing else claims its waters.
+  // No road or runestone reaches it: passage is by ship from the Duskwell
+  // pier, for coin. Grown three-fold, with a proper little town at its
+  // heart: a paved square around the well, a ring of cottages, a market,
+  // and a plank boardwalk running from the pier to the plaza.
   {
     const LX = 1680;
     const LY = 1450;
-    for (let dy = -14; dy <= 14; dy++) {
-      for (let dx = -17; dx <= 17; dx++) {
+    for (let dy = -21; dy <= 21; dy++) {
+      for (let dx = -25; dx <= 25; dx++) {
         const d = Math.hypot(dx / 1.2, dy);
         const x = LX + dx;
         const y = LY + dy;
-        if (d < 11.5) tiles[y * W + x] = TILE.SAND; // all sand, dune to shore
+        if (d < 20) tiles[y * W + x] = TILE.SAND; // all sand, dune to shore
       }
     }
-    // the town: whitewashed cottages around a well
-    props.push({ x: LX - 3, y: LY - 1, name: 'prop.cottage0' });
-    props.push({ x: LX + 3, y: LY - 2, name: 'prop.cottage1' });
-    props.push({ x: LX + 4, y: LY + 2, name: 'prop.cottage2' });
-    props.push({ x: LX - 4, y: LY + 3, name: 'prop.cottage3' });
-    props.push({ x: LX, y: LY, name: 'prop.well' });
-    // a sand island lives on its beasts: donkeys in town, crabs on the shore
-    spawners.push({ kind: 'villager', count: 2, x: LX, y: LY, r: 4 });
-    spawners.push({ kind: 'donkey', count: 4, x: LX - 2, y: LY + 1, r: 5 });
-    spawners.push({ kind: 'donkey', count: 2, x: LX + 4, y: LY - 3, r: 4 });
-    spawners.push({ kind: 'crab', count: 4, x: LX - 8, y: LY + 6, r: 6 });
-    spawners.push({ kind: 'crab', count: 3, x: LX + 8, y: LY - 6, r: 6 });
+    // the paved square at the heart of town
+    for (let dy = -2; dy <= 2; dy++) {
+      for (let dx = -3; dx <= 3; dx++) {
+        tiles[(LY + dy) * W + (LX + dx)] = TILE.FLOOR;
+      }
+    }
+    // the west pier, and a boardwalk running from it to the square
+    for (let x = LX - 28; x <= LX - 4; x++) tiles[LY * W + x] = TILE.PLANKS;
+    // the town: cottages ringing the square, a well at its heart
+    props.push({ x: LX, y: LY - 1, name: 'prop.well' });
+    props.push({ x: LX - 5, y: LY - 4, name: 'prop.cottage0' });
+    props.push({ x: LX + 5, y: LY - 4, name: 'prop.cottage1' });
+    props.push({ x: LX - 6, y: LY + 2, name: 'prop.cottage2' });
+    props.push({ x: LX + 6, y: LY + 3, name: 'prop.cottage3' });
+    props.push({ x: LX - 1, y: LY - 6, name: 'prop.cottage1' });
+    props.push({ x: LX + 2, y: LY + 6, name: 'prop.cottage0' });
+    props.push({ x: LX + 8, y: LY - 1, name: 'prop.cottage2' });
+    props.push({ x: LX - 2, y: LY + 2, name: 'prop.table' });
+    props.push({ x: LX - 1, y: LY + 3, name: 'prop.stool' });
+    props.push({ x: LX + 2, y: LY + 2, name: 'prop.kiosk' });
+    props.push({ x: LX - 3, y: LY - 2, name: 'prop.lamp' });
+    props.push({ x: LX + 3, y: LY - 2, name: 'prop.lamp' });
+    props.push({ x: LX - 27, y: LY - 1, name: 'prop.signpost' });
     // the island market: dearer than the mainland — everything comes by ship
     vendors.push({
       name: 'Asha of Lamu', x: LX + 1, y: LY + 1, model: 'villager2',
@@ -1371,13 +1384,30 @@ function generate(seed = 1337) {
         { item: 'arrow', name: 'Bundle of Arrows (20)', price: 18, desc: 'For the longbow.' },
       ],
     });
-    // the west pier, and the homeward captain at its foot
-    for (let x = LX - 17; x <= LX - 14; x++) tiles[LY * W + x] = TILE.PLANKS;
+    // a wave-singer holds the corner of the square, with island tales
     vendors.push({
-      name: 'Captain Juma', x: LX - 15, y: LY, model: 'hermit', goods: [],
-      ferry: 'lamuBack', ferryLabel: 'the mainland', ferryPrice: 0,
+      name: 'Jengo the Wave-Singer', x: LX - 2, y: LY - 2, goods: [], model: 'bard',
+      stories: [
+        ['They say the sandbar mid-strait was once a whale that loved the sun too much.',
+         'The ferry bends its course around her still, out of respect.'],
+        ['Every donkey on this isle came over one crossing at a time, in the arms of homesick sailors.',
+         'Ask Captain Juma why the return trip is free. Go on. Ask him.'],
+      ],
+    });
+    // the homeward captain at the pier's foot
+    vendors.push({
+      name: 'Captain Juma', x: LX - 27, y: LY, model: 'hermit', goods: [],
+      ferry: 'lamuBack', ferryLabel: 'the Duskwell pier', ferryPrice: 0,
       greeting: 'Homesick already? The crossing back is on the house.',
     });
+    // a sand island lives on its beasts: donkeys in town, crabs on the shore
+    spawners.push({ kind: 'villager', count: 4, x: LX, y: LY, r: 6 });
+    spawners.push({ kind: 'donkey', count: 4, x: LX - 8, y: LY + 5, r: 6 });
+    spawners.push({ kind: 'donkey', count: 3, x: LX + 9, y: LY - 6, r: 5 });
+    spawners.push({ kind: 'chicken', count: 3, x: LX + 4, y: LY + 4, r: 4 });
+    spawners.push({ kind: 'crab', count: 4, x: LX - 16, y: LY + 12, r: 7 });
+    spawners.push({ kind: 'crab', count: 4, x: LX + 16, y: LY - 12, r: 7 });
+    spawners.push({ kind: 'crab', count: 3, x: LX + 14, y: LY + 14, r: 6 });
     // the mainland pier on the Duskwell coast — village, road and pier all
     // on the same walkable shore (the first pier sat on a cut-off sandbar)
     for (let x = 1552; x <= 1555; x++) tiles[1381 * W + x] = TILE.PLANKS;
