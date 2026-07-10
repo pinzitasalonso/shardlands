@@ -223,6 +223,7 @@ function generate(seed = 1337) {
   const buildings = []; // { x, y, w, h } — used by the client to draw roofs
   const vendors = [];
   const spawners = [];
+  let map_rivers = 0;
   const secrets = [];
 
   const props = []; // decorative furniture, rendered by the client
@@ -1186,6 +1187,75 @@ function generate(seed = 1337) {
     mkBard(BARD_NAMES[1 + i], v.lodgeRoom.x + 1, v.lodgeRoom.y); // by the lodge hearth
   });
 
+  // ---- Rivers: streams threading from the heights to the sea --------------------
+  // A handful of rivers meander from inland sources to open water. They
+  // carve one-wide channels (the coast pass gives them wavy banks and the
+  // depth pass keeps them bright); a road they cross becomes a plank
+  // bridge, and any occupied tile is left dry as a natural ford. Rivers
+  // that would run through a settlement are abandoned.
+  {
+    const occupied = new Set();
+    for (const pr of props) occupied.add(pr.x + ',' + pr.y);
+    for (const sc of secrets) occupied.add(sc.x + ',' + sc.y);
+    for (const vd of vendors) occupied.add(vd.x + ',' + vd.y);
+    const settlements = [...cities, ...villages];
+    const CARVABLE = new Set([TILE.GRASS, TILE.TREE, TILE.SAND, TILE.SNOW,
+      TILE.SNOWTREE, TILE.SWAMP, TILE.SWAMPTREE, TILE.ROCK]);
+    let riversMade = 0;
+    let rtries = 0;
+    while (riversMade < 7 && rtries++ < 500) {
+      const sx = Math.round(CX + (rng() - 0.5) * 1500);
+      const sy = Math.round(CY + (rng() - 0.5) * 1500);
+      if (!CARVABLE.has(tiles[sy * W + sx])) continue;
+      // aim at the nearest open water
+      let aim = null;
+      for (let a = 0; a < 16; a++) {
+        const dx = Math.cos((a / 16) * Math.PI * 2);
+        const dy = Math.sin((a / 16) * Math.PI * 2);
+        for (let r = 30; r < 900; r += 5) {
+          const tx2 = Math.round(sx + dx * r);
+          const ty2 = Math.round(sy + dy * r);
+          if (tx2 < 2 || ty2 < 66 || tx2 >= W - 2 || ty2 >= H - 2) break;
+          if (tiles[ty2 * W + tx2] === TILE.WATER) {
+            if (!aim || r < aim.r) aim = { ang: (a / 16) * Math.PI * 2, r };
+            break;
+          }
+        }
+      }
+      if (!aim || aim.r < 70) continue; // no sea in reach, or born a stone's throw from it
+      // walk with a meander; collect the course before carving anything
+      const course = [];
+      const phase = rng() * Math.PI * 2;
+      let fx = sx;
+      let fy = sy;
+      let ok = false;
+      for (let step = 0; step < 1200; step++) {
+        const ang = aim.ang + Math.sin(step * 0.045 + phase) * 0.7;
+        fx += Math.cos(ang) * 0.7;
+        fy += Math.sin(ang) * 0.7;
+        const x = Math.round(fx);
+        const y = Math.round(fy);
+        if (x < 2 || y < 66 || x >= W - 2 || y >= H - 2) break;
+        if (tiles[y * W + x] === TILE.WATER) { ok = true; break; }
+        if (settlements.some((s) => Math.hypot(s.x - x, s.y - y) < (s.r || 8) + 6)) break;
+        if (!course.length || course[course.length - 1][0] !== x || course[course.length - 1][1] !== y) {
+          course.push([x, y]);
+        }
+      }
+      if (!ok || course.length < 60) continue;
+      for (const [x, y] of course) {
+        const t = tiles[y * W + x];
+        if (t === TILE.ROAD || t === TILE.STONEROAD) {
+          tiles[y * W + x] = TILE.PLANKS; // the road bridges the stream
+        } else if (CARVABLE.has(t) && !occupied.has(x + ',' + y)) {
+          tiles[y * W + x] = TILE.WATER;
+        } // anything else stays dry: a ford, a floor, a wall
+      }
+      riversMade++;
+    }
+    map_rivers = riversMade;
+  }
+
   // ---- Farms: crop-rows feed every village -------------------------------------
   // Each village gets a tilled plot on clear grass nearby: alternating strips
   // of green sprouts or red berries, laid from the sheet's two-row crop
@@ -1275,7 +1345,7 @@ function generate(seed = 1337) {
   // tileVariants: sparse "x,y" -> ground-variant index, hand-picked in the
   // builder. Worldgen leaves it empty; the overlay fills it.
   return { w: W, h: H, tiles, buildings, vendors, spawners, secrets, spawn, villages, cities, props,
-    tileVariants: new Map() };
+    rivers: map_rivers, tileVariants: new Map() };
 }
 
 function isWalkable(map, x, y) {
