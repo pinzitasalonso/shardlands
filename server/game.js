@@ -674,9 +674,9 @@ class Game {
     };
     this.ferries = {
       lamu: { price: 100, label: 'Lamu',
-        path: sail(1628, 1474, 1662, 1450), land: { x: 1663, y: 1450 } },
-      lamuBack: { price: 0, label: 'the mainland',
-        path: sail(1662, 1450, 1628, 1474), land: { x: 1627, y: 1474 } },
+        path: sail(1556, 1381, 1662, 1450), land: { x: 1663, y: 1450 } },
+      lamuBack: { price: 0, label: 'the Duskwell pier',
+        path: sail(1662, 1450, 1556, 1381), land: { x: 1555, y: 1381 } },
     };
     // Places a traveller can DISCOVER: villages and the great landmarks
     // worldgen scattered. They appear on a player's world map only once
@@ -1663,7 +1663,7 @@ class Game {
   // One tile of open water per beat; the whole shard can watch the sail go by.
   voyageTick(p, t) {
     if (t < (p.voyageAt || 0)) return;
-    p.voyageAt = t + 170;
+    p.voyageAt = t + 140;
     const v = p.voyage;
     v.i += 1;
     if (v.i < v.path.length) {

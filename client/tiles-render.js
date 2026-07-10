@@ -176,9 +176,12 @@ const GroundRender = (() => {
         set = W[((ty % W.length) + W.length) % W.length];
       } else {
         const d = waterDepth(tileAt, tx, ty);
-        // dither the contour a little so depth edges wander organically
-        const dd = d + (hash(tx * 3 + 1, ty * 5 + 2) < 0.35 ? 1 : 0);
-        const group = dd <= 2 ? W.shallow : dd <= 5 ? W.mid : W.deep;
+        // the zone contours wander in long smooth curves (per-tile dither
+        // read as noisy patches at the shore, not like the pack's maps)
+        const wob = Math.sin(tx * 0.11 + ty * 0.06 + 1.3) * 1.3
+          + Math.sin(tx * 0.04 - ty * 0.09) * 1.1;
+        const group = d <= 2.5 + wob * 0.5 ? W.shallow
+          : d <= 5.5 + wob ? W.mid : W.deep;
         set = group[((ty % group.length) + group.length) % group.length];
       }
       Assets.drawFrame(ctx, set[Math.floor(time / 180) % set.length], sx, sy);
