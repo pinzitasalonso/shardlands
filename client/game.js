@@ -485,6 +485,10 @@ function handleFx(msg) {
       state.floaters.push({ x: msg.x, y: msg.y, text: '✦ ✦ ✦', color: '#b08aff', born: t });
       Sound.play('portal');
       break;
+    case 'sfx':
+      // a named Magic Book burst, wherever the server points
+      state.spellfx.push({ name: msg.name, x: msg.x, y: msg.y, born: t });
+      break;
     case 'break':
       state.floaters.push({ x: msg.x, y: msg.y, text: '*crack*', color: '#d8a8a0', born: t });
       Sound.play('break');

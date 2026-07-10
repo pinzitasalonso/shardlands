@@ -36682,6 +36682,46 @@
    "x": 72,
    "y": 120
   },
+  "td.sfx.explosion.0": {
+   "ax": 12,
+   "ay": 18,
+   "h": 24,
+   "img": "spellfx",
+   "scale": 3,
+   "w": 24,
+   "x": 0,
+   "y": 288
+  },
+  "td.sfx.explosion.1": {
+   "ax": 12,
+   "ay": 18,
+   "h": 24,
+   "img": "spellfx",
+   "scale": 3,
+   "w": 24,
+   "x": 24,
+   "y": 288
+  },
+  "td.sfx.explosion.2": {
+   "ax": 12,
+   "ay": 18,
+   "h": 24,
+   "img": "spellfx",
+   "scale": 3,
+   "w": 24,
+   "x": 48,
+   "y": 288
+  },
+  "td.sfx.explosion.3": {
+   "ax": 12,
+   "ay": 18,
+   "h": 24,
+   "img": "spellfx",
+   "scale": 3,
+   "w": 24,
+   "x": 72,
+   "y": 288
+  },
   "td.sfx.fireball.0": {
    "ax": 12,
    "ay": 18,
@@ -36802,6 +36842,46 @@
    "x": 72,
    "y": 192
   },
+  "td.sfx.holylight.0": {
+   "ax": 12,
+   "ay": 18,
+   "h": 24,
+   "img": "spellfx",
+   "scale": 3,
+   "w": 24,
+   "x": 0,
+   "y": 240
+  },
+  "td.sfx.holylight.1": {
+   "ax": 12,
+   "ay": 18,
+   "h": 24,
+   "img": "spellfx",
+   "scale": 3,
+   "w": 24,
+   "x": 24,
+   "y": 240
+  },
+  "td.sfx.holylight.2": {
+   "ax": 12,
+   "ay": 18,
+   "h": 24,
+   "img": "spellfx",
+   "scale": 3,
+   "w": 24,
+   "x": 48,
+   "y": 240
+  },
+  "td.sfx.holylight.3": {
+   "ax": 12,
+   "ay": 18,
+   "h": 24,
+   "img": "spellfx",
+   "scale": 3,
+   "w": 24,
+   "x": 72,
+   "y": 240
+  },
   "td.sfx.icebolt.0": {
    "ax": 12,
    "ay": 18,
@@ -36921,6 +37001,86 @@
    "w": 24,
    "x": 72,
    "y": 96
+  },
+  "td.sfx.resurrection.0": {
+   "ax": 12,
+   "ay": 18,
+   "h": 24,
+   "img": "spellfx",
+   "scale": 3,
+   "w": 24,
+   "x": 0,
+   "y": 216
+  },
+  "td.sfx.resurrection.1": {
+   "ax": 12,
+   "ay": 18,
+   "h": 24,
+   "img": "spellfx",
+   "scale": 3,
+   "w": 24,
+   "x": 24,
+   "y": 216
+  },
+  "td.sfx.resurrection.2": {
+   "ax": 12,
+   "ay": 18,
+   "h": 24,
+   "img": "spellfx",
+   "scale": 3,
+   "w": 24,
+   "x": 48,
+   "y": 216
+  },
+  "td.sfx.resurrection.3": {
+   "ax": 12,
+   "ay": 18,
+   "h": 24,
+   "img": "spellfx",
+   "scale": 3,
+   "w": 24,
+   "x": 72,
+   "y": 216
+  },
+  "td.sfx.thunderexplosion.0": {
+   "ax": 12,
+   "ay": 18,
+   "h": 24,
+   "img": "spellfx",
+   "scale": 3,
+   "w": 24,
+   "x": 0,
+   "y": 264
+  },
+  "td.sfx.thunderexplosion.1": {
+   "ax": 12,
+   "ay": 18,
+   "h": 24,
+   "img": "spellfx",
+   "scale": 3,
+   "w": 24,
+   "x": 24,
+   "y": 264
+  },
+  "td.sfx.thunderexplosion.2": {
+   "ax": 12,
+   "ay": 18,
+   "h": 24,
+   "img": "spellfx",
+   "scale": 3,
+   "w": 24,
+   "x": 48,
+   "y": 264
+  },
+  "td.sfx.thunderexplosion.3": {
+   "ax": 12,
+   "ay": 18,
+   "h": 24,
+   "img": "spellfx",
+   "scale": 3,
+   "w": 24,
+   "x": 72,
+   "y": 264
   },
   "td.ship.e": {
    "anim": [
