@@ -47,6 +47,34 @@ const GroundRender = (() => {
       + Math.sin(time * 0.0011 + coord * 0.028) * 1.4;
   }
 
+  // Chebyshev distance from a water tile to the nearest land, capped at 8.
+  // Memoised: the sea is large and mostly permanent. clearWaterDepth() lets
+  // the editor and live tile edits invalidate it.
+  let depthCache = new Map();
+
+  function waterDepth(tileAt, tx, ty) {
+    const key = tx + ',' + ty;
+    const hit = depthCache.get(key);
+    if (hit !== undefined) return hit;
+    let d = 8;
+    outer:
+    for (let r = 1; r < 8; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          if (tileAt(tx + dx, ty + dy) !== T.WATER) { d = r; break outer; }
+        }
+      }
+    }
+    if (depthCache.size > 30000) depthCache = new Map();
+    depthCache.set(key, d);
+    return d;
+  }
+
+  function clearWaterDepth() {
+    depthCache = new Map();
+  }
+
   function hash(x, y) {
     let h = (x * 374761393 + y * 668265263) | 0;
     h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -98,11 +126,22 @@ const GroundRender = (() => {
         }
       }
     } else if (recipe.wanim) {
-      // The living sea: each map row wears its band of the pack's
-      // vertically repeating ocean, and that band's frames shimmer in
-      // place — the waves stay put, only the light moves.
-      const rows = recipe.wanim;
-      const set = rows[((ty % rows.length) + rows.length) % rows.length];
+      // The living sea, read by DEPTH the way the pack's own maps paint it:
+      // bright lattice in the shallows along the shore, mid water beyond,
+      // dark blobs out at sea. Each tile's distance to the nearest land is
+      // measured once and remembered; the band's frames shimmer in place.
+      const W = recipe.wanim;
+      let set;
+      if (Array.isArray(W)) {
+        // stale cached manifest: the old row-striped ocean
+        set = W[((ty % W.length) + W.length) % W.length];
+      } else {
+        const d = waterDepth(tileAt, tx, ty);
+        // dither the contour a little so depth edges wander organically
+        const dd = d + (hash(tx * 3 + 1, ty * 5 + 2) < 0.35 ? 1 : 0);
+        const group = dd <= 2 ? W.shallow : dd <= 5 ? W.mid : W.deep;
+        set = group[((ty % group.length) + group.length) % group.length];
+      }
       Assets.drawFrame(ctx, set[Math.floor(time / 180) % set.length], sx, sy);
     } else {
       // A hand-picked ground variant overrides the position hash; anything
@@ -262,5 +301,5 @@ const GroundRender = (() => {
     if (recipe.effect === 'shrine') sink.push({ depth: ty, kind: 'shrine', x: sx + HT, y: sy + HT });
   }
 
-  return { T, FRINGES, TP, HT, hash, drawCell };
+  return { T, FRINGES, TP, HT, hash, drawCell, clearWaterDepth };
 })();

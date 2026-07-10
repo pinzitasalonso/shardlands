@@ -187,6 +187,7 @@ function handleMessage(msg) {
       state.runes = new Set(msg.runes || []);
       state.projects = msg.projects || {};
       state.myCalling = msg.calling || null;
+      GroundRender.clearWaterDepth(); // the login diorama cached its own sea
       state.cities = msg.cities || [];
       state.mini = msg.mini;
       buildMinimap();
@@ -201,6 +202,8 @@ function handleMessage(msg) {
       for (let i = 0; i < raw.length; i++) tiles[i] = raw.charCodeAt(i);
       state.chunks.set(msg.cx + ',' + msg.cy, tiles);
       state.wantedChunks.delete(msg.cx + ',' + msg.cy);
+      // fresh tiles can move a coastline; let the sea re-measure its depth
+      GroundRender.clearWaterDepth();
       break;
     }
 
@@ -268,6 +271,8 @@ function handleMessage(msg) {
       if (!m) break;
       const c = state.chunks.get(Math.floor(msg.x / m.chunk) + ',' + Math.floor(msg.y / m.chunk));
       if (c) c[(msg.y % m.chunk) * m.chunk + (msg.x % m.chunk)] = msg.tile;
+      // a tile flipping to or from water moves a shoreline
+      if (msg.tile === 0 || msg.was === 0) GroundRender.clearWaterDepth();
       break;
     }
     case 'tilevar': {

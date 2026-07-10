@@ -887,6 +887,8 @@ function draw() {
 // ---- editing actions ---------------------------------------------------------------
 
 function paintAt(wx, wy) {
+  GroundRender.clearWaterDepth(); // painted coastlines re-measure the sea
+
   const size = +document.getElementById('brush').value;
   const half = size >> 1;
   const cells = [];
