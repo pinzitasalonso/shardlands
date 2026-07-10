@@ -666,11 +666,13 @@ function drawSprites() {
   const pushProp = (p, bright) => {
     if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) return;
     const o = worldToScreen(p.x, p.y);
-    if (p.name.startsWith('coast.')) {
-      // coast stamps lie flat on the ground and animate — draw them here,
-      // during the ground pass, so entities still sort on top of them
+    const flat = p.name.startsWith('coast.') ? 'td.coast.' + p.name.slice(6)
+      : p.name.startsWith('crop.') ? 'td.crop.' + p.name.slice(5) : null;
+    if (flat) {
+      // flat stamps (coast, crops) lie on the ground and never occlude —
+      // drawn during the ground pass so entities still sort on top
       ctx.globalAlpha = bright === false ? 0.9 : 1;
-      Assets.drawFrame(ctx, 'td.coast.' + p.name.slice(6), o.x / k, o.y / k);
+      Assets.drawFrame(ctx, flat, o.x / k, o.y / k);
       ctx.globalAlpha = 1;
       return;
     }

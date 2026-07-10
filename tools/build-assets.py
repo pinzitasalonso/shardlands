@@ -609,6 +609,8 @@ def build_topdown_heroic(frames, images_out):
         'mtngrey':  (26, 22),  # cold grey, for the mires
         'mtnsnow':  (39, 22),  # white-capped, for the snows
         'forest':   (0, 18),   # broadleaf canopy — the green woods
+        'pine':     (0, 9),    # fir stands, mixed into the woods by region
+        'snowpine': (13, 3),   # snow-dusted pines — the pack's own, at last
         'palm':     (0, 15),   # palms, for the warm coasts
         'blossom':  (26, 15),  # twisted bog-trees in dark blossom
         'shroom':   (0, 27),   # giant toadstool groves of the deep mire
@@ -661,6 +663,37 @@ def build_topdown_heroic(frames, images_out):
                                    'w': TD, 'h': TD, 'ax': TD // 2, 'ay': TD, 'scale': TD_SCALE}
     extra_obj.save(os.path.join(OUT, 'sanddress16.png'))
     images_out['sanddress16'] = 'sanddress16.png'
+
+    # Farm crops: the sheet's two-row crop strips (green sprouts / red
+    # berries), cut into (left, interior, interior, right) cells per band so
+    # worldgen can lay plots of any width. Drawn FLAT like coast stamps.
+    crops = Image.new('RGBA', (16 * TD, TD), (0, 0, 0, 0))
+    ci_out = 0
+    for kind, cb in [('g', 0), ('r', 13)]:
+        for band, rr in [('t', 12), ('b', 13)]:
+            for cx in [1, 2, 3, 5]:
+                crops.paste(trees.crop(((cb + cx) * 16, rr * 16,
+                                        (cb + cx) * 16 + 16, rr * 16 + 16)), (ci_out * TD, 0))
+                frames[f'td.crop.{kind}.{band}.{[1, 2, 3, 5].index(cx)}'] = {
+                    'img': 'crops16', 'x': ci_out * TD, 'y': 0,
+                    'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+                ci_out += 1
+    crops.save(os.path.join(OUT, 'crops16.png'))
+    images_out['crops16'] = 'crops16.png'
+
+    # Cave mouths: each biome tileset keeps a 2x2 dark maw with its own rim.
+    # Placed as a y-sorted prop over every cave portal, so nobody walks into
+    # the barrow-deeps without seeing the hole in the world.
+    mouths = Image.new('RGBA', (4 * 32, 32), (0, 0, 0, 0))
+    for i, (suffix, sheet_key) in enumerate(
+            [('', 'GB'), ('snow', 'IB'), ('swamp', 'MB'), ('sand', 'SB')]):
+        mim = Image.open(os.path.join(HEROIC, HAS_SHEETS[sheet_key])).convert('RGBA')
+        mouths.paste(mim.crop((14 * 16, 0, 16 * 16, 2 * 16)), (i * 32, 0))
+        frames[f'td.o.cavemouth{suffix}'] = {'img': 'cavemouths', 'x': i * 32, 'y': 0,
+                                             'w': 32, 'h': 32, 'ax': 16, 'ay': 30,
+                                             'scale': TD_SCALE}
+    mouths.save(os.path.join(OUT, 'cavemouths.png'))
+    images_out['cavemouths'] = 'cavemouths.png'
 
     # The living sea, as the sheet actually reads: below one empty header
     # row, each of the 20 ROWS is one band of a vertically repeating ocean,
@@ -827,7 +860,7 @@ def build_topdown_heroic(frames, images_out):
         # forests are interlocking canopy MASSES, the way the pack's own maps
         # read — not scattered lone trees. The renderer picks banded block
         # cells by neighbours, same as mountains.
-        '2': {'ground': g('grass'), 'canopy': ['forest']},
+        '2': {'ground': g('grass'), 'canopy': ['forest', 'pine']},
         # mountains sit straight on the grass, ranges of interlocking peaks —
         # and they wear the country they stand in: white caps by the snows,
         # sun-baked orange in the desert, cold grey over the mires
@@ -844,7 +877,7 @@ def build_topdown_heroic(frames, images_out):
         '8': {'ground': g('floor'), 'effect': 'shrine'},
         '9': {'ground': g('snow'),
               'decor': {'chance': 0.04, 'objects': ['td.o.snowdecor0', 'td.o.snowdecor1']}},
-        '10': {'ground': g('snow'), 'canopy': ['foresticy']},
+        '10': {'ground': g('snow'), 'canopy': ['snowpine']},
         '11': {'ground': g('planks')},
         '12': {'ground': g('swamp'),
                'decor': {'chance': 0.05, 'objects': ['td.o.swampdecor0', 'td.o.mushroom']}},
