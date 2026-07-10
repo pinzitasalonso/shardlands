@@ -1176,6 +1176,61 @@ function generate(seed = 1337) {
     mkBard(BARD_NAMES[1 + i], v.lodgeRoom.x + 1, v.lodgeRoom.y); // by the lodge hearth
   });
 
+  // ---- Lamu: a far isle in the warm southern sea ------------------------------
+  // No road or runestone reaches it: passage is by ship from the desert
+  // coast, for coin. Carved last so nothing else claims its waters.
+  {
+    const LX = 1680;
+    const LY = 1450;
+    for (let dy = -14; dy <= 14; dy++) {
+      for (let dx = -17; dx <= 17; dx++) {
+        const d = Math.hypot(dx / 1.2, dy);
+        const x = LX + dx;
+        const y = LY + dy;
+        if (d < 9) tiles[y * W + x] = TILE.GRASS;
+        else if (d < 11.5) tiles[y * W + x] = TILE.SAND;
+      }
+    }
+    // a green crown of trees on the north rise
+    for (const [dx, dy] of [[-3, -6], [0, -7], [3, -6], [-6, -3], [6, -4]]) {
+      tiles[(LY + dy) * W + (LX + dx)] = TILE.TREE;
+    }
+    // the town: whitewashed cottages around a well
+    props.push({ x: LX - 3, y: LY - 1, name: 'prop.cottage0' });
+    props.push({ x: LX + 3, y: LY - 2, name: 'prop.cottage1' });
+    props.push({ x: LX + 4, y: LY + 2, name: 'prop.cottage2' });
+    props.push({ x: LX - 4, y: LY + 3, name: 'prop.cottage3' });
+    props.push({ x: LX, y: LY, name: 'prop.well' });
+    props.push({ x: LX - 1, y: LY + 2, name: 'prop.flowers1' });
+    props.push({ x: LX + 2, y: LY - 1, name: 'prop.flowers2' });
+    spawners.push({ kind: 'villager', count: 3, x: LX, y: LY, r: 4 });
+    spawners.push({ kind: 'chicken', count: 2, x: LX + 2, y: LY + 3, r: 3 });
+    // the island market: dearer than the mainland — everything comes by ship
+    vendors.push({
+      name: 'Asha of Lamu', x: LX + 1, y: LY + 1, model: 'villager2',
+      goods: [
+        { item: 'heal', name: 'Greater Heal Potion', price: 55, desc: 'Restores 25-40 health.' },
+        { item: 'mana', name: 'Mana Potion', price: 45, desc: 'Restores 20-30 mana.' },
+        { item: 'arrow', name: 'Bundle of Arrows (20)', price: 18, desc: 'For the longbow.' },
+      ],
+    });
+    // the west pier, and the homeward captain at its foot
+    for (let x = LX - 17; x <= LX - 14; x++) tiles[LY * W + x] = TILE.PLANKS;
+    vendors.push({
+      name: 'Captain Juma', x: LX - 15, y: LY, model: 'hermit', goods: [],
+      ferry: 'lamuBack', ferryLabel: 'the mainland', ferryPrice: 0,
+      greeting: 'Homesick already? The crossing back is on the house.',
+    });
+    // the mainland pier on the desert coast, where passage is bought
+    for (let x = 1624; x <= 1627; x++) tiles[1474 * W + x] = TILE.PLANKS;
+    vendors.push({
+      name: 'Captain Odo', x: 1625, y: 1474, model: 'hermit', goods: [],
+      ferry: 'lamu', ferryLabel: 'Lamu', ferryPrice: 100,
+      greeting: 'A hundred gold buys you the crossing to Lamu, and the wind does the rest.',
+    });
+    villages.push({ name: 'Lamu', x: LX, y: LY, island: true });
+  }
+
   // tileVariants: sparse "x,y" -> ground-variant index, hand-picked in the
   // builder. Worldgen leaves it empty; the overlay fills it.
   return { w: W, h: H, tiles, buildings, vendors, spawners, secrets, spawn, villages, cities, props,

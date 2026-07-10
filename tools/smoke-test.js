@@ -1870,8 +1870,9 @@ assert.strictEqual(game.map.tiles[spot.y * game.map.w + spot.x + 20], TILE.STONE
 // Rune transport: touch a stone to attune, then travel between attuned stones.
 {
   const rp = ws.player;
-  assert(game.runestones.length >= (game.map.cities.length + game.map.villages.length),
-    'every city and village keeps a runestone');
+  assert(game.runestones.length >=
+    (game.map.cities.length + game.map.villages.filter((v) => !v.island).length),
+    'every mainland city and village keeps a runestone');
   const [stoneA, stoneB] = game.runestones;
   // walking beside a stone attunes
   rp.x = stoneA.x + 1;
@@ -1972,6 +1973,54 @@ assert.strictEqual(game.map.tiles[spot.y * game.map.w + spot.x + 20], TILE.STONE
     game.growth.built.some((b2) => b2.x === pr.x && b2.y === pr.y)),
     'the cottage stands in the world and in the ledger');
   assert.strictEqual(game.growth.sites[key].logs, 0, 'the tally resets for the next house');
+}
+
+// Lamu: an island only the ferry reaches — pay the captain, sail the lane,
+// step onto the far pier.
+{
+  const lamu = game.map.villages.find((v) => v.name === 'Lamu');
+  assert(lamu && lamu.island, 'Lamu stands in the southern sea');
+  assert(!game.map.props.some((pr) => pr.name === 'prop.runestone' &&
+    Math.abs(pr.x - lamu.x) < 20 && Math.abs(pr.y - lamu.y) < 20),
+    'no runestone shortcuts the crossing');
+  assert(game.ferries.lamu.path.every((s) => game.map.tiles[s.y * game.map.w + s.x] === TILE.WATER),
+    'the sailing lane is open water end to end');
+  const wsf = fakeWs();
+  game.handle(wsf, { t: 'join', email: 'sailor@test.dev', password: 'secret1', name: 'Sailor' });
+  const sp = wsf.player;
+  const odo = game.map.vendors.find((v) => v.ferry === 'lamu');
+  sp.x = odo.x + 1;
+  sp.y = odo.y;
+  sp.gold = 50;
+  wsf.sent.length = 0;
+  game.handleFerry(sp);
+  assert(!sp.voyage && wsf.sent.some((m) => /costs 100/.test(m.text || '')),
+    'fifty gold buys no crossing');
+  sp.gold = 150;
+  game.handleFerry(sp);
+  assert(sp.voyage && sp.gold === 50, 'a hundred gold buys the crossing');
+  assert.strictEqual(game.map.tiles[sp.y * game.map.w + sp.x], TILE.WATER,
+    'the ship stands in open water');
+  // sail the whole lane
+  for (let i = 0; i < 500 && sp.voyage; i++) {
+    sp.voyageAt = 0;
+    game.voyageTick(sp, Date.now());
+  }
+  assert(!sp.voyage, 'the voyage ends');
+  assert(sp.x === game.ferries.lamu.land.x && sp.y === game.ferries.lamu.land.y,
+    'the hull bumps the Lamu pier');
+  assert(sp.discovered.includes('v:Lamu'), 'arrival discovers Lamu');
+  // and home again, for nothing
+  const juma = game.map.vendors.find((v) => v.ferry === 'lamuBack');
+  sp.x = juma.x;
+  sp.y = juma.y + 1;
+  game.handleFerry(sp);
+  assert(sp.voyage && sp.gold === 50, 'the crossing home is on the house');
+  for (let i = 0; i < 500 && sp.voyage; i++) {
+    sp.voyageAt = 0;
+    game.voyageTick(sp, Date.now());
+  }
+  assert(sp.x === game.ferries.lamuBack.land.x, 'and lands on the mainland pier');
 }
 
 // Diagonal movement is normalised: a diagonal mob step covers √2 tiles, so it
