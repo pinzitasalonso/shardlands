@@ -2012,12 +2012,14 @@ assert(game.map.rivers >= 3, 'a handful of rivers reached the sea');
     'no runestone shortcuts the crossing');
   assert(game.ferries.lamu.path.every((s) => game.map.tiles[s.y * game.map.w + s.x] === TILE.WATER),
     'the sailing lane is open water end to end');
-  // an all-sand isle, worked by donkeys and picked over by crabs
+  // an all-sand isle — dunes, the plank boardwalk and the paved town square
   let sandOnly = true;
-  for (let dy = -11; dy <= 11; dy++) {
-    for (let dx = -13; dx <= 13; dx++) {
+  for (let dy = -21; dy <= 21; dy++) {
+    for (let dx = -25; dx <= 25; dx++) {
       const tl = game.map.tiles[(lamu.y + dy) * game.map.w + (lamu.x + dx)];
-      if (tl !== TILE.WATER && tl !== TILE.SAND && tl !== TILE.PLANKS) sandOnly = false;
+      if (tl !== TILE.WATER && tl !== TILE.SAND && tl !== TILE.PLANKS && tl !== TILE.FLOOR) {
+        sandOnly = false;
+      }
     }
   }
   assert(sandOnly, 'Lamu is sand from dune to shore');
