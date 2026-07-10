@@ -427,7 +427,10 @@ for (let y = 900; y < 1150; y++) {
   for (let x = 900; x < 1150; x++) {
     if (game.map.tiles[y * 2048 + x] !== TILE.WATER &&
         [TILE.GRASS, TILE.SAND].includes(game.map.tiles[y * 2048 + x]) &&
-        game.map.tiles[y * 2048 + x + 1] === TILE.WATER) {
+        game.map.tiles[y * 2048 + x + 1] === TILE.WATER &&
+        // no tree or rock beside us, or gather would chop instead of fish
+        ![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) =>
+          [TILE.TREE, TILE.ROCK].includes(game.map.tiles[(y + dy) * 2048 + x + dx]))) {
       shore = { x, y };
       break outer2;
     }
@@ -1987,6 +1990,9 @@ assert.strictEqual(game.map.tiles[spot.y * game.map.w + spot.x + 20], TILE.STONE
       `the descent at ${s.x},${s.y} wears a visible maw`);
   }
 }
+
+// Rivers thread the land, and no settlement is cut off by one.
+assert(game.map.rivers >= 3, 'a handful of rivers reached the sea');
 
 // Lamu: an island only the ferry reaches — pay the captain, sail the lane,
 // step onto the far pier.
