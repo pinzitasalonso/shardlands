@@ -590,32 +590,77 @@ def build_topdown_heroic(frames, images_out):
     images_out['fringe16'] = 'fringe16.png'
     images_out['fringe16c'] = 'fringe16c.png'
 
-    # Mountains, corrected: the pack's peak block (rows 22-24) is a complete
-    # hand-drawn RANGE with feathered edges, not a repeating 3x3 — tiling it
-    # blindly stamped its empty corner and sky gaps into the middle of every
-    # ridge. Bake the range as three BANDS (crowns / flanks / feet, one row
-    # each) of four cells: a left flank, two interior columns and a right
-    # flank. The renderer picks the band by vertical neighbours and the cell
-    # by horizontal ones, so ranges of any shape read as solid mountains.
-    # Cell picks are MEASURED, not guessed: col 3 tiles seamlessly against
-    # itself in the flank and feet rows (16/16 edge-pixel continuity) and
-    # stacks perfectly through all three rows; the flanks below scored 15-16
-    # against it. (left, interior, interior, right) per band.
+    # The pack's interlocking BLOCKS — mountains and every forest kind — all
+    # share one hand-drawn template: a complete range/grove with feathered
+    # edges, three rows tall (crowns / flanks / feet). Baking any of them as
+    # a repeating 3x3 stamps holes mid-mass, so each is cut into BANDS of
+    # (left flank, interior, interior, right flank) plus a lone piece; the
+    # renderer picks the band by vertical neighbours and the cell by
+    # horizontal ones. Column picks were MEASURED on the mountain block
+    # (col 3 self-tiles 16/16 both ways; flanks scored 15-16) and the whole
+    # sheet family shares the template, so the offsets carry over.
     trees = sheets['TREES']
-    MTN_BANDS = [('t', 22, [2, 3, 3, 5]), ('m', 23, [1, 3, 3, 6]), ('b', 24, [2, 3, 3, 6])]
-    peaks = Image.new('RGBA', (13 * TD, TD), (0, 0, 0, 0))
-    for bi, (band, cy, cols) in enumerate(MTN_BANDS):
-        for ci, cx in enumerate(cols):
-            i = bi * 4 + ci
-            peaks.paste(trees.crop((cx * 16, cy * 16, cx * 16 + 16, cy * 16 + 16)), (i * TD, 0))
-            frames[f'td.mtn.{band}.{ci}'] = {'img': 'peaks16', 'x': i * TD, 'y': 0,
-                                             'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
-    # a lone standalone peak for one-tile-high ridges
-    peaks.paste(trees.crop((1 * 16, 22 * 16, 1 * 16 + 16, 22 * 16 + 16)), (12 * TD, 0))
-    frames['td.mtn.lone'] = {'img': 'peaks16', 'x': 12 * TD, 'y': 0,
-                             'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+    BAND_COLS = [('t', 0, [2, 3, 3, 5]), ('m', 1, [1, 3, 3, 6]), ('b', 2, [2, 3, 3, 6])]
+    # name -> (base col, base row of the t band). Rows 15-17 hold the tree
+    # blocks with 14 as loose scatter; 18-20 the canopies; 22-24 mountains.
+    UNI_BLOCKS = {
+        'mtn':      (0, 22),   # brown ranges — the classic
+        'mtnsand':  (13, 22),  # sun-baked orange, for desert country
+        'mtngrey':  (26, 22),  # cold grey, for the mires
+        'mtnsnow':  (39, 22),  # white-capped, for the snows
+        'forest':   (0, 18),   # broadleaf canopy — the green woods
+        'palm':     (0, 15),   # palms, for the warm coasts
+        'blossom':  (26, 15),  # twisted bog-trees in dark blossom
+        'shroom':   (0, 27),   # giant toadstool groves of the deep mire
+    }
+
+    def frost(cell):
+        # the pack keeps no snowy forest: whiten the green canopy's leaves
+        arr = np.asarray(cell).astype(np.float32).copy()
+        r, gch, b, a = arr[..., 0], arr[..., 1], arr[..., 2], arr[..., 3]
+        leaves = (gch >= r) & (gch > 60) & (a > 0)
+        for ch in range(3):
+            arr[..., ch] = np.where(leaves, arr[..., ch] * 0.35 + 255 * 0.65, arr[..., ch])
+        return Image.fromarray(arr.astype(np.uint8), 'RGBA')
+
+    block_names = list(UNI_BLOCKS) + ['foresticy']
+    peaks = Image.new('RGBA', (13 * TD * len(block_names), TD), (0, 0, 0, 0))
+    for bni, bname in enumerate(block_names):
+        cb, rb = UNI_BLOCKS.get(bname, UNI_BLOCKS['forest'])  # foresticy reuses forest cells
+        x0 = bni * 13 * TD
+        for band, dr, cols in BAND_COLS:
+            for ci, cx in enumerate(cols):
+                i = {'t': 0, 'm': 1, 'b': 2}[band] * 4 + ci
+                cim = trees.crop(((cb + cx) * 16, (rb + dr) * 16,
+                                  (cb + cx) * 16 + 16, (rb + dr) * 16 + 16))
+                if bname == 'foresticy':
+                    cim = frost(cim)
+                peaks.paste(cim, (x0 + i * TD, 0))
+                frames[f'td.blk.{bname}.{band}.{ci}'] = {
+                    'img': 'peaks16', 'x': x0 + i * TD, 'y': 0,
+                    'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+        lone = trees.crop(((cb + 1) * 16, rb * 16, (cb + 1) * 16 + 16, rb * 16 + 16))
+        if bname == 'foresticy':
+            lone = frost(lone)
+        peaks.paste(lone, (x0 + 12 * TD, 0))
+        frames[f'td.blk.{bname}.lone'] = {'img': 'peaks16', 'x': x0 + 12 * TD, 'y': 0,
+                                          'w': TD, 'h': TD, 'ax': 0, 'ay': 0, 'scale': TD_SCALE}
+    # the classic brown block keeps its old names for stale caches
+    for band, dr, cols in BAND_COLS:
+        for ci in range(4):
+            frames[f'td.mtn.{band}.{ci}'] = dict(frames[f'td.blk.mtn.{band}.{ci}'])
+    frames['td.mtn.lone'] = dict(frames['td.blk.mtn.lone'])
     peaks.save(os.path.join(OUT, 'peaks16.png'))
     images_out['peaks16'] = 'peaks16.png'
+    # sand-country decor sprites (bottom-anchored, y-sorted like other objects)
+    extra_obj = Image.new('RGBA', (3 * TD, TD), (0, 0, 0, 0))
+    for i, (oname, (ocx, ocy)) in enumerate(
+            {'cactus': (1, 21), 'sandbush': (0, 21), 'palmclump': (8, 14)}.items()):
+        extra_obj.paste(trees.crop((ocx * 16, ocy * 16, ocx * 16 + 16, ocy * 16 + 16)), (i * TD, 0))
+        frames[f'td.o.{oname}'] = {'img': 'sanddress16', 'x': i * TD, 'y': 0,
+                                   'w': TD, 'h': TD, 'ax': TD // 2, 'ay': TD, 'scale': TD_SCALE}
+    extra_obj.save(os.path.join(OUT, 'sanddress16.png'))
+    images_out['sanddress16'] = 'sanddress16.png'
 
     # The living sea, as the sheet actually reads: below one empty header
     # row, each of the 20 ROWS is one band of a vertically repeating ocean,
@@ -779,32 +824,33 @@ def build_topdown_heroic(frames, images_out):
         '1': {'ground': g('grass'),
               'decor': {'chance': 0.05,
                         'objects': ['td.o.flower', 'td.o.tuft', 'td.o.stone0', 'td.o.twig']}},
-        '2': {'ground': g('grass'),
-              'object': ['td.o.oak0', 'td.o.oak1', 'td.o.oak2', 'td.o.pine0', 'td.o.dead0'],
-              'objectSets': [
-                  ['td.o.oak0', 'td.o.oak1', 'td.o.oak2', 'td.o.oak0', 'td.o.dead0'],
-                  ['td.o.pine0', 'td.o.pine1', 'td.o.pine0', 'td.o.pine1', 'td.o.dead1'],
-                  ['td.o.dead0', 'td.o.dead1', 'td.o.pine1'],
-              ]},
-        # mountains sit straight on the grass, ranges of interlocking peaks
+        # forests are interlocking canopy MASSES, the way the pack's own maps
+        # read — not scattered lone trees. The renderer picks banded block
+        # cells by neighbours, same as mountains.
+        '2': {'ground': g('grass'), 'canopy': ['forest']},
+        # mountains sit straight on the grass, ranges of interlocking peaks —
+        # and they wear the country they stand in: white caps by the snows,
+        # sun-baked orange in the desert, cold grey over the mires
         '3': {'ground': g('grass'),
-              'peaks': {'lone': 'td.mtn.lone',
-                        **{band: [f'td.mtn.{band}.{ci}' for ci in range(4)]
-                           for band in ('t', 'm', 'b')}}},
+              'peaks': {'variants': {'default': 'mtn', 'snow': 'mtnsnow',
+                                     'sand': 'mtnsand', 'swamp': 'mtngrey'}}},
         '4': {'ground': g('road'), 'autoroadq': {'tile': 4, 'q': 'td.rq', 'c': 'td.rd'}},
         '5': {'ground': g('floor')},
         '6': {'ground': g('grass'), 'autowall': autowall},
         '7': {'ground': g('sand'),
-              'decor': {'chance': 0.04, 'objects': ['td.o.sanddecor0', 'td.o.sanddecor1']}},
+              'decor': {'chance': 0.05,
+                        'objects': ['td.o.sanddecor0', 'td.o.sanddecor1', 'td.o.cactus',
+                                    'td.o.palmclump', 'td.o.sandbush']}},
         '8': {'ground': g('floor'), 'effect': 'shrine'},
         '9': {'ground': g('snow'),
               'decor': {'chance': 0.04, 'objects': ['td.o.snowdecor0', 'td.o.snowdecor1']}},
-        '10': {'ground': g('snow'), 'object': ['td.o.snowpine0', 'td.o.snowpine1']},
+        '10': {'ground': g('snow'), 'canopy': ['foresticy']},
         '11': {'ground': g('planks')},
         '12': {'ground': g('swamp'),
                'decor': {'chance': 0.05, 'objects': ['td.o.swampdecor0', 'td.o.mushroom']}},
-        '13': {'ground': g('swamp'),
-               'object': ['td.o.swamptree0', 'td.o.swamptree1']},
+        # the mire grows in groves: twisted blossom-trees here, giant
+        # toadstools there, picked per coarse region so each patch groups
+        '13': {'ground': g('swamp'), 'canopy': ['blossom', 'shroom']},
         '14': {'ground': g('cave')},
         # grey cobblestone road: same corner autotiling as the tan road, its
         # own connecting set. Ground fallback is the floor's grey stonework.
