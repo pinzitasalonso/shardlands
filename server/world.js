@@ -695,6 +695,53 @@ function generate(seed = 1337) {
     }
   }
 
+  // ---- The wilds live: fauna scattered by the country it roams ------------------
+  // Camps and keeps hold the set-pieces; this pass fills the long walks
+  // BETWEEN them. Random points across the shard each seed a small spawner
+  // chosen by the ground underfoot — meadow prey and foxes, wood-wolves in
+  // the deep forest, serpents in the dunes, rams in the snows, crocs and
+  // raptors in the mire — kept clear of settlements and of each other.
+  {
+    const WILD_FAUNA = {
+      meadow: [['rabbit', 3, 4], ['deer', 2, 5], ['fox', 2, 5], ['boar', 2, 6], ['badger', 2, 5]],
+      forest: [['wolf', 3, 7], ['blackboar', 2, 6], ['direwolf', 2, 7], ['owlbear', 1, 5]],
+      sand:   [['duneserpent', 2, 7], ['goldengecko', 2, 5], ['snake', 2, 6]],
+      snow:   [['direwolf', 2, 7], ['silverstag', 1, 5], ['warram', 2, 6]],
+      swamp:  [['marshraptor', 2, 6], ['bogcroc', 2, 6], ['fenserpent', 2, 6], ['hatchling', 3, 5]],
+    };
+    const caps = { meadow: 34, forest: 22, sand: 14, snow: 14, swamp: 16 };
+    const made = { meadow: 0, forest: 0, sand: 0, snow: 0, swamp: 0 };
+    const placedWild = [];
+    let wtries = 0;
+    while (wtries++ < 4000 && Object.keys(caps).some((k) => made[k] < caps[k])) {
+      const x = Math.round(60 + rng() * (W - 120));
+      const y = Math.round(120 + rng() * (H - 180));
+      const t = tiles[y * W + x];
+      let kindKey = null;
+      if (t === TILE.GRASS) {
+        let woods = 0;
+        for (let dy = -4; dy <= 4; dy++) {
+          for (let dx = -4; dx <= 4; dx++) {
+            if (tiles[(y + dy) * W + (x + dx)] === TILE.TREE) woods++;
+          }
+        }
+        kindKey = woods >= 8 ? 'forest' : 'meadow';
+      } else if (t === TILE.SAND) kindKey = 'sand';
+      else if (t === TILE.SNOW) kindKey = 'snow';
+      else if (t === TILE.SWAMP) kindKey = 'swamp';
+      if (!kindKey || made[kindKey] >= caps[kindKey]) continue;
+      // clear of towns, of the capital's surrounds, and of other wild packs
+      if ([...cities, ...villages].some((s) => Math.hypot(s.x - x, s.y - y) < (s.r || 8) + 40)) continue;
+      if (Math.hypot(x - CX, y - CY) < 120) continue;
+      if (placedWild.some((p) => Math.hypot(p.x - x, p.y - y) < 48)) continue;
+      const table = WILD_FAUNA[kindKey];
+      const [kind, count, r] = table[Math.floor(rng() * table.length)];
+      spawners.push({ kind, count, x, y, r });
+      placedWild.push({ x, y });
+      made[kindKey]++;
+    }
+  }
+
   // ---- Harpy roosts on the high crags --------------------------------------------
   // The spawner sits on bare rock; spawnMob only places them on walkable
   // ground nearby, so they wheel around the peaks.
