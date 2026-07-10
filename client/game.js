@@ -1969,10 +1969,13 @@ function render() {
   // occlude anything standing on them. drawFrame cycles their foam frames.
   if (useSprites) {
     for (const pr of state.props) {
-      if (!(typeof pr.name === 'string' && pr.name.startsWith('coast.'))) continue;
+      if (typeof pr.name !== 'string') continue;
+      const flat = pr.name.startsWith('coast.') ? 'td.coast.' + pr.name.slice(6)
+        : pr.name.startsWith('crop.') ? 'td.crop.' + pr.name.slice(5) : null;
+      if (!flat) continue;
       if (pr.x < x0 || pr.x > x1 || pr.y < y0 || pr.y > y1) continue;
       const s = worldToScreen(pr.x, pr.y, cam);
-      Assets.drawFrame(ctx, 'td.coast.' + pr.name.slice(6), s.x, s.y);
+      Assets.drawFrame(ctx, flat, s.x, s.y);
     }
   }
 
@@ -1989,7 +1992,8 @@ function render() {
   // Furniture and trail dressing.
   for (const pr of state.props) {
     if (pr.x < x0 || pr.x > x1 || pr.y < y0 || pr.y > y1) continue;
-    if (typeof pr.name === 'string' && pr.name.startsWith('coast.')) continue; // drawn flat above
+    if (typeof pr.name === 'string' &&
+        (pr.name.startsWith('coast.') || pr.name.startsWith('crop.'))) continue; // drawn flat above
     const s = worldToScreen(pr.x, pr.y, cam);
     if (pr.name === 'fx.campfire') {
       drawables.push({ depth: pr.y, kind: 'campfire', x: s.x + HT, y: s.y + HT });

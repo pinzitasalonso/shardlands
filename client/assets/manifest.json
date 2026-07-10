@@ -9581,7 +9581,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1376,
+   "x": 1792,
    "y": 0
   },
   "td.blk.blossom.b.1": {
@@ -9591,7 +9591,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1392,
+   "x": 1808,
    "y": 0
   },
   "td.blk.blossom.b.2": {
@@ -9601,7 +9601,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1408,
+   "x": 1824,
    "y": 0
   },
   "td.blk.blossom.b.3": {
@@ -9611,7 +9611,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1424,
+   "x": 1840,
    "y": 0
   },
   "td.blk.blossom.lone": {
@@ -9621,7 +9621,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1440,
+   "x": 1856,
    "y": 0
   },
   "td.blk.blossom.m.0": {
@@ -9631,7 +9631,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1312,
+   "x": 1728,
    "y": 0
   },
   "td.blk.blossom.m.1": {
@@ -9641,7 +9641,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1328,
+   "x": 1744,
    "y": 0
   },
   "td.blk.blossom.m.2": {
@@ -9651,7 +9651,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1344,
+   "x": 1760,
    "y": 0
   },
   "td.blk.blossom.m.3": {
@@ -9661,7 +9661,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1360,
+   "x": 1776,
    "y": 0
   },
   "td.blk.blossom.t.0": {
@@ -9671,7 +9671,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1248,
+   "x": 1664,
    "y": 0
   },
   "td.blk.blossom.t.1": {
@@ -9681,7 +9681,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1264,
+   "x": 1680,
    "y": 0
   },
   "td.blk.blossom.t.2": {
@@ -9691,7 +9691,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1280,
+   "x": 1696,
    "y": 0
   },
   "td.blk.blossom.t.3": {
@@ -9701,7 +9701,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1296,
+   "x": 1712,
    "y": 0
   },
   "td.blk.forest.b.0": {
@@ -9841,7 +9841,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1792,
+   "x": 2208,
    "y": 0
   },
   "td.blk.foresticy.b.1": {
@@ -9851,7 +9851,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1808,
+   "x": 2224,
    "y": 0
   },
   "td.blk.foresticy.b.2": {
@@ -9861,7 +9861,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1824,
+   "x": 2240,
    "y": 0
   },
   "td.blk.foresticy.b.3": {
@@ -9871,7 +9871,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1840,
+   "x": 2256,
    "y": 0
   },
   "td.blk.foresticy.lone": {
@@ -9881,7 +9881,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1856,
+   "x": 2272,
    "y": 0
   },
   "td.blk.foresticy.m.0": {
@@ -9891,7 +9891,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1728,
+   "x": 2144,
    "y": 0
   },
   "td.blk.foresticy.m.1": {
@@ -9901,7 +9901,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1744,
+   "x": 2160,
    "y": 0
   },
   "td.blk.foresticy.m.2": {
@@ -9911,7 +9911,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1760,
+   "x": 2176,
    "y": 0
   },
   "td.blk.foresticy.m.3": {
@@ -9921,7 +9921,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1776,
+   "x": 2192,
    "y": 0
   },
   "td.blk.foresticy.t.0": {
@@ -9931,7 +9931,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1664,
+   "x": 2080,
    "y": 0
   },
   "td.blk.foresticy.t.1": {
@@ -9941,7 +9941,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1680,
+   "x": 2096,
    "y": 0
   },
   "td.blk.foresticy.t.2": {
@@ -9951,7 +9951,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1696,
+   "x": 2112,
    "y": 0
   },
   "td.blk.foresticy.t.3": {
@@ -9961,7 +9961,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1712,
+   "x": 2128,
    "y": 0
   },
   "td.blk.mtn.b.0": {
@@ -10491,7 +10491,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1168,
+   "x": 1584,
    "y": 0
   },
   "td.blk.palm.b.1": {
@@ -10501,7 +10501,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1184,
+   "x": 1600,
    "y": 0
   },
   "td.blk.palm.b.2": {
@@ -10511,7 +10511,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1200,
+   "x": 1616,
    "y": 0
   },
   "td.blk.palm.b.3": {
@@ -10521,7 +10521,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1216,
+   "x": 1632,
    "y": 0
   },
   "td.blk.palm.lone": {
@@ -10531,7 +10531,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1232,
+   "x": 1648,
    "y": 0
   },
   "td.blk.palm.m.0": {
@@ -10541,7 +10541,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1104,
+   "x": 1520,
    "y": 0
   },
   "td.blk.palm.m.1": {
@@ -10551,7 +10551,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1120,
+   "x": 1536,
    "y": 0
   },
   "td.blk.palm.m.2": {
@@ -10561,7 +10561,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1136,
+   "x": 1552,
    "y": 0
   },
   "td.blk.palm.m.3": {
@@ -10571,7 +10571,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1152,
+   "x": 1568,
    "y": 0
   },
   "td.blk.palm.t.0": {
@@ -10581,7 +10581,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1040,
+   "x": 1456,
    "y": 0
   },
   "td.blk.palm.t.1": {
@@ -10591,7 +10591,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1056,
+   "x": 1472,
    "y": 0
   },
   "td.blk.palm.t.2": {
@@ -10601,10 +10601,140 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1072,
+   "x": 1488,
    "y": 0
   },
   "td.blk.palm.t.3": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1504,
+   "y": 0
+  },
+  "td.blk.pine.b.0": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1168,
+   "y": 0
+  },
+  "td.blk.pine.b.1": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1184,
+   "y": 0
+  },
+  "td.blk.pine.b.2": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1200,
+   "y": 0
+  },
+  "td.blk.pine.b.3": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1216,
+   "y": 0
+  },
+  "td.blk.pine.lone": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1232,
+   "y": 0
+  },
+  "td.blk.pine.m.0": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1104,
+   "y": 0
+  },
+  "td.blk.pine.m.1": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1120,
+   "y": 0
+  },
+  "td.blk.pine.m.2": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1136,
+   "y": 0
+  },
+  "td.blk.pine.m.3": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1152,
+   "y": 0
+  },
+  "td.blk.pine.t.0": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1040,
+   "y": 0
+  },
+  "td.blk.pine.t.1": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1056,
+   "y": 0
+  },
+  "td.blk.pine.t.2": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1072,
+   "y": 0
+  },
+  "td.blk.pine.t.3": {
    "ax": 0,
    "ay": 0,
    "h": 16,
@@ -10621,7 +10751,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1584,
+   "x": 2000,
    "y": 0
   },
   "td.blk.shroom.b.1": {
@@ -10631,7 +10761,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1600,
+   "x": 2016,
    "y": 0
   },
   "td.blk.shroom.b.2": {
@@ -10641,7 +10771,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1616,
+   "x": 2032,
    "y": 0
   },
   "td.blk.shroom.b.3": {
@@ -10651,7 +10781,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1632,
+   "x": 2048,
    "y": 0
   },
   "td.blk.shroom.lone": {
@@ -10661,7 +10791,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1648,
+   "x": 2064,
    "y": 0
   },
   "td.blk.shroom.m.0": {
@@ -10671,7 +10801,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1520,
+   "x": 1936,
    "y": 0
   },
   "td.blk.shroom.m.1": {
@@ -10681,7 +10811,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1536,
+   "x": 1952,
    "y": 0
   },
   "td.blk.shroom.m.2": {
@@ -10691,7 +10821,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1552,
+   "x": 1968,
    "y": 0
   },
   "td.blk.shroom.m.3": {
@@ -10701,7 +10831,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1568,
+   "x": 1984,
    "y": 0
   },
   "td.blk.shroom.t.0": {
@@ -10711,7 +10841,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1456,
+   "x": 1872,
    "y": 0
   },
   "td.blk.shroom.t.1": {
@@ -10721,7 +10851,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1472,
+   "x": 1888,
    "y": 0
   },
   "td.blk.shroom.t.2": {
@@ -10731,7 +10861,7 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1488,
+   "x": 1904,
    "y": 0
   },
   "td.blk.shroom.t.3": {
@@ -10741,7 +10871,137 @@
    "img": "peaks16",
    "scale": 3,
    "w": 16,
-   "x": 1504,
+   "x": 1920,
+   "y": 0
+  },
+  "td.blk.snowpine.b.0": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1376,
+   "y": 0
+  },
+  "td.blk.snowpine.b.1": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1392,
+   "y": 0
+  },
+  "td.blk.snowpine.b.2": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1408,
+   "y": 0
+  },
+  "td.blk.snowpine.b.3": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1424,
+   "y": 0
+  },
+  "td.blk.snowpine.lone": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1440,
+   "y": 0
+  },
+  "td.blk.snowpine.m.0": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1312,
+   "y": 0
+  },
+  "td.blk.snowpine.m.1": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1328,
+   "y": 0
+  },
+  "td.blk.snowpine.m.2": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1344,
+   "y": 0
+  },
+  "td.blk.snowpine.m.3": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1360,
+   "y": 0
+  },
+  "td.blk.snowpine.t.0": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1248,
+   "y": 0
+  },
+  "td.blk.snowpine.t.1": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1264,
+   "y": 0
+  },
+  "td.blk.snowpine.t.2": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1280,
+   "y": 0
+  },
+  "td.blk.snowpine.t.3": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "peaks16",
+   "scale": 3,
+   "w": 16,
+   "x": 1296,
    "y": 0
   },
   "td.coast.1": {
@@ -24076,6 +24336,166 @@
    "x": 112,
    "y": 96
   },
+  "td.crop.g.b.0": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "crops16",
+   "scale": 3,
+   "w": 16,
+   "x": 64,
+   "y": 0
+  },
+  "td.crop.g.b.1": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "crops16",
+   "scale": 3,
+   "w": 16,
+   "x": 80,
+   "y": 0
+  },
+  "td.crop.g.b.2": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "crops16",
+   "scale": 3,
+   "w": 16,
+   "x": 96,
+   "y": 0
+  },
+  "td.crop.g.b.3": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "crops16",
+   "scale": 3,
+   "w": 16,
+   "x": 112,
+   "y": 0
+  },
+  "td.crop.g.t.0": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "crops16",
+   "scale": 3,
+   "w": 16,
+   "x": 0,
+   "y": 0
+  },
+  "td.crop.g.t.1": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "crops16",
+   "scale": 3,
+   "w": 16,
+   "x": 16,
+   "y": 0
+  },
+  "td.crop.g.t.2": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "crops16",
+   "scale": 3,
+   "w": 16,
+   "x": 32,
+   "y": 0
+  },
+  "td.crop.g.t.3": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "crops16",
+   "scale": 3,
+   "w": 16,
+   "x": 48,
+   "y": 0
+  },
+  "td.crop.r.b.0": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "crops16",
+   "scale": 3,
+   "w": 16,
+   "x": 192,
+   "y": 0
+  },
+  "td.crop.r.b.1": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "crops16",
+   "scale": 3,
+   "w": 16,
+   "x": 208,
+   "y": 0
+  },
+  "td.crop.r.b.2": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "crops16",
+   "scale": 3,
+   "w": 16,
+   "x": 224,
+   "y": 0
+  },
+  "td.crop.r.b.3": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "crops16",
+   "scale": 3,
+   "w": 16,
+   "x": 240,
+   "y": 0
+  },
+  "td.crop.r.t.0": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "crops16",
+   "scale": 3,
+   "w": 16,
+   "x": 128,
+   "y": 0
+  },
+  "td.crop.r.t.1": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "crops16",
+   "scale": 3,
+   "w": 16,
+   "x": 144,
+   "y": 0
+  },
+  "td.crop.r.t.2": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "crops16",
+   "scale": 3,
+   "w": 16,
+   "x": 160,
+   "y": 0
+  },
+  "td.crop.r.t.3": {
+   "ax": 0,
+   "ay": 0,
+   "h": 16,
+   "img": "crops16",
+   "scale": 3,
+   "w": 16,
+   "x": 176,
+   "y": 0
+  },
   "td.drop.fish": {
    "ax": 8,
    "ay": 8,
@@ -26829,6 +27249,46 @@
    "w": 16,
    "x": 736,
    "y": 416
+  },
+  "td.o.cavemouth": {
+   "ax": 16,
+   "ay": 30,
+   "h": 32,
+   "img": "cavemouths",
+   "scale": 3,
+   "w": 32,
+   "x": 0,
+   "y": 0
+  },
+  "td.o.cavemouthsand": {
+   "ax": 16,
+   "ay": 30,
+   "h": 32,
+   "img": "cavemouths",
+   "scale": 3,
+   "w": 32,
+   "x": 96,
+   "y": 0
+  },
+  "td.o.cavemouthsnow": {
+   "ax": 16,
+   "ay": 30,
+   "h": 32,
+   "img": "cavemouths",
+   "scale": 3,
+   "w": 32,
+   "x": 32,
+   "y": 0
+  },
+  "td.o.cavemouthswamp": {
+   "ax": 16,
+   "ay": 30,
+   "h": 32,
+   "img": "cavemouths",
+   "scale": 3,
+   "w": 32,
+   "x": 64,
+   "y": 0
   },
   "td.o.chest": {
    "ax": 8,
@@ -37502,6 +37962,7 @@
   "burningone": "creatures/burningone.png",
   "cavalier": "creatures/cavalier.png",
   "cavebear": "creatures/cavebear.png",
+  "cavemouths": "cavemouths.png",
   "centaur": "creatures/centaur.png",
   "chicken": "creatures/chicken.png",
   "coastanim": "coastanim.png",
@@ -37512,6 +37973,7 @@
   "coastanim-swamp": "coastanim-swamp.png",
   "crab": "creatures/crab.png",
   "crocwarden": "creatures/crocwarden.png",
+  "crops16": "crops16.png",
   "crossbowman": "creatures/crossbowman.png",
   "cryptswarm": "creatures/cryptswarm.png",
   "cyclops": "creatures/cyclops.png",
@@ -38642,7 +39104,7 @@
   },
   "10": {
    "canopy": [
-    "foresticy"
+    "snowpine"
    ],
    "ground": [
     "td.g.snow.0",
@@ -38706,7 +39168,8 @@
   },
   "2": {
    "canopy": [
-    "forest"
+    "forest",
+    "pine"
    ],
    "ground": [
     "td.g.grass.0",

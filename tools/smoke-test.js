@@ -1975,6 +1975,19 @@ assert.strictEqual(game.map.tiles[spot.y * game.map.w + spot.x + 20], TILE.STONE
   assert.strictEqual(game.growth.sites[key].logs, 0, 'the tally resets for the next house');
 }
 
+// Farms feed the villages, and every hole in the world can be seen.
+{
+  const crops = game.map.props.filter((pr) => pr.name.startsWith('crop.'));
+  assert(crops.length >= 5 * 28, 'most villages keep a tilled plot');
+  const caveDowns = game.map.secrets.filter((s) => s.type === 'portal' && s.cave && s.y >= 64);
+  assert(caveDowns.length > 0, 'the world keeps cave descents');
+  for (const s of caveDowns) {
+    assert(game.map.props.some((pr) => pr.name.startsWith('prop.cavemouth') &&
+      pr.x === s.x && pr.y === s.y),
+      `the descent at ${s.x},${s.y} wears a visible maw`);
+  }
+}
+
 // Lamu: an island only the ferry reaches — pay the captain, sail the lane,
 // step onto the far pier.
 {

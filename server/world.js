@@ -555,6 +555,16 @@ function generate(seed = 1337) {
   const openMouth = (mouth, idx, theme, whisperText) => {
     const entry = carveDungeon(idx, theme);
     set(mouth.x, mouth.y, TILE.CAVE);
+    // the hole in the world must LOOK like one: a dark maw rimmed in
+    // whatever country it opens from (nobody walks in unawares again)
+    let rim = '';
+    for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+      const nt = tiles[(mouth.y + ddy) * W + (mouth.x + ddx)];
+      if (nt === TILE.SNOW || nt === TILE.SNOWTREE) { rim = 'snow'; break; }
+      if (nt === TILE.SWAMP || nt === TILE.SWAMPTREE) { rim = 'swamp'; break; }
+      if (nt === TILE.SAND) { rim = 'sand'; break; }
+    }
+    props.push({ x: mouth.x, y: mouth.y, name: 'prop.cavemouth' + rim });
     secrets.push({ type: 'portal', x: mouth.x, y: mouth.y, tx: entry.x, ty: entry.y, cave: true });
     secrets.push({ type: 'portal', x: entry.x, y: entry.y, tx: mouth.x, ty: mouth.y, cave: true });
     // mark the way home: stairs on the arrival tile, torchlight beside it
@@ -1175,6 +1185,39 @@ function generate(seed = 1337) {
   villages.filter((v, i) => i % 3 === 0).slice(0, 3).forEach((v, i) => {
     mkBard(BARD_NAMES[1 + i], v.lodgeRoom.x + 1, v.lodgeRoom.y); // by the lodge hearth
   });
+
+  // ---- Farms: crop-rows feed every village -------------------------------------
+  // Each village gets a tilled plot on clear grass nearby: alternating strips
+  // of green sprouts or red berries, laid from the sheet's two-row crop
+  // blocks. Flat stamps, drawn under everything like the coast pieces.
+  for (const v of villages) {
+    const kind = (v.x + v.y) % 2 ? 'g' : 'r';
+    let placed = false;
+    for (let ring = 8; ring <= 18 && !placed; ring += 2) {
+      for (let a = 0; a < 16 && !placed; a++) {
+        const px = Math.round(v.x + ring * Math.cos((a / 16) * Math.PI * 2));
+        const py = Math.round(v.y + ring * Math.sin((a / 16) * Math.PI * 2));
+        const FW = 7;
+        const FH = 4;
+        let clear = true;
+        for (let dy = -1; dy <= FH && clear; dy++) {
+          for (let dx = -1; dx <= FW && clear; dx++) {
+            if (tiles[(py + dy) * W + (px + dx)] !== TILE.GRASS) clear = false;
+            if (props.some((pr) => pr.x === px + dx && pr.y === py + dy)) clear = false;
+          }
+        }
+        if (!clear) continue;
+        for (let dy = 0; dy < FH; dy++) {
+          for (let dx = 0; dx < FW; dx++) {
+            const band = dy % 2 === 0 ? 't' : 'b';
+            const col = dx === 0 ? 0 : dx === FW - 1 ? 3 : 1 + (dx % 2);
+            props.push({ x: px + dx, y: py + dy, name: `crop.${kind}.${band}.${col}` });
+          }
+        }
+        placed = true;
+      }
+    }
+  }
 
   // ---- Lamu: a far isle in the warm southern sea ------------------------------
   // No road or runestone reaches it: passage is by ship from the desert
