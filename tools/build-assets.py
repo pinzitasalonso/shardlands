@@ -1675,6 +1675,8 @@ def main():
     icon_categories = build_icon_library(frames, td_images) if os.path.isdir(HEROIC) else {}
     coast_pieces = build_coast(frames, td_images) if os.path.isdir(HEROIC) else []
     build_drops(frames, td_images)
+    if os.path.isdir(HEROIC):
+        build_ship(frames, td_images)
 
     manifest = {
         'tileW': 64, 'tileH': 32,
@@ -1976,6 +1978,27 @@ RUNE_ART = [
     'OmmOOOOOOOOmmO..',
     '.OOO......OOO...',
 ]
+
+
+def build_ship(frames, images_out):
+    """The Lamu ferry: NewPangea's little sail ship (same Aleksandr Makarov
+    licence as the rest of the KingRabbit bundle). Four wake frames east and
+    west; drawFrame cycles them while a voyage is under way."""
+    root = os.path.join(HEROIC, 'Unsorted', 'NewPangea v. 0.1', 'Old', 'Units', 'Sail')
+    atlas = Image.new('RGBA', (8 * TD, TD), (0, 0, 0, 0))
+    for f in range(4):
+        im = Image.open(os.path.join(root, f'SailMove(Frame {f + 1}).png')).convert('RGBA')
+        atlas.paste(im, (f * TD, 0))
+        atlas.paste(im.transpose(Image.FLIP_LEFT_RIGHT), ((4 + f) * TD, 0))
+        frames[f'td.ship.e.{f}'] = {'img': 'shipanim', 'x': f * TD, 'y': 0, 'w': TD, 'h': TD,
+                                    'ax': 8, 'ay': 13, 'scale': TD_SCALE}
+        frames[f'td.ship.w.{f}'] = {'img': 'shipanim', 'x': (4 + f) * TD, 'y': 0, 'w': TD, 'h': TD,
+                                    'ax': 8, 'ay': 13, 'scale': TD_SCALE}
+    for d in ('e', 'w'):
+        frames[f'td.ship.{d}'] = {**frames[f'td.ship.{d}.0'],
+                                  'anim': [f'td.ship.{d}.{f}' for f in range(4)], 'animMs': 220}
+    atlas.save(os.path.join(OUT, 'shipanim.png'))
+    images_out['shipanim'] = 'shipanim.png'
 
 
 def build_drops(frames, images_out):

@@ -1246,6 +1246,13 @@ function openShop(vendor) {
            <div class="shop-row"><span>🪵 Logs you carry: ${y.logs ?? 0}<small>2 gp each</small></span><button data-contribute="logs">Give logs</button></div>` +
           (needOre ? `<div class="shop-row"><span>🪨 Ore you carry: ${y.ore ?? 0}<small>3 gp each</small></span><button data-contribute="ore">Give ore</button></div>` : ''));
   }
+  // The captain's offer: one fare, one destination, the sea does the rest.
+  let ferry = '';
+  if (vendor.ferry) {
+    ferry = '<div class="shop-title" style="margin-top:10px">Passage</div>' +
+      `<div class="shop-row"><span>⛵ To ${esc(vendor.ferryLabel || 'distant shores')}<small>${vendor.ferryPrice ? vendor.ferryPrice + ' gp for the crossing' : 'no charge — the captain insists'}</small></span>
+         <button data-ferry="1">Set sail</button></div>`;
+  }
   const bond = `<span class="shop-bond">
       <button data-talk="${vendor.id}" title="Talk">💬</button>
       <button data-gift="${vendor.id}:fish" title="Gift a fish">🐟</button>
@@ -1254,7 +1261,7 @@ function openShop(vendor) {
     </span>`;
   shopPanel.innerHTML =
     `<div class="shop-title">${esc(vendor.name)}${friendly ? ' · friend\'s prices' : ''}${bond}</div>
-     ${lines}${forge}${bench}${build}
+     ${lines}${forge}${bench}${build}${ferry}
      <button class="shop-close">Close</button>`;
   shopPanel.classList.remove('hidden');
 }
@@ -1270,6 +1277,7 @@ shopPanel.addEventListener('click', (ev) => {
   if (ev.target.dataset.craft) send({ t: 'craft', id: ev.target.dataset.craft });
   if (ev.target.dataset.brew) send({ t: 'brew', kind: ev.target.dataset.brew });
   if (ev.target.dataset.contribute) send({ t: 'contribute', kind: ev.target.dataset.contribute });
+  if (ev.target.dataset.ferry) { send({ t: 'ferry' }); closeShop(); }
   if (ev.target.dataset.salvage) send({ t: 'salvage', uid: ev.target.dataset.salvage | 0 });
   if (ev.target.dataset.imbue) {
     const [uid, brand] = ev.target.dataset.imbue.split(':');
@@ -2410,6 +2418,22 @@ function drawMob(m, cam, time) {
 
 function drawPlayer(p, cam, time) {
   const s = worldToScreen(p.rx + 0.5, p.ry + 0.5, cam);
+
+  // Under sail: the traveller IS the ship until the hull bumps the pier.
+  if (p.s) {
+    if (Math.abs(p.x - p.rx) > 0.05) p.shipDir = p.x < p.rx ? 'w' : 'e';
+    const bob = Math.sin(time / 320 + p.id) * 1.6;
+    entityShadow(s.x, s.y + 3, 15);
+    if (!Assets.state.ok ||
+        !Assets.state.manifest.frames['td.ship.' + (p.shipDir || 'e')]) {
+      ctx.fillStyle = '#7a5a36'; // stale manifest: an honest plank of a boat
+      ctx.fillRect(s.x - 16, s.y - 10 + bob, 32, 14);
+    } else {
+      Assets.drawFrame(ctx, 'td.ship.' + (p.shipDir || 'e'), s.x, s.y + 12 + bob);
+    }
+    nameplate(p.name, s.x, s.y - 34 + bob, p.id === state.myId ? '#ffd870' : '#e6ecf8', FS(12));
+    return;
+  }
 
   ctx.save();
   if (p.dead) ctx.globalAlpha = 0.45;

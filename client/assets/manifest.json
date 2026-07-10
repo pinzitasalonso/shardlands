@@ -35236,6 +35236,120 @@
    "x": 72,
    "y": 96
   },
+  "td.ship.e": {
+   "anim": [
+    "td.ship.e.0",
+    "td.ship.e.1",
+    "td.ship.e.2",
+    "td.ship.e.3"
+   ],
+   "animMs": 220,
+   "ax": 8,
+   "ay": 13,
+   "h": 16,
+   "img": "shipanim",
+   "scale": 3,
+   "w": 16,
+   "x": 0,
+   "y": 0
+  },
+  "td.ship.e.0": {
+   "ax": 8,
+   "ay": 13,
+   "h": 16,
+   "img": "shipanim",
+   "scale": 3,
+   "w": 16,
+   "x": 0,
+   "y": 0
+  },
+  "td.ship.e.1": {
+   "ax": 8,
+   "ay": 13,
+   "h": 16,
+   "img": "shipanim",
+   "scale": 3,
+   "w": 16,
+   "x": 16,
+   "y": 0
+  },
+  "td.ship.e.2": {
+   "ax": 8,
+   "ay": 13,
+   "h": 16,
+   "img": "shipanim",
+   "scale": 3,
+   "w": 16,
+   "x": 32,
+   "y": 0
+  },
+  "td.ship.e.3": {
+   "ax": 8,
+   "ay": 13,
+   "h": 16,
+   "img": "shipanim",
+   "scale": 3,
+   "w": 16,
+   "x": 48,
+   "y": 0
+  },
+  "td.ship.w": {
+   "anim": [
+    "td.ship.w.0",
+    "td.ship.w.1",
+    "td.ship.w.2",
+    "td.ship.w.3"
+   ],
+   "animMs": 220,
+   "ax": 8,
+   "ay": 13,
+   "h": 16,
+   "img": "shipanim",
+   "scale": 3,
+   "w": 16,
+   "x": 64,
+   "y": 0
+  },
+  "td.ship.w.0": {
+   "ax": 8,
+   "ay": 13,
+   "h": 16,
+   "img": "shipanim",
+   "scale": 3,
+   "w": 16,
+   "x": 64,
+   "y": 0
+  },
+  "td.ship.w.1": {
+   "ax": 8,
+   "ay": 13,
+   "h": 16,
+   "img": "shipanim",
+   "scale": 3,
+   "w": 16,
+   "x": 80,
+   "y": 0
+  },
+  "td.ship.w.2": {
+   "ax": 8,
+   "ay": 13,
+   "h": 16,
+   "img": "shipanim",
+   "scale": 3,
+   "w": 16,
+   "x": 96,
+   "y": 0
+  },
+  "td.ship.w.3": {
+   "ax": 8,
+   "ay": 13,
+   "h": 16,
+   "img": "shipanim",
+   "scale": 3,
+   "w": 16,
+   "x": 112,
+   "y": 0
+  },
   "td.wall.bl": {
    "ax": 0,
    "ay": 0,
@@ -36280,6 +36394,7 @@
   "salamander": "creatures/salamander.png",
   "shadowbeast": "creatures/shadowbeast.png",
   "sheep": "creatures/sheep.png",
+  "shipanim": "shipanim.png",
   "silverstag": "creatures/silverstag.png",
   "skeleton": "creatures/skeleton.png",
   "skelmage": "creatures/skelmage.png",

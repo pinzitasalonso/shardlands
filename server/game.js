@@ -576,6 +576,7 @@ class Game {
       this.map.props.push({ x: spot.x, y: spot.y, name: 'prop.runestone' });
     }
     for (const v of this.map.villages || []) {
+      if (v.island) continue; // isles are reached by ship, not by stone
       const spot = nearestWalkable(this.map, v.x + 2, v.y + 1);
       this.map.props.push({ x: spot.x, y: spot.y, name: 'prop.runestone' });
     }
@@ -653,6 +654,28 @@ class Game {
         const name = near && near.d <= 24 ? near.s.name : 'a lone waystone';
         return { key: `r:${pr.x},${pr.y}`, name, x: pr.x, y: pr.y };
       });
+    // The ferry lines: a straight sail between pier-end waters, marched
+    // tile by tile at boot and verified all-ocean, so the voyage the
+    // players watch can never run aground.
+    const sail = (x0, y0, x1, y1) => {
+      const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+      const path = [];
+      for (let i = 0; i <= n; i++) {
+        path.push({ x: Math.round(x0 + (x1 - x0) * i / n), y: Math.round(y0 + (y1 - y0) * i / n) });
+      }
+      for (const s of path) {
+        if (tileAt(this.map, s.x, s.y) !== TILE.WATER) {
+          console.error(`ferry lane runs aground at ${s.x},${s.y}`);
+        }
+      }
+      return path;
+    };
+    this.ferries = {
+      lamu: { price: 100, label: 'Lamu',
+        path: sail(1628, 1474, 1662, 1450), land: { x: 1663, y: 1450 } },
+      lamuBack: { price: 0, label: 'the mainland',
+        path: sail(1662, 1450, 1628, 1474), land: { x: 1627, y: 1474 } },
+    };
     // Places a traveller can DISCOVER: villages and the great landmarks
     // worldgen scattered. They appear on a player's world map only once
     // walked near (arriveAt), and stay there for good. The four crown
@@ -665,7 +688,9 @@ class Game {
     };
     this.pois = [
       ...this.map.villages.map((v) => (
-        { key: 'v:' + v.name, kind: 'village', name: v.name, x: v.x, y: v.y, r: 12 })),
+        // an island is discovered the moment you step off the ship at its
+        // pier, which stands well outside a mainland village's radius
+        { key: 'v:' + v.name, kind: 'village', name: v.name, x: v.x, y: v.y, r: v.island ? 20 : 12 })),
       ...this.map.props
         .filter((pr) => LANDMARK_NAMES[(pr.name || '').replace(/^prop\./, '')])
         .map((pr) => {
@@ -981,7 +1006,10 @@ class Game {
     const rec = this.records[p.key];
     if (!rec) return;
     Object.assign(rec, {
-      x: p.x, y: p.y,
+      // a voyage interrupted by logout completes on the books: never save a
+      // character standing on open water
+      x: p.voyage ? p.voyage.land.x : p.x,
+      y: p.voyage ? p.voyage.land.y : p.y,
       str: p.str, dex: p.dex, int: p.int,
       hp: Math.max(1, p.hp), mana: p.mana,
       skills: { ...p.skills },
@@ -1038,6 +1066,8 @@ class Game {
       if (msg.t === 'join') this.join(ws, msg);
       return;
     }
+    // Mid-voyage the ship has you: the sea ignores everything but talk.
+    if (p.voyage && msg.t !== 'say') return;
     switch (msg.t) {
       case 'move': return this.handleMove(p, msg.dx | 0, msg.dy | 0);
       case 'say': return this.handleSay(p, msg.text);
@@ -1059,6 +1089,7 @@ class Game {
       case 'runetravel': return this.handleRuneTravel(p, String(msg.key || ''));
       case 'logout': return this.handleLogout(p);
       case 'contribute': return this.handleContribute(p, String(msg.kind || ''));
+      case 'ferry': return this.handleFerry(p);
       case 'special': return this.handleSpecial(p);
       case 'pray': return this.handlePray(p);
       case 'boon': return this.handleBoon(p, String(msg.id || ''));
@@ -1601,6 +1632,50 @@ class Game {
     }
     this.send(p.ws, { t: 'loggedout' });
     try { p.ws.close(); } catch (e) { /* already gone */ }
+  }
+
+  // ---- the ferry: paid passage across open water --------------------------------
+
+  handleFerry(p) {
+    if (p.dead) return this.sys(p, 'The dead pay no fares.');
+    const v = this.map.vendors.find((o) => o.ferry &&
+      Math.abs(o.x - p.x) <= 3 && Math.abs(o.y - p.y) <= 3);
+    if (!v) return this.sys(p, 'There is no captain near to take your coin.');
+    const route = this.ferries[v.ferry];
+    if (!route) return;
+    if (p.gold < route.price) {
+      return this.sys(p, `The crossing costs ${route.price} gp — you carry ${p.gold}.`);
+    }
+    p.gold -= route.price;
+    p.voyage = { path: route.path, i: 0, land: route.land, label: route.label };
+    p.voyageAt = 0;
+    p.x = route.path[0].x;
+    p.y = route.path[0].y;
+    this.fxNear(p, { t: 'fx', kind: 'splash', x: p.x, y: p.y });
+    this.sys(p, route.price
+      ? `You pay ${route.price} gp and board the ship for ${route.label}.`
+      : `You board the ship for ${route.label}.`);
+    this.sendYou(p);
+  }
+
+  // One tile of open water per beat; the whole shard can watch the sail go by.
+  voyageTick(p, t) {
+    if (t < (p.voyageAt || 0)) return;
+    p.voyageAt = t + 170;
+    const v = p.voyage;
+    v.i += 1;
+    if (v.i < v.path.length) {
+      p.x = v.path[v.i].x;
+      p.y = v.path[v.i].y;
+      return;
+    }
+    p.x = v.land.x;
+    p.y = v.land.y;
+    p.voyage = null;
+    p.moveAt = t + 300; // find your land legs
+    this.fxNear(p, { t: 'fx', kind: 'splash', x: p.x, y: p.y });
+    this.sys(p, `The hull bumps the pier — welcome to ${v.label}.`);
+    this.arriveAt(p, t);
   }
 
   // ---- rune transport: stone to attuned stone ----------------------------------
@@ -3377,6 +3452,11 @@ class Game {
     const tickStart = process.hrtime.bigint();
     const t = now();
 
+    // Ships under way glide one water tile per beat.
+    for (const p of this.players.values()) {
+      if (p.voyage) this.voyageTick(p, t);
+    }
+
     // Telegraphed slams land.
     if (this.pendingAoes.length) {
       const due = this.pendingAoes.filter((a) => t >= a.at);
@@ -3524,6 +3604,7 @@ class Game {
             a: t - (q.swungAt || 0) < 600 ? 1 : 0,
             w: gear('weapon'), ar: gear('armor'), oh: gear('offhand'),
             c: q.calling || undefined,
+            s: q.voyage ? 1 : undefined,
           };
         }),
         mobs: mobs.filter(near).map((m) => ({

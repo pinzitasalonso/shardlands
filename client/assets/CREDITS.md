@@ -17,6 +17,10 @@ Generated atlases are produced by `tools/build-assets.py` from these sources:
   ship with **HAS UI** by **Aleksandr Makarov** (@IKnowKingRabbit), same
   license terms as below.
 
+## The Lamu ferry (`shipanim.png`)
+- The little sail ship is the **Sail** unit from **NewPangea** by
+  **Aleksandr Makarov** (@IKnowKingRabbit), same license terms.
+
 ## World-builder prop catalog (`props-extra.png`)
 - Object sprites cut from across the **Heroic Asset Series** packs
   (Overworld, Dungeon, Buildings Pack, HAS2020, Dwarves, Orcs Empire,
