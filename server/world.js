@@ -1218,10 +1218,11 @@ function generate(seed = 1337) {
       ferry: 'lamuBack', ferryLabel: 'the mainland', ferryPrice: 0,
       greeting: 'Homesick already? The crossing back is on the house.',
     });
-    // the mainland pier on the desert coast, where passage is bought
-    for (let x = 1624; x <= 1627; x++) tiles[1474 * W + x] = TILE.PLANKS;
+    // the mainland pier on the Duskwell coast — village, road and pier all
+    // on the same walkable shore (the first pier sat on a cut-off sandbar)
+    for (let x = 1552; x <= 1555; x++) tiles[1381 * W + x] = TILE.PLANKS;
     vendors.push({
-      name: 'Captain Odo', x: 1625, y: 1474, model: 'hermit', goods: [],
+      name: 'Captain Odo', x: 1553, y: 1381, model: 'hermit', goods: [],
       ferry: 'lamu', ferryLabel: 'Lamu', ferryPrice: 100,
       greeting: 'A hundred gold buys you the crossing to Lamu, and the wind does the rest.',
     });

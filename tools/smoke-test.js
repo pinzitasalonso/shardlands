@@ -1998,6 +1998,31 @@ assert.strictEqual(game.map.tiles[spot.y * game.map.w + spot.x + 20], TILE.STONE
     Math.abs(s.x - lamu.x) < 20).length >= 2, 'donkeys work the island');
   assert(game.map.spawners.filter((s) => s.kind === 'crab' &&
     Math.abs(s.x - lamu.x) < 20).length >= 2, 'crabs pick over its shores');
+  // the pier must stand on the same walkable shore as Duskwell — the first
+  // one sat on a cut-off sandbar no traveller could reach
+  {
+    const dusk = game.map.villages.find((v) => v.name === 'Duskwell');
+    const odo = game.map.vendors.find((v) => v.ferry === 'lamu');
+    // search only the neighbourhood between village and pier: the link is local
+    const inBox = (x, y) => x >= dusk.x - 60 && x <= odo.x + 20 &&
+      y >= Math.min(dusk.y, odo.y) - 40 && y <= Math.max(dusk.y, odo.y) + 40;
+    const seen = new Set([dusk.x + ',' + dusk.y]);
+    const bq = [[dusk.x, dusk.y]];
+    let found = false;
+    while (bq.length) {
+      const [x, y] = bq.shift();
+      if (x === odo.x && y === odo.y) { found = true; break; }
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx;
+        const ny = y + dy;
+        const k = nx + ',' + ny;
+        if (seen.has(k) || !inBox(nx, ny) || !isWalkable(game.map, nx, ny)) continue;
+        seen.add(k);
+        bq.push([nx, ny]);
+      }
+    }
+    assert(found, 'Captain Odo\'s pier is walkable from Duskwell');
+  }
   const wsf = fakeWs();
   game.handle(wsf, { t: 'join', email: 'sailor@test.dev', password: 'secret1', name: 'Sailor' });
   const sp = wsf.player;
