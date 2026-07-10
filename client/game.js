@@ -27,6 +27,7 @@ const MOB_STYLE = {
   sheep: { color: '#e8e4da', size: 0.5, name: 'a sheep' , neutral: true },
   pig: { color: '#d8a8a0', size: 0.5, name: 'a pig' , neutral: true },
   chicken: { color: '#e8d8b0', size: 0.3, name: 'a chicken' , neutral: true },
+  donkey: { color: '#8a7e72', size: 0.55, name: 'a donkey', neutral: true },
   snake: { color: '#6a8a4a', size: 0.4, name: 'a bog serpent' },
   crab: { color: '#b06a4a', size: 0.4, name: 'a marsh crab' },
   boar: { color: '#6a5240', size: 0.6, name: 'a wild boar' },

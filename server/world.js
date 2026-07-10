@@ -1187,13 +1187,8 @@ function generate(seed = 1337) {
         const d = Math.hypot(dx / 1.2, dy);
         const x = LX + dx;
         const y = LY + dy;
-        if (d < 9) tiles[y * W + x] = TILE.GRASS;
-        else if (d < 11.5) tiles[y * W + x] = TILE.SAND;
+        if (d < 11.5) tiles[y * W + x] = TILE.SAND; // all sand, dune to shore
       }
-    }
-    // a green crown of trees on the north rise
-    for (const [dx, dy] of [[-3, -6], [0, -7], [3, -6], [-6, -3], [6, -4]]) {
-      tiles[(LY + dy) * W + (LX + dx)] = TILE.TREE;
     }
     // the town: whitewashed cottages around a well
     props.push({ x: LX - 3, y: LY - 1, name: 'prop.cottage0' });
@@ -1201,10 +1196,12 @@ function generate(seed = 1337) {
     props.push({ x: LX + 4, y: LY + 2, name: 'prop.cottage2' });
     props.push({ x: LX - 4, y: LY + 3, name: 'prop.cottage3' });
     props.push({ x: LX, y: LY, name: 'prop.well' });
-    props.push({ x: LX - 1, y: LY + 2, name: 'prop.flowers1' });
-    props.push({ x: LX + 2, y: LY - 1, name: 'prop.flowers2' });
-    spawners.push({ kind: 'villager', count: 3, x: LX, y: LY, r: 4 });
-    spawners.push({ kind: 'chicken', count: 2, x: LX + 2, y: LY + 3, r: 3 });
+    // a sand island lives on its beasts: donkeys in town, crabs on the shore
+    spawners.push({ kind: 'villager', count: 2, x: LX, y: LY, r: 4 });
+    spawners.push({ kind: 'donkey', count: 4, x: LX - 2, y: LY + 1, r: 5 });
+    spawners.push({ kind: 'donkey', count: 2, x: LX + 4, y: LY - 3, r: 4 });
+    spawners.push({ kind: 'crab', count: 4, x: LX - 8, y: LY + 6, r: 6 });
+    spawners.push({ kind: 'crab', count: 3, x: LX + 8, y: LY - 6, r: 6 });
     // the island market: dearer than the mainland — everything comes by ship
     vendors.push({
       name: 'Asha of Lamu', x: LX + 1, y: LY + 1, model: 'villager2',

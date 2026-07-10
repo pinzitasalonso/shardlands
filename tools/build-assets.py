@@ -994,6 +994,65 @@ def compose_has_atlas(name, get_frame, z, dirs=8, anims=None):
     }
 
 
+# No pack in the bundle keeps a donkey, and Lamu's sand needs its beasts of
+# burden — so this one is hand-drawn in the HAS wildlife manner: 16px, side
+# view facing left, chunky dark outline. Four poses: stand, graze, two steps.
+DONKEY_PAL = {
+    '.': None,
+    'O': (44, 36, 30, 255), 'G': (172, 160, 150, 255), 'g': (138, 126, 117, 255),
+    'd': (98, 88, 80, 255), 'W': (226, 216, 198, 255), 'M': (70, 60, 54, 255),
+    'k': (20, 16, 14, 255),
+}
+
+DONKEY_FRAMES = {
+  'A': [  # standing, head up, ears tall
+    '................', '..OO.OO.........', '.OMdOMdO........', '.OgggggO........',
+    '.OGgkggO........', 'OWGggggOOOOOO...', 'OWGgggggggggdO..', '.OOgggggggggddO.',
+    '..OGggggggggdMO.', '..OGgggggggddOMO', '...OgdOOOOgdO.O.', '...OgO...OgO....',
+    '...OgO...OgO....', '...OMO...OMO....', '....O.....O.....', '................',
+  ],
+  'B': [  # grazing: head dips, ears swept back
+    '................', '................', '...OOOO.........', '..OMdMdO........',
+    '.OgggggOOOOOO...', '.OGgkgggggggdO..', 'OWGggggggggggdO.', 'OWGgggggggggdMO.',
+    '.OOgggggggggdOMO', '...OgdOOOOgdO.O.', '...OgO...OgO....', '...OgO...OgO....',
+    '...OgO...OgO....', '...OMO...OMO....', '....O.....O.....', '................',
+  ],
+  'C': [  # walk: near legs swing forward
+    '................', '..OO.OO.........', '.OMdOMdO........', '.OgggggO........',
+    '.OGgkggO........', 'OWGggggOOOOOO...', 'OWGgggggggggdO..', '.OOgggggggggddO.',
+    '..OGggggggggdMO.', '..OGgggggggddOMO', '..OgdOOOOOgdO.O.', '..OgO....OOgO...',
+    '.OgO......OgO...', '.OMO......OMO...', '..O........O....', '................',
+  ],
+  'D': [  # walk: legs cross under the body
+    '................', '..OO.OO.........', '.OMdOMdO........', '.OgggggO........',
+    '.OGgkggO........', 'OWGggggOOOOOO...', 'OWGgggggggggdO..', '.OOgggggggggddO.',
+    '..OGggggggggdMO.', '..OGgggggggddOMO', '...OOgdOOgdOO.O.', '....OgO.OgO.....',
+    '....OgO..OgO....', '....OMO..OMO....', '.....O....O.....', '................',
+  ],
+}
+
+
+def build_donkey():
+    cells = {}
+    for key, rows in DONKEY_FRAMES.items():
+        im = Image.new('RGBA', (16, 16), (0, 0, 0, 0))
+        for y, row in enumerate(rows):
+            assert len(row) == 16 and len(rows) == 16, f'donkey {key} bad shape'
+            for x, ch in enumerate(row):
+                c = DONKEY_PAL[ch]
+                if c:
+                    im.putpixel((x, y), c)
+        cells[key] = im
+    # stance sways stand/graze; the walk alternates steps; "melee" is an
+    # irritated stomp cut from the same cloth
+    plan = ['A', 'B', 'A', 'B', 'C', 'A', 'D', 'A', 'C', 'B', 'D', 'B']
+
+    def get_frame(col, mirrored):
+        f = cells[plan[col]]
+        return f.transpose(Image.FLIP_LEFT_RIGHT) if mirrored else f
+    return compose_has_atlas('donkey', get_frame, 3)
+
+
 def build_has_creatures():
     sheets = {k: Image.open(os.path.join(HEROIC, p)).convert('RGBA')
               for k, p in HAS_CREATURE_SHEETS.items()}
@@ -1008,6 +1067,8 @@ def build_has_creatures():
                 f = grayify(f)
             return f.transpose(Image.FLIP_LEFT_RIGHT) if mirrored else f
         creatures[kind] = compose_has_atlas(kind, get_frame, z)
+
+    creatures['donkey'] = build_donkey()
 
     hero_root = os.path.join(HEROIC, 'HAS Hero Pack (v.1.0)', 'HAS Hero Pack')
     for kind, (faction, prefix, gender) in HAS_HEROES.items():

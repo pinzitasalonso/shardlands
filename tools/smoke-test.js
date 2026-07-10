@@ -1985,6 +1985,19 @@ assert.strictEqual(game.map.tiles[spot.y * game.map.w + spot.x + 20], TILE.STONE
     'no runestone shortcuts the crossing');
   assert(game.ferries.lamu.path.every((s) => game.map.tiles[s.y * game.map.w + s.x] === TILE.WATER),
     'the sailing lane is open water end to end');
+  // an all-sand isle, worked by donkeys and picked over by crabs
+  let sandOnly = true;
+  for (let dy = -11; dy <= 11; dy++) {
+    for (let dx = -13; dx <= 13; dx++) {
+      const tl = game.map.tiles[(lamu.y + dy) * game.map.w + (lamu.x + dx)];
+      if (tl !== TILE.WATER && tl !== TILE.SAND && tl !== TILE.PLANKS) sandOnly = false;
+    }
+  }
+  assert(sandOnly, 'Lamu is sand from dune to shore');
+  assert(game.map.spawners.filter((s) => s.kind === 'donkey' &&
+    Math.abs(s.x - lamu.x) < 20).length >= 2, 'donkeys work the island');
+  assert(game.map.spawners.filter((s) => s.kind === 'crab' &&
+    Math.abs(s.x - lamu.x) < 20).length >= 2, 'crabs pick over its shores');
   const wsf = fakeWs();
   game.handle(wsf, { t: 'join', email: 'sailor@test.dev', password: 'secret1', name: 'Sailor' });
   const sp = wsf.player;
