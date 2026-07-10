@@ -1991,6 +1991,14 @@ assert.strictEqual(game.map.tiles[spot.y * game.map.w + spot.x + 20], TILE.STONE
   }
 }
 
+// The wilds live: fauna packs scattered between the set-piece camps.
+{
+  assert(game.map.spawners.length >= 500, 'the shard keeps five hundred spawners');
+  for (const kind of ['rabbit', 'fox', 'owlbear', 'duneserpent', 'warram', 'bogcroc']) {
+    assert(game.map.spawners.some((s) => s.kind === kind), `${kind} packs roam the wilds`);
+  }
+}
+
 // Rivers thread the land, and no settlement is cut off by one.
 assert(game.map.rivers >= 3, 'a handful of rivers reached the sea');
 
