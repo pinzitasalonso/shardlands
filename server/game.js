@@ -73,6 +73,7 @@ const MOB_KINDS = {
   sheep: { name: 'a sheep', hp: 10, dmg: [0, 1], skill: 5, gold: 2, speedMs: 700, aggro: 0 },
   pig: { name: 'a pig', hp: 12, dmg: [1, 2], skill: 5, gold: 3, speedMs: 650, aggro: 0 },
   chicken: { name: 'a chicken', hp: 4, dmg: [0, 1], skill: 3, gold: 1, speedMs: 500, aggro: 0 },
+  donkey: { name: 'a donkey', hp: 26, dmg: [1, 3], skill: 12, gold: 4, speedMs: 640, aggro: 0 },
   // Mire dwellers.
   snake: { name: 'a bog serpent', hp: 22, dmg: [3, 6], skill: 35, gold: 5, speedMs: 380, aggro: 5 },
   crab: { name: 'a marsh crab', hp: 18, dmg: [2, 5], skill: 22, gold: 4, speedMs: 600, aggro: 3 },
@@ -246,6 +247,7 @@ const LOOT_TABLES = {
   dragon: [[1, 'gold', 150, 400], [0.8, 'heal', 1, 2], [0.6, 'mana', 1, 2], [0.5, 'gems', 1, 2], [0.5, 'weapon', ['greatsword'], 3, 4]],
   wolf: [[0.3, 'gold', 3, 10]],
   deer: [[0.35, 'gold', 2, 6], [0.5, 'meat', 1, 1]],
+  donkey: [[0.3, 'gold', 1, 4]],
   snake: [[0.3, 'gold', 3, 9], [0.06, 'mana', 1, 1], [0.35, 'herbs', 1, 2]],
   crab: [[0.3, 'gold', 2, 7]],
   boar: [[0.35, 'gold', 3, 10], [0.08, 'heal', 1, 1], [0.6, 'meat', 1, 2]],
@@ -300,7 +302,7 @@ const BREWS = {
 // than a chicken even for the same doorstep skill.
 const TAMEABLE = {
   chicken: 0, rabbit: 0, sheep: 0, pig: 5, deer: 10, fox: 15,
-  giantrat: 20, crab: 20, badger: 25, boar: 30, snake: 40, wolf: 45,
+  giantrat: 20, crab: 20, donkey: 22, badger: 25, boar: 30, snake: 40, wolf: 45,
   blackboar: 50, silverstag: 50, greatelk: 55, warram: 55, direwolf: 60,
   brownbear: 70, cavebear: 75,
 };

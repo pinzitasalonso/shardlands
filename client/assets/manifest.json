@@ -1004,6 +1004,32 @@
    "dirs": 8,
    "img": "djinn"
   },
+  "donkey": {
+   "anims": {
+    "melee": {
+     "frames": 4,
+     "ms": 130,
+     "start": 8
+    },
+    "run": {
+     "frames": 4,
+     "ms": 140,
+     "start": 4
+    },
+    "stance": {
+     "frames": 4,
+     "loop": "back_forth",
+     "ms": 260,
+     "start": 0
+    }
+   },
+   "ax": 24,
+   "ay": 39,
+   "cellH": 48,
+   "cellW": 48,
+   "dirs": 8,
+   "img": "donkey"
+  },
   "dragon": {
    "anims": {
     "melee": {
@@ -36297,6 +36323,7 @@
   "devil": "creatures/devil.png",
   "direwolf": "creatures/direwolf.png",
   "djinn": "creatures/djinn.png",
+  "donkey": "creatures/donkey.png",
   "dragon": "creatures/dragon.png",
   "dreadknight": "creatures/dreadknight.png",
   "drops16": "drops16.png",
