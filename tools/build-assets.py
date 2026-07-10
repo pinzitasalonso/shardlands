@@ -1253,7 +1253,10 @@ def build_has_spellfx(frames, images_out):
     book = os.path.join(HEROIC, 'HAS Magic Book 1.1')
     SP = [('magicarrow', 'MagicArrow'), ('fireball', 'FireBall'), ('greaterheal', 'Cure'),
           ('bless', 'Bless'), ('poison', 'AcidSplash'), ('energybolt', 'EnergyBlast'),
-          ('icebolt', 'IceBolt'), ('chainlightning', 'ChainLightning'), ('haste', 'Haste')]
+          ('icebolt', 'IceBolt'), ('chainlightning', 'ChainLightning'), ('haste', 'Haste'),
+          # the moments that had no light of their own
+          ('resurrection', 'Resurrection'), ('holylight', 'HolyLight'),
+          ('thunderexplosion', 'ThunderExplosion'), ('explosion', 'Explosion')]
     C = 24
     atlas = Image.new('RGBA', (4 * C, len(SP) * C), (0, 0, 0, 0))
     for r, (sid, folder) in enumerate(SP):

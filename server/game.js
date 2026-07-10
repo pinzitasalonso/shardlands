@@ -1050,6 +1050,7 @@ class Game {
   deed(p, id) {
     if (p.deeds[id]) return;
     p.deeds[id] = Date.now();
+    this.fxNear(p, { t: 'fx', kind: 'sfx', name: 'holylight', x: p.x, y: p.y });
     this.sys(p, `⚑ Deed accomplished: ${DEED_NAMES[id] || id}.`);
     this.sendYou(p);
   }
@@ -2952,6 +2953,7 @@ class Game {
   resurrect(p) {
     p.dead = false;
     p.hp = Math.ceil(maxHp(p) * 0.3);
+    this.fxNear(p, { t: 'fx', kind: 'sfx', name: 'resurrection', x: p.x, y: p.y });
     this.fxNear(p, { t: 'fx', kind: 'heal', x: p.x, y: p.y, amount: p.hp });
     this.sys(p, 'The ankh glows and breathes life back into you.');
     this.sendYou(p);
@@ -3467,6 +3469,7 @@ class Game {
       this.pendingAoes = this.pendingAoes.filter((a) => t < a.at);
       for (const a of due) {
         this.fxNear(a, { t: 'fx', kind: 'slam', x: a.x, y: a.y });
+        this.fxNear(a, { t: 'fx', kind: 'sfx', name: 'thunderexplosion', x: a.x, y: a.y });
         for (const q of this.players.values()) {
           if (!q.dead && Math.abs(q.x - a.x) <= 1 && Math.abs(q.y - a.y) <= 1) {
             this.strikePlayer(q, a.dmg, a.by);
@@ -3513,6 +3516,8 @@ class Game {
               this.cacheRespawns.delete(i);
               this.stockCache(sc, i);
             }
+            // the earth gives way with a satisfying burst
+            this.fxNear(p, { t: 'fx', kind: 'sfx', name: 'explosion', x: sc.x, y: sc.y });
             // A practiced eye reads the ground itself: the better the
             // treasure hunter, the more the dig turns up beyond the cache.
             const th = p.skills.treasurehunting;
